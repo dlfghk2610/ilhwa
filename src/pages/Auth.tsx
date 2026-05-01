@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 
 const schema = z.object({
   email: z.string().trim().email("올바른 이메일을 입력하세요").max(255),
-  password: z.string().min(6, "비밀번호는 최소 6자 이상").max(72),
+  password: z.string().min(8, "비밀번호는 최소 8자 이상이어야 합니다").max(72),
 });
 
 export default function Auth() {
