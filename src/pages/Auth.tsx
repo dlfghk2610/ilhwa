@@ -52,8 +52,18 @@ export default function Auth() {
       },
     });
     setSubmitting(false);
-    if (error) toast.error(error.message);
-    else { toast.success("회원가입 완료. 로그인되었습니다."); navigate("/"); }
+    if (error) {
+      const code = (error as any).code;
+      if (code === "weak_password") {
+        toast.error("비밀번호가 너무 약하거나 유출된 적이 있습니다. 대문자/숫자/특수문자를 조합한 더 복잡한 비밀번호를 사용해주세요.");
+      } else if (code === "user_already_exists" || error.message.includes("already")) {
+        toast.error("이미 가입된 이메일입니다. 로그인 탭을 이용해주세요.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+    toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
   };
 
   return (
