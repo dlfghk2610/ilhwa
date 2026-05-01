@@ -14,16 +14,279 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bid_participations: {
+        Row: {
+          bid_date: string | null
+          client: string | null
+          created_at: string
+          created_by: string
+          estimated_amount: number | null
+          id: string
+          notes: string | null
+          project_name: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          bid_date?: string | null
+          client?: string | null
+          created_at?: string
+          created_by: string
+          estimated_amount?: number | null
+          id?: string
+          notes?: string | null
+          project_name: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bid_date?: string | null
+          client?: string | null
+          created_at?: string
+          created_by?: string
+          estimated_amount?: number | null
+          id?: string
+          notes?: string | null
+          project_name?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      personal_careers: {
+        Row: {
+          company: string
+          created_at: string
+          created_by: string
+          department: string | null
+          duties: string | null
+          hire_date: string | null
+          id: string
+          notes: string | null
+          position: string | null
+          resign_date: string | null
+          technician_name: string
+          updated_at: string
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          created_by: string
+          department?: string | null
+          duties?: string | null
+          hire_date?: string | null
+          id?: string
+          notes?: string | null
+          position?: string | null
+          resign_date?: string | null
+          technician_name: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          duties?: string | null
+          hire_date?: string | null
+          id?: string
+          notes?: string | null
+          position?: string | null
+          resign_date?: string | null
+          technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      personal_performances: {
+        Row: {
+          client: string | null
+          created_at: string
+          created_by: string
+          end_date: string | null
+          id: string
+          notes: string | null
+          performance_amount: number | null
+          project_name: string
+          role: string | null
+          start_date: string | null
+          technician_name: string
+          updated_at: string
+        }
+        Insert: {
+          client?: string | null
+          created_at?: string
+          created_by: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          performance_amount?: number | null
+          project_name: string
+          role?: string | null
+          start_date?: string | null
+          technician_name: string
+          updated_at?: string
+        }
+        Update: {
+          client?: string | null
+          created_at?: string
+          created_by?: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          performance_amount?: number | null
+          project_name?: string
+          role?: string | null
+          start_date?: string | null
+          technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          position: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          position?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          position?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      similar_services: {
+        Row: {
+          client: string | null
+          completion_date: string | null
+          contract_amount: number | null
+          contract_date: string | null
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          project_name: string
+          service_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          client?: string | null
+          completion_date?: string | null
+          contract_amount?: number | null
+          contract_date?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          project_name: string
+          service_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client?: string | null
+          completion_date?: string | null
+          contract_amount?: number | null
+          contract_date?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          project_name?: string
+          service_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      technician_overlaps: {
+        Row: {
+          created_at: string
+          created_by: string
+          end_date: string
+          id: string
+          notes: string | null
+          participation_rate: number | null
+          project_name: string
+          start_date: string
+          technician_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          participation_rate?: number | null
+          project_name: string
+          start_date: string
+          technician_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          participation_rate?: number | null
+          project_name?: string
+          start_date?: string
+          technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +413,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
