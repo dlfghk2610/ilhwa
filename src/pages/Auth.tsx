@@ -106,7 +106,7 @@ export default function Auth() {
                   <Input id="su-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-pw">비밀번호 (최소 6자)</Label>
+                  <Label htmlFor="su-pw">비밀번호 (8자 이상, 흔하지 않은 비밀번호)</Label>
                   <Input id="su-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
