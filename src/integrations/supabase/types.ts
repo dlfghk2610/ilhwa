@@ -173,41 +173,62 @@ export type Database = {
       similar_services: {
         Row: {
           client: string | null
+          company_share_rate: number | null
           completion_date: string | null
           contract_amount: number | null
           contract_date: string | null
           created_at: string
           created_by: string
+          evaluation_type: string | null
           id: string
+          is_dual_participation: boolean
           notes: string | null
+          participation_rate: number | null
           project_name: string
+          service_overview: string | null
           service_type: string | null
+          share_amount: number | null
+          start_date: string | null
           updated_at: string
         }
         Insert: {
           client?: string | null
+          company_share_rate?: number | null
           completion_date?: string | null
           contract_amount?: number | null
           contract_date?: string | null
           created_at?: string
           created_by: string
+          evaluation_type?: string | null
           id?: string
+          is_dual_participation?: boolean
           notes?: string | null
+          participation_rate?: number | null
           project_name: string
+          service_overview?: string | null
           service_type?: string | null
+          share_amount?: number | null
+          start_date?: string | null
           updated_at?: string
         }
         Update: {
           client?: string | null
+          company_share_rate?: number | null
           completion_date?: string | null
           contract_amount?: number | null
           contract_date?: string | null
           created_at?: string
           created_by?: string
+          evaluation_type?: string | null
           id?: string
+          is_dual_participation?: boolean
           notes?: string | null
+          participation_rate?: number | null
           project_name?: string
+          service_overview?: string | null
           service_type?: string | null
+          share_amount?: number | null
+          start_date?: string | null
           updated_at?: string
         }
         Relationships: []
