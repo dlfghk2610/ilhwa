@@ -102,6 +102,10 @@ export default function Auth() {
                   <Label htmlFor="si-pw">비밀번호</Label>
                   <Input id="si-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="auto-login" checked={autoLogin} onCheckedChange={(c) => setAutoLogin(c === true)} />
+                  <Label htmlFor="auto-login" className="text-sm font-normal cursor-pointer">자동로그인</Label>
+                </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}로그인
                 </Button>
