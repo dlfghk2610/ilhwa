@@ -980,6 +980,9 @@ export default function SimilarServices() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-[40px]">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="전체 선택" />
+                  </TableHead>
                   <TableHead className="min-w-[160px] max-w-[220px]">사업명</TableHead>
                   <TableHead className="min-w-[140px] max-w-[200px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap">계약일</TableHead>
@@ -994,20 +997,27 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
                   <TableHead className="text-right w-[100px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={15} className="text-center py-12">
+                  <TableRow><TableCell colSpan={17} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
                     데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
                   </TableCell></TableRow>
-                ) : filtered.map((r) => (
-                  <TableRow key={r.id}>
+                ) : filtered.map((r) => {
+                  const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
+                  const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
+                  return (
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
+                    <TableCell className="align-middle">
+                      <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                    </TableCell>
                     <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.contract_date)}</TableCell>
@@ -1022,12 +1032,16 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap text-center align-middle">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{appliedCount(r).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center align-middle">
+                      {hasPdf ? <FileText className="h-4 w-4 text-primary inline" /> : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
                     <TableCell className="text-right align-middle">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
