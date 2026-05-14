@@ -467,9 +467,9 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "" }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null }] });
   };
-  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date", v: string) => {
+  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date" | "pdf_path", v: string) => {
     const ps = [...form.phases];
     ps[i] = { ...ps[i], [key]: v };
     setForm({ ...form, phases: ps });
