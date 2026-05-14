@@ -1,0 +1,1 @@
+ALTER TABLE public.similar_services ADD COLUMN IF NOT EXISTS phases jsonb NOT NULL DEFAULT '[]'::jsonb;
