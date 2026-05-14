@@ -342,25 +342,30 @@ export default function SimilarServices() {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
-              <div className="flex flex-wrap gap-2 p-2 rounded-md border bg-background min-h-10">
+              <div className="space-y-2 p-2 rounded-md border bg-background">
                 {serviceTypeOptions.length === 0 && <span className="text-xs text-muted-foreground">데이터 없음</span>}
-                {serviceTypeOptions.map((t) => (
-                  <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-1 rounded border hover:bg-muted">
-                    <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
-                    <span>{t}</span>
-                  </label>
+                {serviceTypeOptions.map((g) => (
+                  <div key={g.group} className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
+                    {g.items.map((t) => (
+                      <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-0.5 rounded border hover:bg-muted">
+                        <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
+                        <span>{t}</span>
+                      </label>
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-            <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
-              <div className="text-xs text-muted-foreground">총 적용건수</div>
-              <div className="text-xl font-bold text-primary">{totalAppliedCount.toFixed(2)}</div>
+          <div className="mt-3 flex flex-wrap gap-2 text-center">
+            <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+              <span className="text-[11px] text-muted-foreground mr-2">총 적용건수</span>
+              <span className="text-sm font-bold text-primary">{totalAppliedCount.toFixed(2)}</span>
             </div>
-            <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
-              <div className="text-xs text-muted-foreground">총 적용금액</div>
-              <div className="text-xl font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</div>
+            <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+              <span className="text-[11px] text-muted-foreground mr-2">총 적용금액</span>
+              <span className="text-sm font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</span>
             </div>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
