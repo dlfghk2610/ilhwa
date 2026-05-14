@@ -186,7 +186,7 @@ export default function SimilarServices() {
       "준공일": r.completion_date,
       "2종 분담참여": r.is_dual_participation ? "Y" : "N",
       "참여지분율(%)": r.participation_rate,
-      "각사지분율(%)": r.company_share_rate,
+      "각사지분율": r.company_share_rate,
       "지분금액": r.share_amount,
       "비고": r.notes,
     }));
