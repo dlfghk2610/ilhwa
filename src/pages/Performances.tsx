@@ -222,6 +222,16 @@ export default function Performances() {
         participant_file_path = path;
       }
 
+      let cert_pdf_path = form.cert_pdf_path;
+      if (form.cert_pdf_file) {
+        const path = `${user.id}/${Date.now()}_cert.pdf`;
+        const { error: upErr } = await supabase.storage
+          .from("performance-certs")
+          .upload(path, form.cert_pdf_file, { contentType: "application/pdf", upsert: true });
+        if (upErr) throw upErr;
+        cert_pdf_path = path;
+      }
+
       const payload = {
         project_name: form.project_name.trim(),
         service_overview: form.service_overview || null,
