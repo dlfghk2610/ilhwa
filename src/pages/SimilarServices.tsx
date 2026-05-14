@@ -27,6 +27,7 @@ type Row = {
   service_overview: string | null;
   contract_amount: number | null;
   contract_date: string | null;
+  announcement_date: string | null;
   start_date: string | null;
   completion_date: string | null;
   participation_rate: number | null;
@@ -47,6 +48,7 @@ const emptyForm = {
   service_overview: "",
   contract_amount: "",
   contract_date: "",
+  announcement_date: "",
   start_date: "",
   completion_date: "",
   participation_rate: "",
@@ -197,6 +199,7 @@ export default function SimilarServices() {
       service_overview: row.service_overview ?? "",
       contract_amount: row.contract_amount?.toString() ?? "",
       contract_date: row.contract_date ?? "",
+      announcement_date: (row as any).announcement_date ?? "",
       start_date: row.start_date ?? "",
       completion_date: row.completion_date ?? "",
       participation_rate: row.participation_rate?.toString() ?? "",
@@ -255,6 +258,7 @@ export default function SimilarServices() {
       service_overview: txt(form.service_overview),
       contract_amount: num(form.contract_amount),
       contract_date: txt(form.contract_date),
+      announcement_date: txt(form.announcement_date),
       start_date: derivedStart,
       completion_date: derivedCompletion,
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
@@ -342,12 +346,26 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
+  // 공고일~준공일 5년 초과 시 집계 제외
+  const isExpired5y = (r: Row) => {
+    const ann = (r as any).announcement_date as string | null | undefined;
+    const comp = r.completion_date;
+    if (!ann || !comp) return false;
+    const a = new Date(ann).getTime();
+    const c = new Date(comp).getTime();
+    if (isNaN(a) || isNaN(c)) return false;
+    const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
+    return c - a > fiveYearsMs;
+  };
+
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
   const appliedCount = (r: Row) => {
+    if (isExpired5y(r)) return 0;
     const p = r.is_dual_participation ? 100 : Number(r.participation_rate ?? 0);
     return evalCoef(r) * serviceCoef(r) * (p / 100);
   };
   const appliedAmount = (r: Row) => {
+    if (isExpired5y(r)) return 0;
     return evalCoef(r) * serviceCoef(r) * Number(r.share_amount ?? 0);
   };
 
@@ -367,6 +385,7 @@ export default function SimilarServices() {
         "평가종류": r.evaluation_type,
         "용역개요": r.service_overview,
         "계약금액": r.contract_amount,
+        "공고일": (r as any).announcement_date,
         "계약일": r.contract_date,
         "착수일": r.start_date,
         "준공일": r.completion_date,
@@ -415,6 +434,7 @@ export default function SimilarServices() {
         service_overview: r["용역개요"] ?? null,
         contract_amount: r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null,
         contract_date: toDate(r["계약일"]),
+        announcement_date: toDate(r["공고일"]),
         start_date: toDate(r["착수일"]),
         completion_date: toDate(r["준공일"]),
         is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
@@ -596,6 +616,10 @@ export default function SimilarServices() {
                             {EVAL_TYPES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>공고일</Label>
+                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.announcement_date} onChange={(e) => setForm({ ...form, announcement_date: clampDate(e.target.value) })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
@@ -803,7 +827,7 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.contract_amount)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right align-middle">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle">{r.is_dual_participation ? "-" : (r.participation_rate == null ? "-" : `${fmtNum(r.participation_rate)}%`)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.evaluation_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.service_type ?? "-"}</TableCell>
