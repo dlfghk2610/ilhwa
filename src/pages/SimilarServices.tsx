@@ -619,11 +619,21 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", contract_amount: "", share_rate: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null, amount_touched: false }] });
   };
-  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date" | "pdf_path", v: string) => {
+  const updatePhase = (i: number, key: "label" | "amount" | "contract_amount" | "share_rate" | "start_date" | "end_date" | "pdf_path", v: string) => {
     const ps = [...form.phases];
-    ps[i] = { ...ps[i], [key]: v };
+    const cur = { ...ps[i], [key]: v };
+    if (key === "amount") {
+      cur.amount_touched = true;
+    } else if ((key === "contract_amount" || key === "share_rate") && !cur.amount_touched) {
+      const ca = Number(cur.contract_amount);
+      const sr = Number(cur.share_rate);
+      if (!isNaN(ca) && !isNaN(sr) && cur.contract_amount !== "" && cur.share_rate !== "") {
+        cur.amount = String(Math.round(ca * sr / 100));
+      }
+    }
+    ps[i] = cur;
     setForm({ ...form, phases: ps });
   };
   const removePhase = (i: number) => {
