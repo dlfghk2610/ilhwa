@@ -355,10 +355,13 @@ export default function SimilarServices() {
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
   const handleExport = () => {
-    const maxPhases = filtered.reduce((m, r) => Math.max(m, Array.isArray(r.phases) ? r.phases.length : 0), 0);
-    const data = filtered.map((r) => {
-      const base: Record<string, any> = {
-        "사업명": r.project_name + phaseSuffix(r),
+    const data: Record<string, any>[] = [];
+    filtered.forEach((r) => {
+      const ps = Array.isArray(r.phases)
+        ? r.phases.filter((p) => p && (p.label || p.amount != null || p.start_date || p.end_date))
+        : [];
+      const makeRow = (nameSuffix: string, overrides: Record<string, any> = {}) => ({
+        "사업명": r.project_name + nameSuffix,
         "발주처": r.client,
         "사업종류": r.service_type,
         "평가종류": r.evaluation_type,
@@ -374,16 +377,20 @@ export default function SimilarServices() {
         "적용건수": Number(appliedCount(r).toFixed(2)),
         "적용금액": Math.round(appliedAmount(r)),
         "비고": r.notes,
-      };
-      const ps = Array.isArray(r.phases) ? r.phases : [];
-      for (let i = 0; i < maxPhases; i++) {
-        const p = ps[i];
-        base[`차수${i + 1}_명`] = p?.label ?? null;
-        base[`차수${i + 1}_착수일`] = p?.start_date ?? null;
-        base[`차수${i + 1}_준공일`] = p?.end_date ?? null;
-        base[`차수${i + 1}_금액`] = p?.amount ?? null;
+        ...overrides,
+      });
+      if (ps.length === 0) {
+        data.push(makeRow(""));
+      } else {
+        ps.forEach((p) => {
+          const label = (p.label && p.label.trim()) || "";
+          data.push(makeRow(label ? `(${label})` : "", {
+            "착수일": p.start_date ?? r.start_date,
+            "준공일": p.end_date ?? r.completion_date,
+            "지분금액": p.amount ?? null,
+          }));
+        });
       }
-      return base;
     });
     exportToExcel(data, "PQ유사용역");
     toast.success("엑셀 다운로드 완료");
