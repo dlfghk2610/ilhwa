@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -23,6 +24,17 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [autoLogin, setAutoLogin] = useState<boolean>(() => localStorage.getItem("pq-auto-login") !== "0");
+
+  const applyAutoLoginPref = (checked: boolean) => {
+    localStorage.setItem("pq-auto-login", checked ? "1" : "0");
+    if (checked) {
+      localStorage.removeItem("pq-session-only");
+    } else {
+      localStorage.setItem("pq-session-only", "1");
+    }
+    sessionStorage.setItem("pq-tab-alive", "1");
+  };
 
   useEffect(() => {
     if (!loading && user) navigate("/", { replace: true });
@@ -36,7 +48,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (error) toast.error(error.message);
-    else { toast.success("로그인 성공"); navigate("/"); }
+    else { applyAutoLoginPref(autoLogin); toast.success("로그인 성공"); navigate("/"); }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -63,7 +75,7 @@ export default function Auth() {
       }
       return;
     }
-    toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
+    applyAutoLoginPref(autoLogin); toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
   };
 
   return (
@@ -89,6 +101,10 @@ export default function Auth() {
                 <div className="space-y-2">
                   <Label htmlFor="si-pw">비밀번호</Label>
                   <Input id="si-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="auto-login" checked={autoLogin} onCheckedChange={(c) => setAutoLogin(c === true)} />
+                  <Label htmlFor="auto-login" className="text-sm font-normal cursor-pointer">자동로그인</Label>
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}로그인
