@@ -173,6 +173,7 @@ export type Database = {
       similar_services: {
         Row: {
           announcement_date: string | null
+          cert_pdf_path: string | null
           client: string | null
           company_share_rate: string | null
           completion_date: string | null
@@ -197,6 +198,7 @@ export type Database = {
         }
         Insert: {
           announcement_date?: string | null
+          cert_pdf_path?: string | null
           client?: string | null
           company_share_rate?: string | null
           completion_date?: string | null
@@ -221,6 +223,7 @@ export type Database = {
         }
         Update: {
           announcement_date?: string | null
+          cert_pdf_path?: string | null
           client?: string | null
           company_share_rate?: string | null
           completion_date?: string | null

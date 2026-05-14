@@ -13,10 +13,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
+import { PDFDocument } from "pdf-lib";
 
-type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null };
+type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
 
 type Row = {
   id: string;
@@ -38,6 +39,7 @@ type Row = {
   is_under_90days: boolean;
   notes: string | null;
   phases: Phase[] | null;
+  cert_pdf_path: string | null;
 };
 
 const emptyForm = {
@@ -58,7 +60,9 @@ const emptyForm = {
   is_private: false,
   is_under_90days: false,
   notes: "",
-  phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
+  phases: [] as { label: string; amount: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null }[],
+  cert_pdf_path: "",
+  cert_pdf_file: null as File | null,
 };
 
 type FormState = typeof emptyForm;
@@ -216,7 +220,9 @@ export default function SimilarServices() {
       is_private: (row as any).is_private ?? false,
       is_under_90days: (row as any).is_under_90days ?? false,
       notes: row.notes ?? "",
-      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null })),
+      cert_pdf_path: (row as any).cert_pdf_path ?? "",
+      cert_pdf_file: null,
     });
     setShareAmountTouched(true);
     setOpen(true);
@@ -233,62 +239,92 @@ export default function SimilarServices() {
     return `${y}-${m[2]}-${m[3]}`;
   };
 
+  const uploadPdf = async (file: File, folder: string, name: string) => {
+    const path = `${user!.id}/${folder}/${Date.now()}-${name}`;
+    const { error } = await supabase.storage.from("performance-certs").upload(path, file, { contentType: "application/pdf", upsert: true });
+    if (error) throw error;
+    return path;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
 
-    const phasesPayload = form.phases
-      .filter((p) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "")
-      .map((p) => ({
-        label: p.label.trim(),
-        amount: p.amount === "" ? null : Number(p.amount),
-        start_date: p.start_date || null,
-        end_date: p.end_date || null,
+    setSubmitting(true);
+    try {
+      const rowFolder = editing?.id ?? crypto.randomUUID();
+
+      // Upload project-level cert PDF if a new one was selected
+      let certPath: string | null = form.cert_pdf_path || null;
+      if (form.cert_pdf_file) {
+        certPath = await uploadPdf(form.cert_pdf_file, rowFolder, "cert.pdf");
+      }
+
+      // Upload per-phase PDFs
+      const phasesUploaded = await Promise.all(form.phases.map(async (p, i) => {
+        let pdf_path: string | null = p.pdf_path || null;
+        if (p.pdf_file) {
+          pdf_path = await uploadPdf(p.pdf_file, rowFolder, `phase-${i + 1}.pdf`);
+        }
+        return { p, pdf_path };
       }));
 
-    // 사후: 첫 차수 착수일 → 대표 착수일, 마지막 차수 준공일 → 대표 준공일
-    let derivedStart = txt(form.start_date);
-    let derivedCompletion = txt(form.completion_date);
-    if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
-      const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
-      const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
-      if (firstStart) derivedStart = firstStart;
-      if (lastEnd) derivedCompletion = lastEnd;
-    }
+      const phasesPayload = phasesUploaded
+        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
+        .map(({ p, pdf_path }) => ({
+          label: p.label.trim(),
+          amount: p.amount === "" ? null : Number(p.amount),
+          start_date: p.start_date || null,
+          end_date: p.end_date || null,
+          pdf_path,
+        }));
 
-    const payload: any = {
-      project_name: form.project_name,
-      client: txt(form.client),
-      service_type: txt(form.service_type),
-      evaluation_type: txt(form.evaluation_type),
-      service_overview: txt(form.service_overview),
-      contract_amount: num(form.contract_amount),
-      contract_date: txt(form.contract_date),
-      announcement_date: txt(form.announcement_date),
-      start_date: derivedStart,
-      completion_date: derivedCompletion,
-      participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
-      company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
-      share_amount: num(form.share_amount),
-      is_dual_participation: form.is_dual_participation,
-      is_private: form.is_private,
-      is_under_90days: form.is_under_90days,
-      notes: txt(form.notes),
-      phases: phasesPayload,
-    };
+      let derivedStart = txt(form.start_date);
+      let derivedCompletion = txt(form.completion_date);
+      if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
+        const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
+        const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+        if (firstStart) derivedStart = firstStart;
+        if (lastEnd) derivedCompletion = lastEnd;
+      }
 
-    setSubmitting(true);
-    if (editing) {
-      const { error } = await supabase.from("similar_services").update(payload).eq("id", editing.id);
-      if (error) toast.error(error.message);
-      else { toast.success("수정 완료"); setOpen(false); load(); }
-    } else {
-      const { error } = await supabase.from("similar_services").insert({ ...payload, created_by: user.id });
-      if (error) toast.error(error.message);
-      else { toast.success("등록 완료"); setOpen(false); load(); }
+      const payload: any = {
+        project_name: form.project_name,
+        client: txt(form.client),
+        service_type: txt(form.service_type),
+        evaluation_type: txt(form.evaluation_type),
+        service_overview: txt(form.service_overview),
+        contract_amount: num(form.contract_amount),
+        contract_date: txt(form.contract_date),
+        announcement_date: txt(form.announcement_date),
+        start_date: derivedStart,
+        completion_date: derivedCompletion,
+        participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
+        company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
+        share_amount: num(form.share_amount),
+        is_dual_participation: form.is_dual_participation,
+        is_private: form.is_private,
+        is_under_90days: form.is_under_90days,
+        notes: txt(form.notes),
+        phases: phasesPayload,
+        cert_pdf_path: certPath,
+      };
+
+      if (editing) {
+        const { error } = await supabase.from("similar_services").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        toast.success("수정 완료"); setOpen(false); load();
+      } else {
+        const { error } = await supabase.from("similar_services").insert({ ...payload, id: rowFolder, created_by: user.id });
+        if (error) throw error;
+        toast.success("등록 완료"); setOpen(false); load();
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "저장 실패");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleDelete = async () => {
@@ -305,7 +341,31 @@ export default function SimilarServices() {
     if (!search) return true;
     return [r.project_name, r.client, r.service_type, r.evaluation_type]
       .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
+  }).sort((a, b) => {
+    const av = a.start_date ?? "";
+    const bv = b.start_date ?? "";
+    if (!av && !bv) return 0;
+    if (!av) return 1;
+    if (!bv) return -1;
+    return av.localeCompare(bv);
   });
+
+  // 선택 (엑셀/PDF 내보내기 대상)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const allSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allSelected) return new Set();
+      return new Set(filtered.map((r) => r.id));
+    });
+  };
 
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
@@ -379,28 +439,35 @@ export default function SimilarServices() {
   const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    // 선택된 행만 (없으면 전체)
+    const targets = (selectedIds.size > 0
+      ? filtered.filter((r) => selectedIds.has(r.id))
+      : filtered);
+    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+
+    // 메인 화면 컬럼 순서와 동일
     const data: Record<string, any>[] = [];
-    filtered.forEach((r) => {
+    targets.forEach((r) => {
       const ps = Array.isArray(r.phases)
         ? r.phases.filter((p) => p && (p.label || p.amount != null || p.start_date || p.end_date))
         : [];
       const makeRow = (nameSuffix: string, overrides: Record<string, any> = {}) => ({
         "사업명": r.project_name + nameSuffix,
         "발주처": r.client,
-        "사업종류": r.service_type,
-        "평가종류": r.evaluation_type,
-        "용역개요": r.service_overview,
-        "계약금액": r.contract_amount,
         "계약일": r.contract_date,
         "착수일": r.start_date,
         "준공일": r.completion_date,
-        "2종 분담참여": r.is_dual_participation ? "Y" : "N",
-        "참여지분율(%)": r.participation_rate,
-        "각사지분율": r.company_share_rate,
+        "계약금액": r.contract_amount,
+        "참여(%)": r.is_dual_participation ? null : r.participation_rate,
         "지분금액": r.share_amount,
+        "평가종류": r.evaluation_type,
+        "사업종류": r.service_type,
+        "각사지분율": r.is_dual_participation ? null : r.company_share_rate,
+        "2종": r.is_dual_participation ? "✓" : "",
         "적용건수": Number(appliedCount(r).toFixed(2)),
         "적용금액": Math.round(appliedAmount(r)),
+        "용역개요": r.service_overview,
         "비고": r.notes,
         ...overrides,
       });
@@ -419,6 +486,53 @@ export default function SimilarServices() {
     });
     exportToExcel(data, "PQ유사용역");
     toast.success("엑셀 다운로드 완료");
+
+    // 실적증명서 PDF 병합 (대표 착수일 오름차순; 사후는 차수 PDF를 통으로)
+    try {
+      const merged = await PDFDocument.create();
+      let added = 0;
+      for (const r of targets) {
+        // 차수별 PDF (있으면 1차→N차 순서대로)
+        const phasePdfs = (Array.isArray(r.phases) ? r.phases : [])
+          .map((p) => (p as any).pdf_path as string | undefined)
+          .filter((x): x is string => !!x);
+
+        const paths: string[] = phasePdfs.length > 0
+          ? phasePdfs
+          : (r.cert_pdf_path ? [r.cert_pdf_path] : []);
+
+        for (const path of paths) {
+          const { data: blob, error } = await supabase.storage.from("performance-certs").download(path);
+          if (error || !blob) continue;
+          const bytes = await blob.arrayBuffer();
+          try {
+            const src = await PDFDocument.load(bytes);
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg) => merged.addPage(pg));
+            added++;
+          } catch {
+            // 손상된 PDF는 건너뜀
+          }
+        }
+      }
+      if (added > 0) {
+        const out = await merged.save();
+        const blob = new Blob([out as BlobPart], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "실적증명서_병합.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success(`실적증명서 PDF 병합 완료 (${added}개)`);
+      } else {
+        toast.message("등록된 실적증명서 PDF가 없어 병합 파일은 만들지 않았습니다");
+      }
+    } catch (err: any) {
+      toast.error("PDF 병합 오류: " + (err?.message ?? ""));
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -461,9 +575,9 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "" }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null }] });
   };
-  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date", v: string) => {
+  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date" | "pdf_path", v: string) => {
     const ps = [...form.phases];
     ps[i] = { ...ps[i], [key]: v };
     setForm({ ...form, phases: ps });
@@ -720,44 +834,75 @@ export default function SimilarServices() {
                         {form.phases.length === 0 ? (
                           <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 사후의 경우 첫 차수 착수일·마지막 차수 준공일이 대표일자로 자동 반영됩니다.</div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {form.phases.map((p, i) => (
-                              <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                                <Input
-                                  className="col-span-2"
-                                  placeholder="1차"
-                                  value={p.label}
-                                  onChange={(e) => updatePhase(i, "label", e.target.value)}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  type="date"
-                                  min="1900-01-01"
-                                  max="9999-12-31"
-                                  value={p.start_date}
-                                  onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  type="date"
-                                  min="1900-01-01"
-                                  max="9999-12-31"
-                                  value={p.end_date}
-                                  onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  inputMode="decimal"
-                                  placeholder="차수 지분금액"
-                                  value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.replace(/[^\d.-]/g, "");
-                                    updatePhase(i, "amount", raw);
-                                  }}
-                                />
-                                <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
+                              <div key={i} className="space-y-1.5 p-2 rounded border bg-background">
+                                <div className="grid grid-cols-12 gap-2 items-center">
+                                  <Input
+                                    className="col-span-2"
+                                    placeholder="1차"
+                                    value={p.label}
+                                    onChange={(e) => updatePhase(i, "label", e.target.value)}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    value={p.start_date}
+                                    onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    value={p.end_date}
+                                    onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    inputMode="decimal"
+                                    placeholder="차수 지분금액"
+                                    value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.replace(/[^\d.-]/g, "");
+                                      updatePhase(i, "amount", raw);
+                                    }}
+                                  />
+                                  <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">{p.label || `${i + 1}차`} 실적증명서:</span>
+                                  <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    className="text-xs"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0] ?? null;
+                                      const ps = [...form.phases];
+                                      ps[i] = { ...ps[i], pdf_file: f };
+                                      setForm({ ...form, phases: ps });
+                                    }}
+                                  />
+                                  {p.pdf_path && !p.pdf_file && (
+                                    <span className="text-primary">기존 파일 등록됨</span>
+                                  )}
+                                  {(p.pdf_path || p.pdf_file) && (
+                                    <button
+                                      type="button"
+                                      className="text-muted-foreground hover:text-destructive"
+                                      onClick={() => {
+                                        const ps = [...form.phases];
+                                        ps[i] = { ...ps[i], pdf_file: null, pdf_path: "" };
+                                        setForm({ ...form, phases: ps });
+                                      }}
+                                    >제거</button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                             <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
@@ -772,6 +917,31 @@ export default function SimilarServices() {
                           </div>
                         )}
                       </div>
+
+                      {/* 실적증명서 PDF (차수가 없을 때 사용) */}
+                      {form.phases.length === 0 && (
+                        <div className="space-y-1.5 md:col-span-2 p-3 rounded-md border bg-muted/20">
+                          <Label className="text-sm font-semibold flex items-center gap-1.5">
+                            <FileText className="h-4 w-4" />실적증명서 PDF
+                          </Label>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] ?? null })}
+                            className="text-sm"
+                          />
+                          {form.cert_pdf_path && !form.cert_pdf_file && (
+                            <div className="text-xs text-primary">기존 파일이 등록되어 있습니다.</div>
+                          )}
+                          {(form.cert_pdf_path || form.cert_pdf_file) && (
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() => setForm({ ...form, cert_pdf_file: null, cert_pdf_path: "" })}
+                            >파일 제거</button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 차수 입력 시 자동 합계 / 그 외 자동 계산되며 수기 수정 가능</span></Label>
@@ -810,6 +980,9 @@ export default function SimilarServices() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-[40px]">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="전체 선택" />
+                  </TableHead>
                   <TableHead className="min-w-[160px] max-w-[220px]">사업명</TableHead>
                   <TableHead className="min-w-[140px] max-w-[200px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap">계약일</TableHead>
@@ -824,20 +997,27 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
                   <TableHead className="text-right w-[100px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={15} className="text-center py-12">
+                  <TableRow><TableCell colSpan={17} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
                     데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
                   </TableCell></TableRow>
-                ) : filtered.map((r) => (
-                  <TableRow key={r.id}>
+                ) : filtered.map((r) => {
+                  const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
+                  const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
+                  return (
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
+                    <TableCell className="align-middle">
+                      <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                    </TableCell>
                     <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.contract_date)}</TableCell>
@@ -852,17 +1032,21 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap text-center align-middle">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{appliedCount(r).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center align-middle">
+                      {hasPdf ? <FileText className="h-4 w-4 text-primary inline" /> : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
                     <TableCell className="text-right align-middle">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t flex justify-between">
-            <span>총 {filtered.length}건</span>
+            <span>총 {filtered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
