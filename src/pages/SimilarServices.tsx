@@ -188,7 +188,7 @@ export default function SimilarServices() {
       share_amount: row.share_amount?.toString() ?? "",
       is_dual_participation: row.is_dual_participation ?? false,
       notes: row.notes ?? "",
-      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "" })),
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
     });
     setShareAmountTouched(true);
     setOpen(true);
