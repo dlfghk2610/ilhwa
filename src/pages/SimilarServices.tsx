@@ -27,6 +27,7 @@ type Row = {
   service_overview: string | null;
   contract_amount: number | null;
   contract_date: string | null;
+  announcement_date: string | null;
   start_date: string | null;
   completion_date: string | null;
   participation_rate: number | null;
