@@ -448,7 +448,7 @@ export default function SimilarServices() {
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
   const handleExport = async () => {
-    // 선택된 행만 (없으면 전체)
+    // 선택된 행만 (없으면 전체) - 착수일 오름차순 정렬 (filtered가 이미 정렬됨)
     const targets = (selectedIds.size > 0
       ? filtered.filter((r) => selectedIds.has(r.id))
       : filtered);
@@ -456,35 +456,43 @@ export default function SimilarServices() {
 
     // 메인 화면 컬럼 순서와 동일
     const data: Record<string, any>[] = [];
+    let seq = 0;
     targets.forEach((r) => {
+      seq++;
+      const seqLabel = addSeqNumbers ? String(seq) : "";
       const ps = Array.isArray(r.phases)
         ? r.phases.filter((p) => p && (p.label || p.amount != null || p.start_date || p.end_date))
         : [];
-      const makeRow = (nameSuffix: string, overrides: Record<string, any> = {}) => ({
-        "사업명": r.project_name + nameSuffix,
-        "발주처": r.client,
-        "계약일": r.contract_date,
-        "착수일": r.start_date,
-        "준공일": r.completion_date,
-        "계약금액": r.contract_amount,
-        "참여(%)": r.is_dual_participation || r.participation_rate == null ? null : `${r.participation_rate}%`,
-        "지분금액": r.share_amount,
-        "평가종류": r.evaluation_type,
-        "사업종류": r.service_type,
-        "각사지분율": r.is_dual_participation || r.company_share_rate == null || r.company_share_rate === "" ? null : `${r.company_share_rate}%`,
-        "2종": r.is_dual_participation ? "✓" : "",
-        "적용건수": Number(appliedCount(r).toFixed(2)),
-        "적용금액": Math.round(appliedAmount(r)),
-        "용역개요": r.service_overview,
-        "비고": r.notes,
-        ...overrides,
-      });
+      const makeRow = (nameSuffix: string, seqVal: string, overrides: Record<string, any> = {}) => {
+        const base: Record<string, any> = addSeqNumbers ? { "연번": seqVal } : {};
+        return {
+          ...base,
+          "사업명": r.project_name + nameSuffix,
+          "발주처": r.client,
+          "계약일": r.contract_date,
+          "착수일": r.start_date,
+          "준공일": r.completion_date,
+          "계약금액": r.contract_amount,
+          "참여(%)": r.is_dual_participation || r.participation_rate == null ? null : `${r.participation_rate}%`,
+          "지분금액": r.share_amount,
+          "평가종류": r.evaluation_type,
+          "사업종류": r.service_type,
+          "각사지분율": r.is_dual_participation || r.company_share_rate == null || r.company_share_rate === "" ? null : `${r.company_share_rate}%`,
+          "2종": r.is_dual_participation ? "✓" : "",
+          "적용건수": Number(appliedCount(r).toFixed(2)),
+          "적용금액": Math.round(appliedAmount(r)),
+          "용역개요": r.service_overview,
+          "비고": r.notes,
+          ...overrides,
+        };
+      };
       if (ps.length === 0) {
-        data.push(makeRow(""));
+        data.push(makeRow("", seqLabel));
       } else {
-        ps.forEach((p) => {
+        // 사후 등 차수가 여러 개여도 첫 행에만 연번 기재
+        ps.forEach((p, idx) => {
           const label = (p.label && p.label.trim()) || "";
-          data.push(makeRow(label ? `(${label})` : "", {
+          data.push(makeRow(label ? `(${label})` : "", idx === 0 ? seqLabel : "", {
             "착수일": p.start_date ?? r.start_date,
             "준공일": p.end_date ?? r.completion_date,
             "지분금액": p.amount ?? null,
@@ -498,8 +506,11 @@ export default function SimilarServices() {
     // 실적증명서 PDF 병합 (대표 착수일 오름차순; 사후는 차수 PDF를 통으로)
     try {
       const merged = await PDFDocument.create();
+      const seqFont = addSeqNumbers ? await merged.embedFont(StandardFonts.HelveticaBold) : null;
       let added = 0;
+      let pdfSeq = 0;
       for (const r of targets) {
+        pdfSeq++;
         // 차수별 PDF (있으면 1차→N차 순서대로)
         const phasePdfs = (Array.isArray(r.phases) ? r.phases : [])
           .map((p) => (p as any).pdf_path as string | undefined)
@@ -509,6 +520,7 @@ export default function SimilarServices() {
           ? phasePdfs
           : (r.cert_pdf_path ? [r.cert_pdf_path] : []);
 
+        let stampedThisTarget = false;
         for (const path of paths) {
           const { data: blob, error } = await supabase.storage.from("performance-certs").download(path);
           if (error || !blob) continue;
@@ -516,7 +528,21 @@ export default function SimilarServices() {
           try {
             const src = await PDFDocument.load(bytes);
             const pages = await merged.copyPages(src, src.getPageIndices());
-            pages.forEach((pg) => merged.addPage(pg));
+            pages.forEach((pg, idx) => {
+              merged.addPage(pg);
+              // 사후/다차수 → 1차 첫 페이지에만 / 일반 다중 페이지 → 첫 페이지에만
+              if (addSeqNumbers && seqFont && !stampedThisTarget && idx === 0) {
+                const { height } = pg.getSize();
+                pg.drawText(String(pdfSeq), {
+                  x: 30,
+                  y: height - 50,
+                  size: 40,
+                  font: seqFont,
+                  color: rgb(0, 0, 0),
+                });
+                stampedThisTarget = true;
+              }
+            });
             added++;
           } catch {
             // 손상된 PDF는 건너뜀
