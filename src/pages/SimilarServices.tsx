@@ -205,7 +205,7 @@ export default function SimilarServices() {
     { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
     { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
     { group: "도로계열", items: ["고속도로", "국도", "지방도", "도시계획도로"] },
-    { group: "상하수도계열", items: ["상수도", 하수도, 우수관거"].filter(Boolean) as string[] },
+    { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
     { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
     { group: "기타", items: [] },
   ];
