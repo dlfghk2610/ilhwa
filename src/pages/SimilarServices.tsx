@@ -385,7 +385,6 @@ export default function SimilarServices() {
         "평가종류": r.evaluation_type,
         "용역개요": r.service_overview,
         "계약금액": r.contract_amount,
-        "공고일": (r as any).announcement_date,
         "계약일": r.contract_date,
         "착수일": r.start_date,
         "준공일": r.completion_date,
