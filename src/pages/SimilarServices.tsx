@@ -220,7 +220,9 @@ export default function SimilarServices() {
       is_private: (row as any).is_private ?? false,
       is_under_90days: (row as any).is_under_90days ?? false,
       notes: row.notes ?? "",
-      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null })),
+      cert_pdf_path: (row as any).cert_pdf_path ?? "",
+      cert_pdf_file: null,
     });
     setShareAmountTouched(true);
     setOpen(true);
