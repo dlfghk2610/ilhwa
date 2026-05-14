@@ -294,8 +294,14 @@ export default function SimilarServices() {
 
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>계약금액 (원)</Label>
-                        <Input type="number" step="any" value={form.contract_amount}
-                          onChange={(e) => setForm({ ...form, contract_amount: e.target.value })} />
+                        <Input
+                          inputMode="decimal"
+                          value={form.contract_amount === "" ? "" : Number(form.contract_amount).toLocaleString()}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^\d.-]/g, "");
+                            setForm({ ...form, contract_amount: raw });
+                          }}
+                        />
                       </div>
 
                       <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-md border bg-muted/30">
