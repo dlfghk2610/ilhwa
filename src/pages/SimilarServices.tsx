@@ -284,10 +284,12 @@ export default function SimilarServices() {
       }));
 
       const phasesPayload = phasesUploaded
-        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
+        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.contract_amount !== "" || p.share_rate !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
         .map(({ p, pdf_path }) => ({
           label: p.label.trim(),
           amount: p.amount === "" ? null : Number(p.amount),
+          contract_amount: p.contract_amount === "" ? null : Number(p.contract_amount),
+          share_rate: p.share_rate === "" ? null : Number(p.share_rate),
           start_date: p.start_date || null,
           end_date: p.end_date || null,
           pdf_path,
