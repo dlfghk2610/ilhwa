@@ -74,22 +74,20 @@ export default function SimilarServices() {
 
   useEffect(() => { load(); }, []);
 
-  // 자동 계산: 계약금액 × 참여지분율 × 각사지분율 (수기 입력 후엔 덮어쓰지 않음)
+  // 자동 계산: 계약금액 × 참여지분율 (수기 입력 후엔 덮어쓰지 않음)
   useEffect(() => {
     if (shareAmountTouched) return;
     if (form.is_dual_participation) return;
     const amt = Number(form.contract_amount);
     const p = Number(form.participation_rate);
-    const c = Number(form.company_share_rate);
     if (!amt || isNaN(amt)) return;
     let calc = amt;
     if (p && !isNaN(p)) calc = calc * (p / 100);
-    if (c && !isNaN(c)) calc = calc * (c / 100);
-    if (p || c) {
+    if (p) {
       setForm((prev) => ({ ...prev, share_amount: String(Math.round(calc)) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.contract_amount, form.participation_rate, form.company_share_rate, form.is_dual_participation]);
+  }, [form.contract_amount, form.participation_rate, form.is_dual_participation]);
 
   const openCreate = () => {
     setEditing(null);
