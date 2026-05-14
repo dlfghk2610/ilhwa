@@ -354,8 +354,8 @@ export default function SimilarServices() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="whitespace-nowrap">사업명</TableHead>
-                  <TableHead className="whitespace-nowrap">발주처</TableHead>
+                  <TableHead className="w-[200px]">사업명</TableHead>
+                  <TableHead className="w-[200px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap">사업종류</TableHead>
                   <TableHead className="whitespace-nowrap">평가종류</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
