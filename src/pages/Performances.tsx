@@ -99,6 +99,7 @@ export default function Performances() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [addSeqNumbers, setAddSeqNumbers] = useState(false);
 
   // 기술자별 분석 상태
   const [selectedTech, setSelectedTech] = useState<string>("");
@@ -272,21 +273,34 @@ export default function Performances() {
   }, [rows, search]);
 
   function exportExcel() {
-    const data = filtered.map((r) => ({
-      사업명: r.project_name,
-      사업개요: r.service_overview ?? "",
-      발주처: r.client ?? "",
-      계약시작일: r.contract_start_date ?? "",
-      계약종료일: r.contract_end_date ?? "",
-      계약금액: r.contract_amount ?? "",
-      "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
-      지분금액: r.share_amount ?? "",
-      평가종류: r.evaluation_types.join(", "),
-      사업종류: r.service_types.join(", "),
-      각사지분율: r.company_share_rate ?? "",
-      참여자수: r.participants.length,
-      비고: r.notes ?? "",
-    }));
+    // 착수일(계약시작일) 오름차순 정렬
+    const sorted = [...filtered].sort((a, b) => {
+      const av = a.contract_start_date ?? "";
+      const bv = b.contract_start_date ?? "";
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return av.localeCompare(bv);
+    });
+    const data = sorted.map((r, i) => {
+      const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
+      return {
+        ...base,
+        사업명: r.project_name,
+        사업개요: r.service_overview ?? "",
+        발주처: r.client ?? "",
+        계약시작일: r.contract_start_date ?? "",
+        계약종료일: r.contract_end_date ?? "",
+        계약금액: r.contract_amount ?? "",
+        "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
+        지분금액: r.share_amount ?? "",
+        평가종류: r.evaluation_types.join(", "),
+        사업종류: r.service_types.join(", "),
+        각사지분율: r.company_share_rate ?? "",
+        참여자수: r.participants.length,
+        비고: r.notes ?? "",
+      };
+    });
     exportToExcel(data, "PQ개인별실적");
   }
 
@@ -383,7 +397,11 @@ export default function Performances() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex gap-2 items-center">
+              <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
+                <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
+                <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+              </label>
               <Button variant="outline" onClick={exportExcel}>
                 <Download className="h-4 w-4 mr-1" /> 엑셀 내보내기
               </Button>
