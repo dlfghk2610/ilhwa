@@ -341,7 +341,31 @@ export default function SimilarServices() {
     if (!search) return true;
     return [r.project_name, r.client, r.service_type, r.evaluation_type]
       .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
+  }).sort((a, b) => {
+    const av = a.start_date ?? "";
+    const bv = b.start_date ?? "";
+    if (!av && !bv) return 0;
+    if (!av) return 1;
+    if (!bv) return -1;
+    return av.localeCompare(bv);
   });
+
+  // 선택 (엑셀/PDF 내보내기 대상)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const allSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allSelected) return new Set();
+      return new Set(filtered.map((r) => r.id));
+    });
+  };
 
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
