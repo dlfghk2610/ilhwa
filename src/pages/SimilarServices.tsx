@@ -333,8 +333,15 @@ export default function SimilarServices() {
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 자동 계산되며 수기 수정 가능</span></Label>
-                        <Input type="number" step="any" value={form.share_amount}
-                          onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value }); }} />
+                        <Input
+                          inputMode="decimal"
+                          value={form.share_amount === "" ? "" : Number(form.share_amount).toLocaleString()}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^\d.-]/g, "");
+                            setShareAmountTouched(true);
+                            setForm({ ...form, share_amount: raw });
+                          }}
+                        />
                       </div>
 
                       <div className="space-y-1.5 md:col-span-2">
