@@ -203,6 +203,8 @@ export default function SimilarServices() {
       company_share_rate: row.company_share_rate?.toString() ?? "",
       share_amount: row.share_amount?.toString() ?? "",
       is_dual_participation: row.is_dual_participation ?? false,
+      is_private: (row as any).is_private ?? false,
+      is_under_90days: (row as any).is_under_90days ?? false,
       notes: row.notes ?? "",
       phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
     });
