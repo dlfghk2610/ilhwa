@@ -421,6 +421,7 @@ export default function SimilarServices() {
   // 공고일~준공일 5년 초과 시 집계 제외 (공고일은 전역 입력)
   const isExpired5y = (r: Row) => {
     if (!exclude5y) return false;
+    const ann = filterAnnouncementDate;
     const comp = r.completion_date;
     if (!ann || !comp) return false;
     const a = new Date(ann).getTime();
