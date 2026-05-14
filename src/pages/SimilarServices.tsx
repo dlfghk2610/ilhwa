@@ -446,17 +446,6 @@ export default function SimilarServices() {
                     )}
                   </div>
                 ))}
-                {serviceTypeOptions.find((g) => g.group === "기타") && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">기타</span>
-                    {serviceTypeOptions.find((g) => g.group === "기타")!.items.map((t) => (
-                      <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-0.5 rounded border hover:bg-muted">
-                        <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
-                        <span>{t}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
