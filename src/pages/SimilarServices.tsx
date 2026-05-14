@@ -402,7 +402,7 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.company_share_rate)}</TableCell>
+                    <TableCell className="w-[180px] whitespace-pre-wrap break-words align-top">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
