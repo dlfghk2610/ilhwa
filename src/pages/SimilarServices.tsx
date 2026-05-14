@@ -92,6 +92,14 @@ export default function SimilarServices() {
   useEffect(() => {
     try { localStorage.setItem(SERVICE_GROUPS_KEY, JSON.stringify(customGroups)); } catch {}
   }, [customGroups]);
+  const HIDDEN_EXTRAS_KEY = "similar_services.hidden_extras.v1";
+  const [hiddenExtras, setHiddenExtras] = useState<string[]>(() => {
+    try { const raw = localStorage.getItem(HIDDEN_EXTRAS_KEY); if (raw) return JSON.parse(raw); } catch {}
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem(HIDDEN_EXTRAS_KEY, JSON.stringify(hiddenExtras)); } catch {}
+  }, [hiddenExtras]);
   const [newGroupName, setNewGroupName] = useState("");
   const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
   const addGroup = () => {
@@ -101,18 +109,26 @@ export default function SimilarServices() {
     setCustomGroups([...customGroups, { group: n, items: [] }]);
     setNewGroupName("");
   };
-  const removeGroup = (g: string) => setCustomGroups(customGroups.filter((x) => x.group !== g));
+  const removeGroup = (g: string) => {
+    const grp = customGroups.find((x) => x.group === g);
+    if (grp && g === "기타") {
+      setHiddenExtras((prev) => Array.from(new Set([...prev, ...grp.items])));
+    }
+    setCustomGroups(customGroups.filter((x) => x.group !== g));
+  };
   const addItem = (g: string) => {
     const v = (newItemInputs[g] ?? "").trim();
     if (!v) return;
     setCustomGroups(customGroups.map((x) => x.group === g
       ? (x.items.includes(v) ? x : { ...x, items: [...x.items, v] })
       : x));
+    if (g === "기타") setHiddenExtras((prev) => prev.filter((s) => s !== v));
     setNewItemInputs({ ...newItemInputs, [g]: "" });
   };
   const removeItem = (g: string, item: string) => {
     setCustomGroups(customGroups.map((x) => x.group === g ? { ...x, items: x.items.filter((i) => i !== item) } : x));
     setFilterServiceTypes((prev) => prev.filter((s) => s !== item));
+    if (g === "기타") setHiddenExtras((prev) => Array.from(new Set([...prev, item])));
   };
 
   const load = async () => {
@@ -245,8 +261,9 @@ export default function SimilarServices() {
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   // 데이터에서 발견된 미분류 항목을 자동으로 "기타" 그룹에 추가 (편집 가능)
   useEffect(() => {
+    const hidden = new Set(hiddenExtras);
     const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
-    const extras = fromData.filter((t) => !knownServiceTypes.has(t));
+    const extras = fromData.filter((t) => !knownServiceTypes.has(t) && !hidden.has(t));
     if (extras.length === 0) return;
     setCustomGroups((prev) => {
       const idx = prev.findIndex((g) => g.group === "기타");
@@ -256,7 +273,7 @@ export default function SimilarServices() {
       next[idx] = { ...prev[idx], items: merged };
       return next;
     });
-  }, [rows, knownServiceTypes]);
+  }, [rows, knownServiceTypes, hiddenExtras]);
   const serviceTypeOptions = useMemo(() => {
     return customGroups.filter((g) => g.items.length > 0);
   }, [customGroups]);
