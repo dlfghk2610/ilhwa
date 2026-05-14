@@ -109,18 +109,26 @@ export default function SimilarServices() {
     setCustomGroups([...customGroups, { group: n, items: [] }]);
     setNewGroupName("");
   };
-  const removeGroup = (g: string) => setCustomGroups(customGroups.filter((x) => x.group !== g));
+  const removeGroup = (g: string) => {
+    const grp = customGroups.find((x) => x.group === g);
+    if (grp && g === "기타") {
+      setHiddenExtras((prev) => Array.from(new Set([...prev, ...grp.items])));
+    }
+    setCustomGroups(customGroups.filter((x) => x.group !== g));
+  };
   const addItem = (g: string) => {
     const v = (newItemInputs[g] ?? "").trim();
     if (!v) return;
     setCustomGroups(customGroups.map((x) => x.group === g
       ? (x.items.includes(v) ? x : { ...x, items: [...x.items, v] })
       : x));
+    if (g === "기타") setHiddenExtras((prev) => prev.filter((s) => s !== v));
     setNewItemInputs({ ...newItemInputs, [g]: "" });
   };
   const removeItem = (g: string, item: string) => {
     setCustomGroups(customGroups.map((x) => x.group === g ? { ...x, items: x.items.filter((i) => i !== item) } : x));
     setFilterServiceTypes((prev) => prev.filter((s) => s !== item));
+    if (g === "기타") setHiddenExtras((prev) => Array.from(new Set([...prev, item])));
   };
 
   const load = async () => {
