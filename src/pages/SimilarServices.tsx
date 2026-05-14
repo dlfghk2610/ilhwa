@@ -730,6 +730,10 @@ export default function SimilarServices() {
               <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
               <span className="text-xs">90일미만 포함</span>
             </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeLh} onCheckedChange={(v) => setIncludeLh(!!v)} />
+              <span className="text-xs">LH기성실적 포함</span>
+            </label>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
               <span className="text-xs text-muted-foreground">공고일</span>
               <Input
