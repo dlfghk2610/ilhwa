@@ -182,6 +182,8 @@ export type Database = {
           evaluation_type: string | null
           id: string
           is_dual_participation: boolean
+          is_private: boolean
+          is_under_90days: boolean
           notes: string | null
           participation_rate: number | null
           phases: Json
@@ -203,6 +205,8 @@ export type Database = {
           evaluation_type?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_private?: boolean
+          is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
           phases?: Json
@@ -224,6 +228,8 @@ export type Database = {
           evaluation_type?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_private?: boolean
+          is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
           phases?: Json
