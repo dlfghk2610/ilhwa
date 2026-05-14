@@ -247,6 +247,7 @@ export default function Performances() {
         notes: form.notes || null,
         participants: form.participants as any,
         participant_file_path,
+        cert_pdf_path,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
         start_date: form.contract_start_date || null,
