@@ -46,6 +46,7 @@ type Row = {
   notes: string | null;
   participants: Participant[];
   participant_file_path: string | null;
+  cert_pdf_path: string | null;
 };
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
