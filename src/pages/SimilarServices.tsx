@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 
-type Phase = { label: string; amount: number | null };
+type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null };
 
 type Row = {
   id: string;
