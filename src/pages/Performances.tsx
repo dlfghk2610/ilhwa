@@ -514,6 +514,15 @@ export default function Performances() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))}
+                      onCheckedChange={(c) => {
+                        if (c) setSelectedIds(new Set(filtered.map((r) => r.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                  </TableHead>
                   <TableHead>사업명</TableHead>
                   <TableHead>발주처</TableHead>
                   <TableHead>계약기간</TableHead>
@@ -523,16 +532,29 @@ export default function Performances() {
                   <TableHead>평가종류</TableHead>
                   <TableHead>사업종류</TableHead>
                   <TableHead className="text-right">참여자</TableHead>
+                  <TableHead>첨부</TableHead>
                   <TableHead className="text-right">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={(c) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (c) next.add(r.id); else next.delete(r.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
