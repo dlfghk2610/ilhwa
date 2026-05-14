@@ -261,8 +261,9 @@ export default function SimilarServices() {
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   // 데이터에서 발견된 미분류 항목을 자동으로 "기타" 그룹에 추가 (편집 가능)
   useEffect(() => {
+    const hidden = new Set(hiddenExtras);
     const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
-    const extras = fromData.filter((t) => !knownServiceTypes.has(t));
+    const extras = fromData.filter((t) => !knownServiceTypes.has(t) && !hidden.has(t));
     if (extras.length === 0) return;
     setCustomGroups((prev) => {
       const idx = prev.findIndex((g) => g.group === "기타");
@@ -272,7 +273,7 @@ export default function SimilarServices() {
       next[idx] = { ...prev[idx], items: merged };
       return next;
     });
-  }, [rows, knownServiceTypes]);
+  }, [rows, knownServiceTypes, hiddenExtras]);
   const serviceTypeOptions = useMemo(() => {
     return customGroups.filter((g) => g.items.length > 0);
   }, [customGroups]);
