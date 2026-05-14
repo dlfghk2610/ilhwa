@@ -203,8 +203,23 @@ export default function SimilarServices() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
 
     const phasesPayload = form.phases
-      .filter((p) => p.label.trim() !== "" || p.amount !== "")
-      .map((p) => ({ label: p.label.trim(), amount: p.amount === "" ? null : Number(p.amount) }));
+      .filter((p) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "")
+      .map((p) => ({
+        label: p.label.trim(),
+        amount: p.amount === "" ? null : Number(p.amount),
+        start_date: p.start_date || null,
+        end_date: p.end_date || null,
+      }));
+
+    // 사후: 첫 차수 착수일 → 대표 착수일, 마지막 차수 준공일 → 대표 준공일
+    let derivedStart = txt(form.start_date);
+    let derivedCompletion = txt(form.completion_date);
+    if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
+      const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
+      const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+      if (firstStart) derivedStart = firstStart;
+      if (lastEnd) derivedCompletion = lastEnd;
+    }
 
     const payload: any = {
       project_name: form.project_name,
@@ -214,8 +229,8 @@ export default function SimilarServices() {
       service_overview: txt(form.service_overview),
       contract_amount: num(form.contract_amount),
       contract_date: txt(form.contract_date),
-      start_date: txt(form.start_date),
-      completion_date: txt(form.completion_date),
+      start_date: derivedStart,
+      completion_date: derivedCompletion,
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
       company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
