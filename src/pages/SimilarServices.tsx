@@ -92,6 +92,14 @@ export default function SimilarServices() {
   useEffect(() => {
     try { localStorage.setItem(SERVICE_GROUPS_KEY, JSON.stringify(customGroups)); } catch {}
   }, [customGroups]);
+  const HIDDEN_EXTRAS_KEY = "similar_services.hidden_extras.v1";
+  const [hiddenExtras, setHiddenExtras] = useState<string[]>(() => {
+    try { const raw = localStorage.getItem(HIDDEN_EXTRAS_KEY); if (raw) return JSON.parse(raw); } catch {}
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem(HIDDEN_EXTRAS_KEY, JSON.stringify(hiddenExtras)); } catch {}
+  }, [hiddenExtras]);
   const [newGroupName, setNewGroupName] = useState("");
   const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
   const addGroup = () => {
