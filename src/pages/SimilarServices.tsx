@@ -376,20 +376,56 @@ export default function SimilarServices() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+                    placeholder="새 계열명 (예: 단지계열)"
+                    className="h-7 text-xs w-44"
+                  />
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                </div>
+              </div>
               <div className="space-y-2 p-2 rounded-md border bg-background">
-                {serviceTypeOptions.length === 0 && <span className="text-xs text-muted-foreground">데이터 없음</span>}
-                {serviceTypeOptions.map((g) => (
-                  <div key={g.group} className="flex flex-wrap items-center gap-2">
+                {customGroups.length === 0 && <span className="text-xs text-muted-foreground">계열을 추가하세요</span>}
+                {customGroups.map((g) => (
+                  <div key={g.group} className="flex flex-wrap items-center gap-2 pb-1.5 border-b last:border-0">
                     <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
                     {g.items.map((t) => (
+                      <span key={t} className="flex items-center gap-1 text-sm px-2 py-0.5 rounded border hover:bg-muted">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
+                          <span>{t}</span>
+                        </label>
+                        <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <Input
+                      value={newItemInputs[g.group] ?? ""}
+                      onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
+                      placeholder="+ 종류"
+                      className="h-6 text-xs w-24"
+                    />
+                    <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                  </div>
+                ))}
+                {serviceTypeOptions.find((g) => g.group === "기타") && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">기타</span>
+                    {serviceTypeOptions.find((g) => g.group === "기타")!.items.map((t) => (
                       <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-0.5 rounded border hover:bg-muted">
                         <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
                         <span>{t}</span>
                       </label>
                     ))}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
