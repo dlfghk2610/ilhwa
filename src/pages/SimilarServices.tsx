@@ -53,6 +53,8 @@ const emptyForm = {
   company_share_rate: "",
   share_amount: "",
   is_dual_participation: false,
+  is_private: false,
+  is_under_90days: false,
   notes: "",
   phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
 };
