@@ -433,7 +433,6 @@ export default function SimilarServices() {
         service_overview: r["용역개요"] ?? null,
         contract_amount: r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null,
         contract_date: toDate(r["계약일"]),
-        announcement_date: toDate(r["공고일"]),
         start_date: toDate(r["착수일"]),
         completion_date: toDate(r["준공일"]),
         is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
