@@ -68,6 +68,8 @@ const emptyForm = {
   participants: [] as Participant[],
   participant_file: null as File | null,
   participant_file_path: "",
+  cert_pdf_file: null as File | null,
+  cert_pdf_path: "",
 };
 
 type FormState = typeof emptyForm;
