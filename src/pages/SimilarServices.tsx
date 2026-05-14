@@ -353,16 +353,16 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
-  // 공고일~준공일 5년 초과 시 집계 제외
+  // 공고일~준공일 5년 초과 시 집계 제외 (공고일은 전역 입력)
   const isExpired5y = (r: Row) => {
-    const ann = (r as any).announcement_date as string | null | undefined;
+    const ann = filterAnnouncementDate;
     const comp = r.completion_date;
     if (!ann || !comp) return false;
     const a = new Date(ann).getTime();
     const c = new Date(comp).getTime();
     if (isNaN(a) || isNaN(c)) return false;
     const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
-    return c - a > fiveYearsMs;
+    return a - c > fiveYearsMs;
   };
 
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
