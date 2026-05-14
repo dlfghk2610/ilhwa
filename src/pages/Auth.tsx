@@ -75,7 +75,7 @@ export default function Auth() {
       }
       return;
     }
-    toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
+    applyAutoLoginPref(autoLogin); toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
   };
 
   return (
