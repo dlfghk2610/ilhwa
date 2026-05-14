@@ -381,14 +381,27 @@ export default function SimilarServices() {
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
                 <div className="flex items-center gap-1">
-                  <Input
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
-                    placeholder="새 계열명 (예: 단지계열)"
-                    className="h-7 text-xs w-44"
-                  />
-                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                  {editGroups && (
+                    <>
+                      <Input
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+                        placeholder="새 계열명 (예: 단지계열)"
+                        className="h-7 text-xs w-44"
+                      />
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={editGroups ? "default" : "outline"}
+                    className="h-7 px-2"
+                    onClick={() => setEditGroups((v) => !v)}
+                  >
+                    {editGroups ? "완료" : "편집"}
+                  </Button>
                 </div>
               </div>
               <div className="space-y-2 p-2 rounded-md border bg-background">
@@ -402,19 +415,25 @@ export default function SimilarServices() {
                           <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
                           <span>{t}</span>
                         </label>
-                        <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
+                        {editGroups && (
+                          <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </span>
                     ))}
-                    <Input
-                      value={newItemInputs[g.group] ?? ""}
-                      onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
-                      placeholder="+ 종류"
-                      className="h-6 text-xs w-24"
-                    />
-                    <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                    {editGroups && (
+                      <>
+                        <Input
+                          value={newItemInputs[g.group] ?? ""}
+                          onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
+                          placeholder="+ 종류"
+                          className="h-6 text-xs w-24"
+                        />
+                        <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                      </>
+                    )}
                   </div>
                 ))}
                 {serviceTypeOptions.find((g) => g.group === "기타") && (
