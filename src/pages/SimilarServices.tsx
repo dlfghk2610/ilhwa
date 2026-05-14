@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
 
@@ -357,6 +357,8 @@ export default function SimilarServices() {
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 연번 기입 옵션
+  const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const n = new Set(prev);
