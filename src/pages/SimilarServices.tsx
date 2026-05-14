@@ -97,10 +97,15 @@ export default function SimilarServices() {
 
   // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
+  const EXCLUDE5Y_KEY = "similar_services.exclude_5y.v1";
   const [filterAnnouncementDate, setFilterAnnouncementDate] = useState<string>(() => {
     try { return localStorage.getItem(ANNOUNCEMENT_KEY) ?? ""; } catch { return ""; }
   });
+  const [exclude5y, setExclude5y] = useState<boolean>(() => {
+    try { return localStorage.getItem(EXCLUDE5Y_KEY) === "1"; } catch { return false; }
+  });
   useEffect(() => { try { localStorage.setItem(ANNOUNCEMENT_KEY, filterAnnouncementDate); } catch {} }, [filterAnnouncementDate]);
+  useEffect(() => { try { localStorage.setItem(EXCLUDE5Y_KEY, exclude5y ? "1" : "0"); } catch {} }, [exclude5y]);
 
   // 사용자 정의 사업종류 그룹 (localStorage)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
@@ -415,6 +420,7 @@ export default function SimilarServices() {
 
   // 공고일~준공일 5년 초과 시 집계 제외 (공고일은 전역 입력)
   const isExpired5y = (r: Row) => {
+    if (!exclude5y) return false;
     const ann = filterAnnouncementDate;
     const comp = r.completion_date;
     if (!ann || !comp) return false;
@@ -701,6 +707,10 @@ export default function SimilarServices() {
                   <X className="h-3 w-3" />
                 </button>
               )}
+              <label className="flex items-center gap-1.5 ml-1 pl-2 border-l cursor-pointer">
+                <Checkbox checked={exclude5y} onCheckedChange={(v) => setExclude5y(!!v)} />
+                <span className="text-xs">5년 이상사업 제외</span>
+              </label>
             </div>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
