@@ -834,44 +834,75 @@ export default function SimilarServices() {
                         {form.phases.length === 0 ? (
                           <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 사후의 경우 첫 차수 착수일·마지막 차수 준공일이 대표일자로 자동 반영됩니다.</div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {form.phases.map((p, i) => (
-                              <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                                <Input
-                                  className="col-span-2"
-                                  placeholder="1차"
-                                  value={p.label}
-                                  onChange={(e) => updatePhase(i, "label", e.target.value)}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  type="date"
-                                  min="1900-01-01"
-                                  max="9999-12-31"
-                                  value={p.start_date}
-                                  onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  type="date"
-                                  min="1900-01-01"
-                                  max="9999-12-31"
-                                  value={p.end_date}
-                                  onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
-                                />
-                                <Input
-                                  className="col-span-3"
-                                  inputMode="decimal"
-                                  placeholder="차수 지분금액"
-                                  value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.replace(/[^\d.-]/g, "");
-                                    updatePhase(i, "amount", raw);
-                                  }}
-                                />
-                                <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
+                              <div key={i} className="space-y-1.5 p-2 rounded border bg-background">
+                                <div className="grid grid-cols-12 gap-2 items-center">
+                                  <Input
+                                    className="col-span-2"
+                                    placeholder="1차"
+                                    value={p.label}
+                                    onChange={(e) => updatePhase(i, "label", e.target.value)}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    value={p.start_date}
+                                    onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    value={p.end_date}
+                                    onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
+                                  />
+                                  <Input
+                                    className="col-span-3"
+                                    inputMode="decimal"
+                                    placeholder="차수 지분금액"
+                                    value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.replace(/[^\d.-]/g, "");
+                                      updatePhase(i, "amount", raw);
+                                    }}
+                                  />
+                                  <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-muted-foreground">{p.label || `${i + 1}차`} 실적증명서:</span>
+                                  <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    className="text-xs"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0] ?? null;
+                                      const ps = [...form.phases];
+                                      ps[i] = { ...ps[i], pdf_file: f };
+                                      setForm({ ...form, phases: ps });
+                                    }}
+                                  />
+                                  {p.pdf_path && !p.pdf_file && (
+                                    <span className="text-primary">기존 파일 등록됨</span>
+                                  )}
+                                  {(p.pdf_path || p.pdf_file) && (
+                                    <button
+                                      type="button"
+                                      className="text-muted-foreground hover:text-destructive"
+                                      onClick={() => {
+                                        const ps = [...form.phases];
+                                        ps[i] = { ...ps[i], pdf_file: null, pdf_path: "" };
+                                        setForm({ ...form, phases: ps });
+                                      }}
+                                    >제거</button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                             <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
@@ -886,6 +917,31 @@ export default function SimilarServices() {
                           </div>
                         )}
                       </div>
+
+                      {/* 실적증명서 PDF (차수가 없을 때 사용) */}
+                      {form.phases.length === 0 && (
+                        <div className="space-y-1.5 md:col-span-2 p-3 rounded-md border bg-muted/20">
+                          <Label className="text-sm font-semibold flex items-center gap-1.5">
+                            <FileText className="h-4 w-4" />실적증명서 PDF
+                          </Label>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] ?? null })}
+                            className="text-sm"
+                          />
+                          {form.cert_pdf_path && !form.cert_pdf_file && (
+                            <div className="text-xs text-primary">기존 파일이 등록되어 있습니다.</div>
+                          )}
+                          {(form.cert_pdf_path || form.cert_pdf_file) && (
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() => setForm({ ...form, cert_pdf_file: null, cert_pdf_path: "" })}
+                            >파일 제거</button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 차수 입력 시 자동 합계 / 그 외 자동 계산되며 수기 수정 가능</span></Label>
