@@ -243,12 +243,23 @@ export default function SimilarServices() {
   const evalTypeOptions = EVAL_TYPES as readonly string[];
   // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
-  const serviceTypeOptions = useMemo(() => {
+  // 데이터에서 발견된 미분류 항목을 자동으로 "기타" 그룹에 추가 (편집 가능)
+  useEffect(() => {
     const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
-    const extras = fromData.filter((t) => !knownServiceTypes.has(t)).sort();
-    const base = customGroups.filter((g) => g.items.length > 0);
-    return extras.length > 0 ? [...base, { group: "기타", items: extras }] : base;
-  }, [rows, customGroups, knownServiceTypes]);
+    const extras = fromData.filter((t) => !knownServiceTypes.has(t));
+    if (extras.length === 0) return;
+    setCustomGroups((prev) => {
+      const idx = prev.findIndex((g) => g.group === "기타");
+      if (idx === -1) return [...prev, { group: "기타", items: extras.sort() }];
+      const merged = Array.from(new Set([...prev[idx].items, ...extras])).sort();
+      const next = [...prev];
+      next[idx] = { ...prev[idx], items: merged };
+      return next;
+    });
+  }, [rows, knownServiceTypes]);
+  const serviceTypeOptions = useMemo(() => {
+    return customGroups.filter((g) => g.items.length > 0);
+  }, [customGroups]);
 
   // 차수 표기 접미사
   const phaseSuffix = (r: Row) => {
@@ -435,17 +446,6 @@ export default function SimilarServices() {
                     )}
                   </div>
                 ))}
-                {serviceTypeOptions.find((g) => g.group === "기타") && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">기타</span>
-                    {serviceTypeOptions.find((g) => g.group === "기타")!.items.map((t) => (
-                      <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-0.5 rounded border hover:bg-muted">
-                        <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
-                        <span>{t}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
