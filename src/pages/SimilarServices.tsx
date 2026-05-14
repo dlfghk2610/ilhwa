@@ -137,7 +137,7 @@ export default function SimilarServices() {
       start_date: txt(form.start_date),
       completion_date: txt(form.completion_date),
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
-      company_share_rate: form.is_dual_participation ? null : num(form.company_share_rate),
+      company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
       is_dual_participation: form.is_dual_participation,
       notes: txt(form.notes),
