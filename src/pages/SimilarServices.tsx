@@ -825,7 +825,7 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.contract_amount)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right align-middle">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle">{r.is_dual_participation ? "-" : (r.participation_rate == null ? "-" : `${fmtNum(r.participation_rate)}%`)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.evaluation_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.service_type ?? "-"}</TableCell>
