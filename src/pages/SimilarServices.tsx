@@ -346,12 +346,26 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
+  // 공고일~준공일 5년 초과 시 집계 제외
+  const isExpired5y = (r: Row) => {
+    const ann = (r as any).announcement_date as string | null | undefined;
+    const comp = r.completion_date;
+    if (!ann || !comp) return false;
+    const a = new Date(ann).getTime();
+    const c = new Date(comp).getTime();
+    if (isNaN(a) || isNaN(c)) return false;
+    const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
+    return c - a > fiveYearsMs;
+  };
+
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
   const appliedCount = (r: Row) => {
+    if (isExpired5y(r)) return 0;
     const p = r.is_dual_participation ? 100 : Number(r.participation_rate ?? 0);
     return evalCoef(r) * serviceCoef(r) * (p / 100);
   };
   const appliedAmount = (r: Row) => {
+    if (isExpired5y(r)) return 0;
     return evalCoef(r) * serviceCoef(r) * Number(r.share_amount ?? 0);
   };
 
