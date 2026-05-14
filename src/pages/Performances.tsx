@@ -574,6 +574,12 @@ export default function Performances() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{r.participants.length}</TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex flex-col gap-0.5">
+                        {r.cert_pdf_path && <Badge variant="secondary" className="w-fit">실적증명</Badge>}
+                        {r.participant_file_path && <Badge variant="outline" className="w-fit">참여자명단</Badge>}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4" /></Button>
