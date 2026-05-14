@@ -48,6 +48,7 @@ const emptyForm = {
   service_overview: "",
   contract_amount: "",
   contract_date: "",
+  announcement_date: "",
   start_date: "",
   completion_date: "",
   participation_rate: "",
