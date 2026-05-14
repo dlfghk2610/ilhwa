@@ -33,6 +33,8 @@ type Row = {
   company_share_rate: string | null;
   share_amount: number | null;
   is_dual_participation: boolean;
+  is_private: boolean;
+  is_under_90days: boolean;
   notes: string | null;
   phases: Phase[] | null;
 };
@@ -51,6 +53,8 @@ const emptyForm = {
   company_share_rate: "",
   share_amount: "",
   is_dual_participation: false,
+  is_private: false,
+  is_under_90days: false,
   notes: "",
   phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
 };
@@ -72,6 +76,18 @@ export default function SimilarServices() {
   // 적용 계수 필터
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
+
+  // 민간사업 / 90일미만 필터 (localStorage 영속)
+  const PRIVATE_FILTER_KEY = "similar_services.include_private.v1";
+  const UNDER90_FILTER_KEY = "similar_services.include_under90.v1";
+  const [includePrivate, setIncludePrivate] = useState<boolean>(() => {
+    try { return localStorage.getItem(PRIVATE_FILTER_KEY) === "1"; } catch { return false; }
+  });
+  const [includeUnder90, setIncludeUnder90] = useState<boolean>(() => {
+    try { return localStorage.getItem(UNDER90_FILTER_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
+  useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
 
   // 사용자 정의 사업종류 그룹 (localStorage)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
@@ -187,6 +203,8 @@ export default function SimilarServices() {
       company_share_rate: row.company_share_rate?.toString() ?? "",
       share_amount: row.share_amount?.toString() ?? "",
       is_dual_participation: row.is_dual_participation ?? false,
+      is_private: (row as any).is_private ?? false,
+      is_under_90days: (row as any).is_under_90days ?? false,
       notes: row.notes ?? "",
       phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
     });
@@ -243,6 +261,8 @@ export default function SimilarServices() {
       company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
       is_dual_participation: form.is_dual_participation,
+      is_private: form.is_private,
+      is_under_90days: form.is_under_90days,
       notes: txt(form.notes),
       phases: phasesPayload,
     };
@@ -268,11 +288,13 @@ export default function SimilarServices() {
     setDeleteId(null);
   };
 
-  const filtered = rows.filter((r) =>
-    !search ||
-    [r.project_name, r.client, r.service_type, r.evaluation_type]
-      .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = rows.filter((r) => {
+    if ((r as any).is_private && !includePrivate) return false;
+    if ((r as any).is_under_90days && !includeUnder90) return false;
+    if (!search) return true;
+    return [r.project_name, r.client, r.service_type, r.evaluation_type]
+      .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
+  });
 
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
@@ -309,10 +331,10 @@ export default function SimilarServices() {
     return ` (${ps[0].label}~${ps[ps.length - 1].label})`;
   };
 
-  // 적용계수 계산 ("평가" 행은 항상 1.0)
+  // 적용계수 계산 ("평가"는 항상 1.0, 미선택 시 기본 평가=1.0/그외=0.6)
   const evalCoef = (r: Row) => {
     if ((r.evaluation_type ?? "") === "평가") return 1.0;
-    if (!filterEvalType) return 1;
+    if (!filterEvalType) return 0.6;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
   const serviceCoef = (r: Row) => {
@@ -501,7 +523,7 @@ export default function SimilarServices() {
               </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-center">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-center">
             <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
               <span className="text-[11px] text-muted-foreground mr-2">총 적용건수</span>
               <span className="text-sm font-bold text-primary">{totalAppliedCount.toFixed(2)}</span>
@@ -510,6 +532,14 @@ export default function SimilarServices() {
               <span className="text-[11px] text-muted-foreground mr-2">총 적용금액</span>
               <span className="text-sm font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</span>
             </div>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includePrivate} onCheckedChange={(v) => setIncludePrivate(!!v)} />
+              <span className="text-xs">민간사업 포함</span>
+            </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
+              <span className="text-xs">90일미만 포함</span>
+            </label>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
@@ -587,6 +617,19 @@ export default function SimilarServices() {
                             setForm({ ...form, contract_amount: raw });
                           }}
                         />
+                      </div>
+
+                      <div className="md:col-span-2 flex flex-wrap items-center gap-4 p-3 rounded-md border bg-muted/20">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_private}
+                            onCheckedChange={(v) => setForm({ ...form, is_private: !!v })} />
+                          <span className="text-sm">민간사업</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_under_90days}
+                            onCheckedChange={(v) => setForm({ ...form, is_under_90days: !!v })} />
+                          <span className="text-sm">90일미만</span>
+                        </label>
                       </div>
 
                       <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-md border bg-muted/30">
