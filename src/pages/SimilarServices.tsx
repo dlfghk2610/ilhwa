@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 
-type Phase = { label: string; amount: number | null };
+type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null };
 
 type Row = {
   id: string;
@@ -52,7 +52,7 @@ const emptyForm = {
   share_amount: "",
   is_dual_participation: false,
   notes: "",
-  phases: [] as { label: string; amount: string }[],
+  phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
 };
 
 type FormState = typeof emptyForm;
@@ -188,7 +188,7 @@ export default function SimilarServices() {
       share_amount: row.share_amount?.toString() ?? "",
       is_dual_participation: row.is_dual_participation ?? false,
       notes: row.notes ?? "",
-      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "" })),
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "" })),
     });
     setShareAmountTouched(true);
     setOpen(true);
@@ -203,8 +203,23 @@ export default function SimilarServices() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
 
     const phasesPayload = form.phases
-      .filter((p) => p.label.trim() !== "" || p.amount !== "")
-      .map((p) => ({ label: p.label.trim(), amount: p.amount === "" ? null : Number(p.amount) }));
+      .filter((p) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "")
+      .map((p) => ({
+        label: p.label.trim(),
+        amount: p.amount === "" ? null : Number(p.amount),
+        start_date: p.start_date || null,
+        end_date: p.end_date || null,
+      }));
+
+    // 사후: 첫 차수 착수일 → 대표 착수일, 마지막 차수 준공일 → 대표 준공일
+    let derivedStart = txt(form.start_date);
+    let derivedCompletion = txt(form.completion_date);
+    if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
+      const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
+      const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+      if (firstStart) derivedStart = firstStart;
+      if (lastEnd) derivedCompletion = lastEnd;
+    }
 
     const payload: any = {
       project_name: form.project_name,
@@ -214,8 +229,8 @@ export default function SimilarServices() {
       service_overview: txt(form.service_overview),
       contract_amount: num(form.contract_amount),
       contract_date: txt(form.contract_date),
-      start_date: txt(form.start_date),
-      completion_date: txt(form.completion_date),
+      start_date: derivedStart,
+      completion_date: derivedCompletion,
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
       company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
@@ -310,24 +325,36 @@ export default function SimilarServices() {
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
   const handleExport = () => {
-    const data = filtered.map((r) => ({
-      "사업명": r.project_name + phaseSuffix(r),
-      "발주처": r.client,
-      "사업종류": r.service_type,
-      "평가종류": r.evaluation_type,
-      "용역개요": r.service_overview,
-      "계약금액": r.contract_amount,
-      "계약일": r.contract_date,
-      "착수일": r.start_date,
-      "준공일": r.completion_date,
-      "2종 분담참여": r.is_dual_participation ? "Y" : "N",
-      "참여지분율(%)": r.participation_rate,
-      "각사지분율": r.company_share_rate,
-      "지분금액": r.share_amount,
-      "적용건수": Number(appliedCount(r).toFixed(2)),
-      "적용금액": Math.round(appliedAmount(r)),
-      "비고": r.notes,
-    }));
+    const maxPhases = filtered.reduce((m, r) => Math.max(m, Array.isArray(r.phases) ? r.phases.length : 0), 0);
+    const data = filtered.map((r) => {
+      const base: Record<string, any> = {
+        "사업명": r.project_name + phaseSuffix(r),
+        "발주처": r.client,
+        "사업종류": r.service_type,
+        "평가종류": r.evaluation_type,
+        "용역개요": r.service_overview,
+        "계약금액": r.contract_amount,
+        "계약일": r.contract_date,
+        "착수일": r.start_date,
+        "준공일": r.completion_date,
+        "2종 분담참여": r.is_dual_participation ? "Y" : "N",
+        "참여지분율(%)": r.participation_rate,
+        "각사지분율": r.company_share_rate,
+        "지분금액": r.share_amount,
+        "적용건수": Number(appliedCount(r).toFixed(2)),
+        "적용금액": Math.round(appliedAmount(r)),
+        "비고": r.notes,
+      };
+      const ps = Array.isArray(r.phases) ? r.phases : [];
+      for (let i = 0; i < maxPhases; i++) {
+        const p = ps[i];
+        base[`차수${i + 1}_명`] = p?.label ?? null;
+        base[`차수${i + 1}_착수일`] = p?.start_date ?? null;
+        base[`차수${i + 1}_준공일`] = p?.end_date ?? null;
+        base[`차수${i + 1}_금액`] = p?.amount ?? null;
+      }
+      return base;
+    });
     exportToExcel(data, "PQ유사용역");
     toast.success("엑셀 다운로드 완료");
   };
@@ -372,9 +399,9 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "" }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "" }] });
   };
-  const updatePhase = (i: number, key: "label" | "amount", v: string) => {
+  const updatePhase = (i: number, key: "label" | "amount" | "start_date" | "end_date", v: string) => {
     const ps = [...form.phases];
     ps[i] = { ...ps[i], [key]: v };
     setForm({ ...form, phases: ps });
@@ -592,19 +619,31 @@ export default function SimilarServices() {
                           </Button>
                         </div>
                         {form.phases.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 1차/2차 등 입력 시 합계가 지분금액에 자동 반영됩니다.</div>
+                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 사후의 경우 첫 차수 착수일·마지막 차수 준공일이 대표일자로 자동 반영됩니다.</div>
                         ) : (
                           <div className="space-y-2">
                             {form.phases.map((p, i) => (
-                              <div key={i} className="flex items-center gap-2">
+                              <div key={i} className="grid grid-cols-12 gap-2 items-center">
                                 <Input
-                                  className="w-24"
+                                  className="col-span-2"
                                   placeholder="1차"
                                   value={p.label}
                                   onChange={(e) => updatePhase(i, "label", e.target.value)}
                                 />
                                 <Input
-                                  className="flex-1"
+                                  className="col-span-3"
+                                  type="date"
+                                  value={p.start_date}
+                                  onChange={(e) => updatePhase(i, "start_date", e.target.value)}
+                                />
+                                <Input
+                                  className="col-span-3"
+                                  type="date"
+                                  value={p.end_date}
+                                  onChange={(e) => updatePhase(i, "end_date", e.target.value)}
+                                />
+                                <Input
+                                  className="col-span-3"
                                   inputMode="decimal"
                                   placeholder="차수 지분금액"
                                   value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
@@ -613,11 +652,17 @@ export default function SimilarServices() {
                                     updatePhase(i, "amount", raw);
                                   }}
                                 />
-                                <Button type="button" size="icon" variant="ghost" onClick={() => removePhase(i)}>
+                                <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ))}
+                            <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
+                              <div className="col-span-2">차수명</div>
+                              <div className="col-span-3">착수일</div>
+                              <div className="col-span-3">준공일</div>
+                              <div className="col-span-3 text-right">지분금액</div>
+                            </div>
                             <div className="text-xs text-right text-muted-foreground">
                               차수 합계: {phasesTotal.toLocaleString()} 원
                             </div>
