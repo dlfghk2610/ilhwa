@@ -618,10 +618,6 @@ export default function SimilarServices() {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label>공고일</Label>
-                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.announcement_date} onChange={(e) => setForm({ ...form, announcement_date: clampDate(e.target.value) })} />
-                      </div>
-                      <div className="space-y-1.5">
                         <Label>계약일</Label>
                         <Input type="date" min="1900-01-01" max="9999-12-31" value={form.contract_date} onChange={(e) => setForm({ ...form, contract_date: clampDate(e.target.value) })} />
                       </div>
