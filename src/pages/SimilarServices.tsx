@@ -354,8 +354,8 @@ export default function SimilarServices() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="whitespace-nowrap">사업명</TableHead>
-                  <TableHead className="whitespace-nowrap">발주처</TableHead>
+                  <TableHead className="w-[200px]">사업명</TableHead>
+                  <TableHead className="w-[200px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap">사업종류</TableHead>
                   <TableHead className="whitespace-nowrap">평가종류</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
@@ -380,8 +380,8 @@ export default function SimilarServices() {
                   </TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium max-w-[280px] whitespace-normal break-words">{r.project_name}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.client ?? "-"}</TableCell>
+                    <TableCell className="font-medium w-[200px] whitespace-normal break-words align-top">{r.project_name}</TableCell>
+                    <TableCell className="w-[200px] whitespace-normal break-words align-top">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.service_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.evaluation_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtNum(r.contract_amount)}</TableCell>
