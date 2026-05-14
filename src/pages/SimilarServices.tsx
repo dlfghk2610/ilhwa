@@ -91,6 +91,13 @@ export default function SimilarServices() {
   useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
   useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
 
+  // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
+  const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
+  const [filterAnnouncementDate, setFilterAnnouncementDate] = useState<string>(() => {
+    try { return localStorage.getItem(ANNOUNCEMENT_KEY) ?? ""; } catch { return ""; }
+  });
+  useEffect(() => { try { localStorage.setItem(ANNOUNCEMENT_KEY, filterAnnouncementDate); } catch {} }, [filterAnnouncementDate]);
+
   // 사용자 정의 사업종류 그룹 (localStorage)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
     { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
@@ -346,16 +353,16 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
-  // 공고일~준공일 5년 초과 시 집계 제외
+  // 공고일~준공일 5년 초과 시 집계 제외 (공고일은 전역 입력)
   const isExpired5y = (r: Row) => {
-    const ann = (r as any).announcement_date as string | null | undefined;
+    const ann = filterAnnouncementDate;
     const comp = r.completion_date;
     if (!ann || !comp) return false;
     const a = new Date(ann).getTime();
     const c = new Date(comp).getTime();
     if (isNaN(a) || isNaN(c)) return false;
     const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
-    return c - a > fiveYearsMs;
+    return a - c > fiveYearsMs;
   };
 
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
@@ -385,7 +392,6 @@ export default function SimilarServices() {
         "평가종류": r.evaluation_type,
         "용역개요": r.service_overview,
         "계약금액": r.contract_amount,
-        "공고일": (r as any).announcement_date,
         "계약일": r.contract_date,
         "착수일": r.start_date,
         "준공일": r.completion_date,
@@ -434,7 +440,6 @@ export default function SimilarServices() {
         service_overview: r["용역개요"] ?? null,
         contract_amount: r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null,
         contract_date: toDate(r["계약일"]),
-        announcement_date: toDate(r["공고일"]),
         start_date: toDate(r["착수일"]),
         completion_date: toDate(r["준공일"]),
         is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
@@ -567,6 +572,22 @@ export default function SimilarServices() {
               <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
               <span className="text-xs">90일미만 포함</span>
             </label>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
+              <span className="text-xs text-muted-foreground">공고일</span>
+              <Input
+                type="date"
+                min="1900-01-01"
+                max="9999-12-31"
+                value={filterAnnouncementDate}
+                onChange={(e) => setFilterAnnouncementDate(clampDate(e.target.value))}
+                className="h-7 w-[150px] text-xs"
+              />
+              {filterAnnouncementDate && (
+                <button type="button" onClick={() => setFilterAnnouncementDate("")} className="text-muted-foreground hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
@@ -616,10 +637,6 @@ export default function SimilarServices() {
                             {EVAL_TYPES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>공고일</Label>
-                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.announcement_date} onChange={(e) => setForm({ ...form, announcement_date: clampDate(e.target.value) })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
