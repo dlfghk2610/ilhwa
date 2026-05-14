@@ -52,7 +52,7 @@ const emptyForm = {
   share_amount: "",
   is_dual_participation: false,
   notes: "",
-  phases: [] as { label: string; amount: string }[],
+  phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
 };
 
 type FormState = typeof emptyForm;
