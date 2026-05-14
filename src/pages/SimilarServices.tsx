@@ -369,10 +369,9 @@ export default function SimilarServices() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-semibold">평가종류 (기준)</Label>
-              <Select value={filterEvalType || "__all__"} onValueChange={(v) => setFilterEvalType(v === "__all__" ? "" : v)}>
+              <Select value={filterEvalType} onValueChange={(v) => setFilterEvalType(v)}>
                 <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">전체 (계수 1.0)</SelectItem>
                   {evalTypeOptions.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
                 </SelectContent>
               </Select>
