@@ -73,6 +73,48 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
+  // 사용자 정의 사업종류 그룹 (localStorage)
+  const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
+    { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
+    { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
+    { group: "도로계열", items: ["고속도로", "국도", "지방도", "도시계획도로"] },
+    { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
+    { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
+  ];
+  const SERVICE_GROUPS_KEY = "similar_services.service_groups.v1";
+  const [customGroups, setCustomGroups] = useState<{ group: string; items: string[] }[]>(() => {
+    try {
+      const raw = localStorage.getItem(SERVICE_GROUPS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return DEFAULT_GROUPS;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SERVICE_GROUPS_KEY, JSON.stringify(customGroups)); } catch {}
+  }, [customGroups]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
+  const addGroup = () => {
+    const n = newGroupName.trim();
+    if (!n) return;
+    if (customGroups.some((g) => g.group === n)) { toast.error("이미 존재하는 계열"); return; }
+    setCustomGroups([...customGroups, { group: n, items: [] }]);
+    setNewGroupName("");
+  };
+  const removeGroup = (g: string) => setCustomGroups(customGroups.filter((x) => x.group !== g));
+  const addItem = (g: string) => {
+    const v = (newItemInputs[g] ?? "").trim();
+    if (!v) return;
+    setCustomGroups(customGroups.map((x) => x.group === g
+      ? (x.items.includes(v) ? x : { ...x, items: [...x.items, v] })
+      : x));
+    setNewItemInputs({ ...newItemInputs, [g]: "" });
+  };
+  const removeItem = (g: string, item: string) => {
+    setCustomGroups(customGroups.map((x) => x.group === g ? { ...x, items: x.items.filter((i) => i !== item) } : x));
+    setFilterServiceTypes((prev) => prev.filter((s) => s !== item));
+  };
+
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("similar_services").select("*").order("created_at", { ascending: false });
@@ -200,21 +242,14 @@ export default function SimilarServices() {
   const evalTypeOptions = useMemo(() => {
     return Array.from(new Set(rows.map((r) => (r.evaluation_type ?? "").trim()).filter(Boolean))).sort();
   }, [rows]);
-  // 사업종류 카테고리 그룹
-  const SERVICE_GROUPS: { group: string; items: string[] }[] = [
-    { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
-    { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
-    { group: "도로계열", items: ["고속도로", "국도", "지방도", "도시계획도로"] },
-    { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
-    { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
-    { group: "기타", items: [] },
-  ];
-  const knownServiceTypes = new Set(SERVICE_GROUPS.flatMap((g) => g.items));
+  // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
+  const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   const serviceTypeOptions = useMemo(() => {
     const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
     const extras = fromData.filter((t) => !knownServiceTypes.has(t)).sort();
-    return [...SERVICE_GROUPS.map((g) => g.group === "기타" ? { ...g, items: extras } : g)].filter((g) => g.items.length > 0);
-  }, [rows]);
+    const base = customGroups.filter((g) => g.items.length > 0);
+    return extras.length > 0 ? [...base, { group: "기타", items: extras }] : base;
+  }, [rows, customGroups, knownServiceTypes]);
 
   // 차수 표기 접미사
   const phaseSuffix = (r: Row) => {
@@ -230,7 +265,7 @@ export default function SimilarServices() {
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
   const serviceCoef = (r: Row) => {
-    if (filterServiceTypes.length === 0) return 1;
+    if (filterServiceTypes.length === 0) return 0.6;
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
@@ -341,20 +376,56 @@ export default function SimilarServices() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+                    placeholder="새 계열명 (예: 단지계열)"
+                    className="h-7 text-xs w-44"
+                  />
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                </div>
+              </div>
               <div className="space-y-2 p-2 rounded-md border bg-background">
-                {serviceTypeOptions.length === 0 && <span className="text-xs text-muted-foreground">데이터 없음</span>}
-                {serviceTypeOptions.map((g) => (
-                  <div key={g.group} className="flex flex-wrap items-center gap-2">
+                {customGroups.length === 0 && <span className="text-xs text-muted-foreground">계열을 추가하세요</span>}
+                {customGroups.map((g) => (
+                  <div key={g.group} className="flex flex-wrap items-center gap-2 pb-1.5 border-b last:border-0">
                     <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
                     {g.items.map((t) => (
+                      <span key={t} className="flex items-center gap-1 text-sm px-2 py-0.5 rounded border hover:bg-muted">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
+                          <span>{t}</span>
+                        </label>
+                        <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <Input
+                      value={newItemInputs[g.group] ?? ""}
+                      onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
+                      placeholder="+ 종류"
+                      className="h-6 text-xs w-24"
+                    />
+                    <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                  </div>
+                ))}
+                {serviceTypeOptions.find((g) => g.group === "기타") && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">기타</span>
+                    {serviceTypeOptions.find((g) => g.group === "기타")!.items.map((t) => (
                       <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-0.5 rounded border hover:bg-muted">
                         <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
                         <span>{t}</span>
                       </label>
                     ))}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
