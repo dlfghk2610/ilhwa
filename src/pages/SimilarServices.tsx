@@ -238,10 +238,9 @@ export default function SimilarServices() {
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
 
-  // 평가종류/사업종류 후보 목록 (기존 데이터에서 추출)
-  const evalTypeOptions = useMemo(() => {
-    return Array.from(new Set(rows.map((r) => (r.evaluation_type ?? "").trim()).filter(Boolean))).sort();
-  }, [rows]);
+  // 평가종류 (고정 4가지)
+  const EVAL_TYPES = ["소규모", "전략", "사후", "평가"] as const;
+  const evalTypeOptions = EVAL_TYPES as readonly string[];
   // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   const serviceTypeOptions = useMemo(() => {
@@ -259,8 +258,9 @@ export default function SimilarServices() {
     return ` (${ps[0].label}~${ps[ps.length - 1].label})`;
   };
 
-  // 적용계수 계산
+  // 적용계수 계산 ("평가" 행은 항상 1.0)
   const evalCoef = (r: Row) => {
+    if ((r.evaluation_type ?? "") === "평가") return 1.0;
     if (!filterEvalType) return 1;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
@@ -359,6 +359,8 @@ export default function SimilarServices() {
     setFilterServiceTypes((prev) => prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]);
   };
 
+  const [editGroups, setEditGroups] = useState(false);
+
   return (
     <AppLayout title="PQ 유사용역 (회사실적)">
       <div className="space-y-4">
@@ -379,14 +381,27 @@ export default function SimilarServices() {
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
                 <div className="flex items-center gap-1">
-                  <Input
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
-                    placeholder="새 계열명 (예: 단지계열)"
-                    className="h-7 text-xs w-44"
-                  />
-                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                  {editGroups && (
+                    <>
+                      <Input
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+                        placeholder="새 계열명 (예: 단지계열)"
+                        className="h-7 text-xs w-44"
+                      />
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={addGroup}>계열 추가</Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={editGroups ? "default" : "outline"}
+                    className="h-7 px-2"
+                    onClick={() => setEditGroups((v) => !v)}
+                  >
+                    {editGroups ? "완료" : "편집"}
+                  </Button>
                 </div>
               </div>
               <div className="space-y-2 p-2 rounded-md border bg-background">
@@ -400,19 +415,25 @@ export default function SimilarServices() {
                           <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
                           <span>{t}</span>
                         </label>
-                        <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
+                        {editGroups && (
+                          <button type="button" onClick={() => removeItem(g.group, t)} className="text-muted-foreground hover:text-destructive">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </span>
                     ))}
-                    <Input
-                      value={newItemInputs[g.group] ?? ""}
-                      onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
-                      placeholder="+ 종류"
-                      className="h-6 text-xs w-24"
-                    />
-                    <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                    {editGroups && (
+                      <>
+                        <Input
+                          value={newItemInputs[g.group] ?? ""}
+                          onChange={(e) => setNewItemInputs({ ...newItemInputs, [g.group]: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(g.group); } }}
+                          placeholder="+ 종류"
+                          className="h-6 text-xs w-24"
+                        />
+                        <button type="button" onClick={() => removeGroup(g.group)} className="text-[11px] text-muted-foreground hover:text-destructive ml-auto">계열삭제</button>
+                      </>
+                    )}
                   </div>
                 ))}
                 {serviceTypeOptions.find((g) => g.group === "기타") && (
@@ -480,7 +501,13 @@ export default function SimilarServices() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>평가종류</Label>
-                        <Input value={form.evaluation_type} onChange={(e) => setForm({ ...form, evaluation_type: e.target.value })} placeholder="예: PQ, TP, 사후" />
+                        <Select value={form.evaluation_type || "__none__"} onValueChange={(v) => setForm({ ...form, evaluation_type: v === "__none__" ? "" : v })}>
+                          <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">선택 안 함</SelectItem>
+                            {EVAL_TYPES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
