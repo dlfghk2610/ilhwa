@@ -641,14 +641,18 @@ export default function SimilarServices() {
                                 <Input
                                   className="col-span-3"
                                   type="date"
+                                  min="1900-01-01"
+                                  max="9999-12-31"
                                   value={p.start_date}
-                                  onChange={(e) => updatePhase(i, "start_date", e.target.value)}
+                                  onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
                                 />
                                 <Input
                                   className="col-span-3"
                                   type="date"
+                                  min="1900-01-01"
+                                  max="9999-12-31"
                                   value={p.end_date}
-                                  onChange={(e) => updatePhase(i, "end_date", e.target.value)}
+                                  onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
                                 />
                                 <Input
                                   className="col-span-3"
