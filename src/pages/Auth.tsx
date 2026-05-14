@@ -24,6 +24,17 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [autoLogin, setAutoLogin] = useState<boolean>(() => localStorage.getItem("pq-auto-login") !== "0");
+
+  const applyAutoLoginPref = (checked: boolean) => {
+    localStorage.setItem("pq-auto-login", checked ? "1" : "0");
+    if (checked) {
+      localStorage.removeItem("pq-session-only");
+    } else {
+      localStorage.setItem("pq-session-only", "1");
+    }
+    sessionStorage.setItem("pq-tab-alive", "1");
+  };
 
   useEffect(() => {
     if (!loading && user) navigate("/", { replace: true });
