@@ -372,7 +372,7 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "" }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", start_date: "", end_date: "" }] });
   };
   const updatePhase = (i: number, key: "label" | "amount", v: string) => {
     const ps = [...form.phases];
