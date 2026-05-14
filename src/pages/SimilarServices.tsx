@@ -39,6 +39,7 @@ type Row = {
   is_under_90days: boolean;
   notes: string | null;
   phases: Phase[] | null;
+  cert_pdf_path: string | null;
 };
 
 const emptyForm = {
@@ -59,7 +60,9 @@ const emptyForm = {
   is_private: false,
   is_under_90days: false,
   notes: "",
-  phases: [] as { label: string; amount: string; start_date: string; end_date: string }[],
+  phases: [] as { label: string; amount: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null }[],
+  cert_pdf_path: "",
+  cert_pdf_file: null as File | null,
 };
 
 type FormState = typeof emptyForm;
