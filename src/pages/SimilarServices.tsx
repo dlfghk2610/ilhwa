@@ -933,19 +933,35 @@ export default function SimilarServices() {
                                     value={p.end_date}
                                     onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
                                   />
-                                  <Input
-                                    className="col-span-3"
-                                    inputMode="decimal"
-                                    placeholder="차수 지분금액"
-                                    value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
-                                    onChange={(e) => {
-                                      const raw = e.target.value.replace(/[^\d.-]/g, "");
-                                      updatePhase(i, "amount", raw);
-                                    }}
-                                  />
+                                  <div className="col-span-3" />
                                   <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                     <X className="h-4 w-4" />
                                   </Button>
+                                </div>
+                                <div className="grid grid-cols-12 gap-2 items-center">
+                                  <div className="col-span-2 text-[10px] text-muted-foreground text-right pr-1">차수 금액</div>
+                                  <Input
+                                    className="col-span-3"
+                                    inputMode="decimal"
+                                    placeholder="계약금액"
+                                    value={p.contract_amount === "" ? "" : Number(p.contract_amount).toLocaleString()}
+                                    onChange={(e) => updatePhase(i, "contract_amount", e.target.value.replace(/[^\d.-]/g, ""))}
+                                  />
+                                  <Input
+                                    className="col-span-2"
+                                    inputMode="decimal"
+                                    placeholder="지분율 %"
+                                    value={p.share_rate}
+                                    onChange={(e) => updatePhase(i, "share_rate", e.target.value.replace(/[^\d.-]/g, ""))}
+                                  />
+                                  <Input
+                                    className="col-span-4"
+                                    inputMode="decimal"
+                                    placeholder="지분금액 (자동, 수정가능)"
+                                    value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
+                                    onChange={(e) => updatePhase(i, "amount", e.target.value.replace(/[^\d.-]/g, ""))}
+                                  />
+                                  <div className="col-span-1" />
                                 </div>
                                 <div className="flex items-center gap-2 text-xs">
                                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
@@ -982,7 +998,7 @@ export default function SimilarServices() {
                               <div className="col-span-2">차수명</div>
                               <div className="col-span-3">착수일</div>
                               <div className="col-span-3">준공일</div>
-                              <div className="col-span-3 text-right">지분금액</div>
+                              <div className="col-span-3 text-right">지분금액 합계</div>
                             </div>
                             <div className="text-xs text-right text-muted-foreground">
                               차수 합계: {phasesTotal.toLocaleString()} 원
