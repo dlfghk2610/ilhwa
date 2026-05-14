@@ -242,21 +242,14 @@ export default function SimilarServices() {
   const evalTypeOptions = useMemo(() => {
     return Array.from(new Set(rows.map((r) => (r.evaluation_type ?? "").trim()).filter(Boolean))).sort();
   }, [rows]);
-  // 사업종류 카테고리 그룹
-  const SERVICE_GROUPS: { group: string; items: string[] }[] = [
-    { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
-    { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
-    { group: "도로계열", items: ["고속도로", "국도", "지방도", "도시계획도로"] },
-    { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
-    { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
-    { group: "기타", items: [] },
-  ];
-  const knownServiceTypes = new Set(SERVICE_GROUPS.flatMap((g) => g.items));
+  // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
+  const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   const serviceTypeOptions = useMemo(() => {
     const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
     const extras = fromData.filter((t) => !knownServiceTypes.has(t)).sort();
-    return [...SERVICE_GROUPS.map((g) => g.group === "기타" ? { ...g, items: extras } : g)].filter((g) => g.items.length > 0);
-  }, [rows]);
+    const base = customGroups.filter((g) => g.items.length > 0);
+    return extras.length > 0 ? [...base, { group: "기타", items: extras }] : base;
+  }, [rows, customGroups, knownServiceTypes]);
 
   // 차수 표기 접미사
   const phaseSuffix = (r: Row) => {
