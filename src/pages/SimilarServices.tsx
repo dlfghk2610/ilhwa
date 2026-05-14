@@ -265,7 +265,7 @@ export default function SimilarServices() {
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
   const serviceCoef = (r: Row) => {
-    if (filterServiceTypes.length === 0) return 1;
+    if (filterServiceTypes.length === 0) return 0.6;
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
