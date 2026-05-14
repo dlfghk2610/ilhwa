@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,9 +11,12 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
+
+type Phase = { label: string; amount: number | null };
 
 type Row = {
   id: string;
@@ -31,6 +34,7 @@ type Row = {
   share_amount: number | null;
   is_dual_participation: boolean;
   notes: string | null;
+  phases: Phase[] | null;
 };
 
 const emptyForm = {
@@ -48,6 +52,7 @@ const emptyForm = {
   share_amount: "",
   is_dual_participation: false,
   notes: "",
+  phases: [] as { label: string; amount: string }[],
 };
 
 type FormState = typeof emptyForm;
@@ -64,30 +69,41 @@ export default function SimilarServices() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // 적용 계수 필터
+  const [filterEvalType, setFilterEvalType] = useState<string>("");
+  const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
+
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("similar_services").select("*").order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    else setRows((data as Row[]) || []);
+    else setRows((data as any as Row[]) || []);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  // 자동 계산: 계약금액 × 참여지분율 (수기 입력 후엔 덮어쓰지 않음)
+  // 차수 합계
+  const phasesTotal = useMemo(() => {
+    return form.phases.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  }, [form.phases]);
+
+  // 자동 계산: 차수 입력 시엔 차수 합계로 / 아니면 계약금액 × 참여지분율
   useEffect(() => {
+    if (form.phases.length > 0) {
+      setForm((prev) => ({ ...prev, share_amount: String(Math.round(phasesTotal)) }));
+      return;
+    }
     if (shareAmountTouched) return;
     if (form.is_dual_participation) return;
     const amt = Number(form.contract_amount);
     const p = Number(form.participation_rate);
     if (!amt || isNaN(amt)) return;
-    let calc = amt;
-    if (p && !isNaN(p)) calc = calc * (p / 100);
-    if (p) {
-      setForm((prev) => ({ ...prev, share_amount: String(Math.round(calc)) }));
+    if (p && !isNaN(p)) {
+      setForm((prev) => ({ ...prev, share_amount: String(Math.round(amt * (p / 100))) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.contract_amount, form.participation_rate, form.is_dual_participation]);
+  }, [form.contract_amount, form.participation_rate, form.is_dual_participation, phasesTotal, form.phases.length]);
 
   const openCreate = () => {
     setEditing(null);
@@ -98,6 +114,7 @@ export default function SimilarServices() {
 
   const openEdit = (row: Row) => {
     setEditing(row);
+    const phases = Array.isArray(row.phases) ? row.phases : [];
     setForm({
       project_name: row.project_name ?? "",
       client: row.client ?? "",
@@ -113,8 +130,9 @@ export default function SimilarServices() {
       share_amount: row.share_amount?.toString() ?? "",
       is_dual_participation: row.is_dual_participation ?? false,
       notes: row.notes ?? "",
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "" })),
     });
-    setShareAmountTouched(true); // 수정 시 자동덮어쓰기 방지
+    setShareAmountTouched(true);
     setOpen(true);
   };
 
@@ -125,6 +143,10 @@ export default function SimilarServices() {
     e.preventDefault();
     if (!user) return;
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
+
+    const phasesPayload = form.phases
+      .filter((p) => p.label.trim() !== "" || p.amount !== "")
+      .map((p) => ({ label: p.label.trim(), amount: p.amount === "" ? null : Number(p.amount) }));
 
     const payload: any = {
       project_name: form.project_name,
@@ -141,6 +163,7 @@ export default function SimilarServices() {
       share_amount: num(form.share_amount),
       is_dual_participation: form.is_dual_participation,
       notes: txt(form.notes),
+      phases: phasesPayload,
     };
 
     setSubmitting(true);
@@ -173,9 +196,47 @@ export default function SimilarServices() {
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
 
+  // 평가종류/사업종류 후보 목록 (기존 데이터에서 추출)
+  const evalTypeOptions = useMemo(() => {
+    return Array.from(new Set(rows.map((r) => (r.evaluation_type ?? "").trim()).filter(Boolean))).sort();
+  }, [rows]);
+  const serviceTypeOptions = useMemo(() => {
+    return Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean))).sort();
+  }, [rows]);
+
+  // 차수 표기 접미사
+  const phaseSuffix = (r: Row) => {
+    const ps = Array.isArray(r.phases) ? r.phases.filter((p) => p.label && p.label.trim()) : [];
+    if (ps.length === 0) return "";
+    if (ps.length === 1) return ` (${ps[0].label})`;
+    return ` (${ps[0].label}~${ps[ps.length - 1].label})`;
+  };
+
+  // 적용계수 계산
+  const evalCoef = (r: Row) => {
+    if (!filterEvalType) return 1;
+    return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
+  };
+  const serviceCoef = (r: Row) => {
+    if (filterServiceTypes.length === 0) return 1;
+    return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
+  };
+
+  // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
+  const appliedCount = (r: Row) => {
+    const p = r.is_dual_participation ? 100 : Number(r.participation_rate ?? 0);
+    return evalCoef(r) * serviceCoef(r) * (p / 100);
+  };
+  const appliedAmount = (r: Row) => {
+    return evalCoef(r) * serviceCoef(r) * Number(r.share_amount ?? 0);
+  };
+
+  const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
+  const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
+
   const handleExport = () => {
     const data = filtered.map((r) => ({
-      "사업명": r.project_name,
+      "사업명": r.project_name + phaseSuffix(r),
       "발주처": r.client,
       "사업종류": r.service_type,
       "평가종류": r.evaluation_type,
@@ -188,6 +249,8 @@ export default function SimilarServices() {
       "참여지분율(%)": r.participation_rate,
       "각사지분율": r.company_share_rate,
       "지분금액": r.share_amount,
+      "적용건수": Number(appliedCount(r).toFixed(2)),
+      "적용금액": Math.round(appliedAmount(r)),
       "비고": r.notes,
     }));
     exportToExcel(data, "PQ유사용역");
@@ -232,9 +295,67 @@ export default function SimilarServices() {
     }
   };
 
+  const addPhase = () => {
+    const next = form.phases.length + 1;
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "" }] });
+  };
+  const updatePhase = (i: number, key: "label" | "amount", v: string) => {
+    const ps = [...form.phases];
+    ps[i] = { ...ps[i], [key]: v };
+    setForm({ ...form, phases: ps });
+  };
+  const removePhase = (i: number) => {
+    setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) });
+  };
+
+  const toggleServiceFilter = (st: string) => {
+    setFilterServiceTypes((prev) => prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]);
+  };
+
   return (
     <AppLayout title="PQ 유사용역 (회사실적)">
       <div className="space-y-4">
+        {/* 적용계수 필터 + 합계 */}
+        <Card className="p-4 shadow-card">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">평가종류 (기준)</Label>
+              <Select value={filterEvalType || "__all__"} onValueChange={(v) => setFilterEvalType(v === "__all__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">전체 (계수 1.0)</SelectItem>
+                  {evalTypeOptions.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+              <div className="flex flex-wrap gap-2 p-2 rounded-md border bg-background min-h-10">
+                {serviceTypeOptions.length === 0 && <span className="text-xs text-muted-foreground">데이터 없음</span>}
+                {serviceTypeOptions.map((t) => (
+                  <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-1 rounded border hover:bg-muted">
+                    <Checkbox checked={filterServiceTypes.includes(t)} onCheckedChange={() => toggleServiceFilter(t)} />
+                    <span>{t}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+            <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
+              <div className="text-xs text-muted-foreground">총 적용건수</div>
+              <div className="text-xl font-bold text-primary">{totalAppliedCount.toFixed(2)}</div>
+            </div>
+            <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
+              <div className="text-xs text-muted-foreground">총 적용금액</div>
+              <div className="text-xl font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</div>
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
+          </div>
+        </Card>
+
         <Card className="p-4 shadow-card">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -271,7 +392,7 @@ export default function SimilarServices() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>평가종류</Label>
-                        <Input value={form.evaluation_type} onChange={(e) => setForm({ ...form, evaluation_type: e.target.value })} placeholder="예: PQ, TP, SOQ" />
+                        <Input value={form.evaluation_type} onChange={(e) => setForm({ ...form, evaluation_type: e.target.value })} placeholder="예: PQ, TP, 사후" />
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
@@ -330,10 +451,54 @@ export default function SimilarServices() {
                           onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })}
                           placeholder="예: A사 60% / B사 40%" />
                       </div>
+
+                      {/* 차수 입력 */}
+                      <div className="space-y-2 md:col-span-2 p-3 rounded-md border bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold">차수 (사후 평가용)</Label>
+                          <Button type="button" size="sm" variant="outline" onClick={addPhase}>
+                            <Plus className="h-3 w-3 mr-1" />차수 추가
+                          </Button>
+                        </div>
+                        {form.phases.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 1차/2차 등 입력 시 합계가 지분금액에 자동 반영됩니다.</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {form.phases.map((p, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <Input
+                                  className="w-24"
+                                  placeholder="1차"
+                                  value={p.label}
+                                  onChange={(e) => updatePhase(i, "label", e.target.value)}
+                                />
+                                <Input
+                                  className="flex-1"
+                                  inputMode="decimal"
+                                  placeholder="차수 지분금액"
+                                  value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^\d.-]/g, "");
+                                    updatePhase(i, "amount", raw);
+                                  }}
+                                />
+                                <Button type="button" size="icon" variant="ghost" onClick={() => removePhase(i)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="text-xs text-right text-muted-foreground">
+                              차수 합계: {phasesTotal.toLocaleString()} 원
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 자동 계산되며 수기 수정 가능</span></Label>
+                        <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 차수 입력 시 자동 합계 / 그 외 자동 계산되며 수기 수정 가능</span></Label>
                         <Input
                           inputMode="decimal"
+                          disabled={form.phases.length > 0}
                           value={form.share_amount === "" ? "" : Number(form.share_amount).toLocaleString()}
                           onChange={(e) => {
                             const raw = e.target.value.replace(/[^\d.-]/g, "");
@@ -378,33 +543,37 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap">사업종류</TableHead>
                   <TableHead className="min-w-[140px] max-w-[200px]">각사지분율</TableHead>
                   <TableHead className="whitespace-nowrap text-center">2종</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="text-right w-[100px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={13} className="text-center py-12">
+                  <TableRow><TableCell colSpan={15} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
                     데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
                   </TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-top">{r.project_name}</TableCell>
-                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-top">{r.client ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDate(r.contract_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDate(r.start_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDate(r.completion_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{fmtNum(r.contract_amount)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{fmtNum(r.share_amount)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.evaluation_type ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.service_type ?? "-"}</TableCell>
-                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-pre-wrap break-words align-top">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
-                    <TableCell className="whitespace-nowrap text-center">{r.is_dual_participation ? "✓" : "-"}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
+                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.contract_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.contract_amount)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.share_amount)}</TableCell>
+                    <TableCell className="whitespace-nowrap align-middle">{r.evaluation_type ?? "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap align-middle">{r.service_type ?? "-"}</TableCell>
+                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-pre-wrap break-words align-middle">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center align-middle">{r.is_dual_participation ? "✓" : "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle font-medium">{appliedCount(r).toFixed(2)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
+                    <TableCell className="text-right align-middle">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
@@ -413,7 +582,10 @@ export default function SimilarServices() {
               </TableBody>
             </Table>
           </div>
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t flex justify-between">
+            <span>총 {filtered.length}건</span>
+            <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
+          </div>
         </Card>
 
         <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
