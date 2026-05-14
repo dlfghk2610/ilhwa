@@ -91,6 +91,13 @@ export default function SimilarServices() {
   useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
   useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
 
+  // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
+  const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
+  const [filterAnnouncementDate, setFilterAnnouncementDate] = useState<string>(() => {
+    try { return localStorage.getItem(ANNOUNCEMENT_KEY) ?? ""; } catch { return ""; }
+  });
+  useEffect(() => { try { localStorage.setItem(ANNOUNCEMENT_KEY, filterAnnouncementDate); } catch {} }, [filterAnnouncementDate]);
+
   // 사용자 정의 사업종류 그룹 (localStorage)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
     { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
