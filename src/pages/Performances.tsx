@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles, FileText } from "lucide-react";
 import { exportToExcel } from "@/lib/excel";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 type Participant = {
   name: string;
@@ -45,6 +46,7 @@ type Row = {
   notes: string | null;
   participants: Participant[];
   participant_file_path: string | null;
+  cert_pdf_path: string | null;
 };
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
@@ -66,6 +68,8 @@ const emptyForm = {
   participants: [] as Participant[],
   participant_file: null as File | null,
   participant_file_path: "",
+  cert_pdf_file: null as File | null,
+  cert_pdf_path: "",
 };
 
 type FormState = typeof emptyForm;
@@ -100,6 +104,8 @@ export default function Performances() {
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // 기술자별 분석 상태
   const [selectedTech, setSelectedTech] = useState<string>("");
@@ -155,6 +161,8 @@ export default function Performances() {
       participants: r.participants,
       participant_file: null,
       participant_file_path: r.participant_file_path || "",
+      cert_pdf_file: null,
+      cert_pdf_path: r.cert_pdf_path || "",
     });
     setShareAmountTouched(true);
     setOpen(true);
@@ -214,6 +222,16 @@ export default function Performances() {
         participant_file_path = path;
       }
 
+      let cert_pdf_path = form.cert_pdf_path;
+      if (form.cert_pdf_file) {
+        const path = `${user.id}/${Date.now()}_cert.pdf`;
+        const { error: upErr } = await supabase.storage
+          .from("performance-certs")
+          .upload(path, form.cert_pdf_file, { contentType: "application/pdf", upsert: true });
+        if (upErr) throw upErr;
+        cert_pdf_path = path;
+      }
+
       const payload = {
         project_name: form.project_name.trim(),
         service_overview: form.service_overview || null,
@@ -229,6 +247,7 @@ export default function Performances() {
         notes: form.notes || null,
         participants: form.participants as any,
         participant_file_path,
+        cert_pdf_path,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
         start_date: form.contract_start_date || null,
@@ -272,9 +291,10 @@ export default function Performances() {
     );
   }, [rows, search]);
 
-  function exportExcel() {
-    // 착수일(계약시작일) 오름차순 정렬
-    const sorted = [...filtered].sort((a, b) => {
+  // 선택된 행 (없으면 전체 filtered) - 착수일 오름차순 정렬
+  function getTargets(): Row[] {
+    const base = selectedIds.size > 0 ? filtered.filter((r) => selectedIds.has(r.id)) : filtered;
+    return [...base].sort((a, b) => {
       const av = a.contract_start_date ?? "";
       const bv = b.contract_start_date ?? "";
       if (!av && !bv) return 0;
@@ -282,6 +302,10 @@ export default function Performances() {
       if (!bv) return -1;
       return av.localeCompare(bv);
     });
+  }
+
+  function exportExcel() {
+    const sorted = getTargets();
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
       return {
@@ -303,6 +327,70 @@ export default function Performances() {
     });
     exportToExcel(data, "PQ개인별실적");
   }
+
+  async function exportMergedPdf(includeParticipants: boolean) {
+    const targets = getTargets();
+    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+    setExportingPdf(true);
+    try {
+      const merged = await PDFDocument.create();
+      const seqFont = addSeqNumbers ? await merged.embedFont(StandardFonts.HelveticaBold) : null;
+      let added = 0;
+      let pdfSeq = 0;
+      for (const r of targets) {
+        pdfSeq++;
+        const paths: { path: string; bucket: "performance-certs" | "participant-lists" }[] = [];
+        if (r.cert_pdf_path) paths.push({ path: r.cert_pdf_path, bucket: "performance-certs" });
+        if (includeParticipants && r.participant_file_path) {
+          paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
+        }
+        let stamped = false;
+        for (const { path, bucket } of paths) {
+          const { data: blob, error } = await supabase.storage.from(bucket).download(path);
+          if (error || !blob) continue;
+          // 참여자명단이 PDF가 아닐 수도 있음 (DOCX) → PDF만 병합
+          if (!path.toLowerCase().endsWith(".pdf")) continue;
+          const bytes = await blob.arrayBuffer();
+          try {
+            const src = await PDFDocument.load(bytes);
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg, idx) => {
+              merged.addPage(pg);
+              if (addSeqNumbers && seqFont && !stamped && idx === 0) {
+                const { height } = pg.getSize();
+                pg.drawText(String(pdfSeq), {
+                  x: 30,
+                  y: height - 50,
+                  size: 40,
+                  font: seqFont,
+                  color: rgb(0, 0, 0),
+                });
+                stamped = true;
+              }
+            });
+            added++;
+          } catch { /* 손상 PDF 건너뜀 */ }
+        }
+      }
+      if (added === 0) { toast.message("등록된 PDF가 없어 병합 파일을 만들지 않았습니다"); return; }
+      const out = await merged.save();
+      const blob = new Blob([out as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = includeParticipants ? "실적증명서_참여자명단_병합.pdf" : "실적증명서_병합.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`PDF 병합 완료 (${added}개)`);
+    } catch (e: any) {
+      toast.error("PDF 병합 오류: " + (e?.message ?? ""));
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
 
   // 사업종류 chip 추가
   function addServiceType() {
@@ -397,13 +485,24 @@ export default function Performances() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
-            <div className="ml-auto flex gap-2 items-center">
+            <div className="ml-auto flex gap-2 items-center flex-wrap">
+              <span className="text-xs text-muted-foreground">
+                {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 대상"}
+              </span>
               <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
                 <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
                 <span className="text-xs">연번 기입 (착수일 오름차순)</span>
               </label>
               <Button variant="outline" onClick={exportExcel}>
-                <Download className="h-4 w-4 mr-1" /> 엑셀 내보내기
+                <Download className="h-4 w-4 mr-1" /> 엑셀
+              </Button>
+              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
+                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+                실적증명서 PDF
+              </Button>
+              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
+                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+                실적+참여자명단 PDF
               </Button>
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-1" /> 사업 등록
@@ -415,6 +514,15 @@ export default function Performances() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))}
+                      onCheckedChange={(c) => {
+                        if (c) setSelectedIds(new Set(filtered.map((r) => r.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                  </TableHead>
                   <TableHead>사업명</TableHead>
                   <TableHead>발주처</TableHead>
                   <TableHead>계약기간</TableHead>
@@ -424,16 +532,29 @@ export default function Performances() {
                   <TableHead>평가종류</TableHead>
                   <TableHead>사업종류</TableHead>
                   <TableHead className="text-right">참여자</TableHead>
+                  <TableHead>첨부</TableHead>
                   <TableHead className="text-right">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={(c) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (c) next.add(r.id); else next.delete(r.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
@@ -453,6 +574,12 @@ export default function Performances() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{r.participants.length}</TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex flex-col gap-0.5">
+                        {r.cert_pdf_path && <Badge variant="secondary" className="w-fit">실적증명</Badge>}
+                        {r.participant_file_path && <Badge variant="outline" className="w-fit">참여자명단</Badge>}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -658,6 +785,33 @@ export default function Performances() {
               <div className="md:col-span-2">
                 <Label>비고</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>실적증명서 PDF</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="max-w-md"
+                    onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] ?? null })}
+                  />
+                  {(form.cert_pdf_path || form.cert_pdf_file) && (
+                    <Badge variant="secondary">
+                      {form.cert_pdf_file?.name ?? "기존 파일 등록됨"}
+                    </Badge>
+                  )}
+                  {(form.cert_pdf_path || form.cert_pdf_file) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setForm({ ...form, cert_pdf_file: null, cert_pdf_path: "" })}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 

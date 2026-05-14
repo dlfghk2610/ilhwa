@@ -1,0 +1,1 @@
+ALTER TABLE public.personal_performances ADD COLUMN IF NOT EXISTS cert_pdf_path text;

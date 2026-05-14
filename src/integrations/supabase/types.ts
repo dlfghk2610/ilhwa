@@ -100,6 +100,7 @@ export type Database = {
       }
       personal_performances: {
         Row: {
+          cert_pdf_path: string | null
           client: string | null
           company_share_rate: string | null
           contract_amount: number | null
@@ -125,6 +126,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cert_pdf_path?: string | null
           client?: string | null
           company_share_rate?: string | null
           contract_amount?: number | null
@@ -150,6 +152,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cert_pdf_path?: string | null
           client?: string | null
           company_share_rate?: string | null
           contract_amount?: number | null
