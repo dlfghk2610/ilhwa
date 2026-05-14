@@ -27,7 +27,7 @@ type Row = {
   start_date: string | null;
   completion_date: string | null;
   participation_rate: number | null;
-  company_share_rate: number | null;
+  company_share_rate: string | null;
   share_amount: number | null;
   is_dual_participation: boolean;
   notes: string | null;
