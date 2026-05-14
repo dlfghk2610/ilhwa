@@ -104,6 +104,8 @@ export default function Performances() {
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // 기술자별 분석 상태
   const [selectedTech, setSelectedTech] = useState<string>("");
