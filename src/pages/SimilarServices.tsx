@@ -366,19 +366,19 @@ export default function SimilarServices() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[200px]">사업명</TableHead>
-                  <TableHead className="w-[200px]">발주처</TableHead>
-                  <TableHead className="whitespace-nowrap">사업종류</TableHead>
-                  <TableHead className="whitespace-nowrap">평가종류</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
+                  <TableHead className="min-w-[160px] max-w-[220px]">사업명</TableHead>
+                  <TableHead className="min-w-[140px] max-w-[200px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap">계약일</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공일</TableHead>
-                  <TableHead className="whitespace-nowrap text-center">2종</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap text-right">참여(%)</TableHead>
-                  <TableHead className="w-[180px]">각사지분율</TableHead>
                   <TableHead className="whitespace-nowrap text-right">지분금액</TableHead>
-                  <TableHead className="text-right w-[120px]">관리</TableHead>
+                  <TableHead className="whitespace-nowrap">평가종류</TableHead>
+                  <TableHead className="whitespace-nowrap">사업종류</TableHead>
+                  <TableHead className="min-w-[140px] max-w-[200px]">각사지분율</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">2종</TableHead>
+                  <TableHead className="text-right w-[100px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -392,18 +392,18 @@ export default function SimilarServices() {
                   </TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium w-[200px] whitespace-normal break-words align-top">{r.project_name}</TableCell>
-                    <TableCell className="w-[200px] whitespace-normal break-words align-top">{r.client ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.service_type ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.evaluation_type ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{fmtNum(r.contract_amount)}</TableCell>
+                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-top">{r.project_name}</TableCell>
+                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-top">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDate(r.contract_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDate(r.completion_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-center">{r.is_dual_participation ? "✓" : "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">{fmtNum(r.contract_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
-                    <TableCell className="w-[180px] whitespace-pre-wrap break-words align-top">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtNum(r.share_amount)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.evaluation_type ?? "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.service_type ?? "-"}</TableCell>
+                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-pre-wrap break-words align-top">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
