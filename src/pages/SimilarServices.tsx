@@ -752,7 +752,11 @@ export default function SimilarServices() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
+                <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
+                <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+              </label>
               <label>
                 <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
                 <Button type="button" variant="outline" size="sm" asChild>
