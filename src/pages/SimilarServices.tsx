@@ -258,6 +258,7 @@ export default function SimilarServices() {
       service_overview: txt(form.service_overview),
       contract_amount: num(form.contract_amount),
       contract_date: txt(form.contract_date),
+      announcement_date: txt(form.announcement_date),
       start_date: derivedStart,
       completion_date: derivedCompletion,
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
