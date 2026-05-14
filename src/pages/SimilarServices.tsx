@@ -37,6 +37,7 @@ type Row = {
   is_dual_participation: boolean;
   is_private: boolean;
   is_under_90days: boolean;
+  is_lh_completion: boolean;
   notes: string | null;
   phases: Phase[] | null;
   cert_pdf_path: string | null;
@@ -59,6 +60,7 @@ const emptyForm = {
   is_dual_participation: false,
   is_private: false,
   is_under_90days: false,
+  is_lh_completion: false,
   notes: "",
   phases: [] as { label: string; amount: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null }[],
   cert_pdf_path: "",
@@ -83,17 +85,22 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
-  // 민간사업 / 90일미만 필터 (localStorage 영속)
+  // 민간사업 / 90일미만 / LH기성실적 필터 (localStorage 영속)
   const PRIVATE_FILTER_KEY = "similar_services.include_private.v1";
   const UNDER90_FILTER_KEY = "similar_services.include_under90.v1";
+  const LH_FILTER_KEY = "similar_services.include_lh.v1";
   const [includePrivate, setIncludePrivate] = useState<boolean>(() => {
     try { return localStorage.getItem(PRIVATE_FILTER_KEY) === "1"; } catch { return false; }
   });
   const [includeUnder90, setIncludeUnder90] = useState<boolean>(() => {
     try { return localStorage.getItem(UNDER90_FILTER_KEY) === "1"; } catch { return false; }
   });
+  const [includeLh, setIncludeLh] = useState<boolean>(() => {
+    try { return localStorage.getItem(LH_FILTER_KEY) === "1"; } catch { return false; }
+  });
   useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
   useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
+  useEffect(() => { try { localStorage.setItem(LH_FILTER_KEY, includeLh ? "1" : "0"); } catch {} }, [includeLh]);
 
   // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
@@ -224,6 +231,7 @@ export default function SimilarServices() {
       is_dual_participation: row.is_dual_participation ?? false,
       is_private: (row as any).is_private ?? false,
       is_under_90days: (row as any).is_under_90days ?? false,
+      is_lh_completion: (row as any).is_lh_completion ?? false,
       notes: row.notes ?? "",
       phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null })),
       cert_pdf_path: (row as any).cert_pdf_path ?? "",
@@ -311,6 +319,7 @@ export default function SimilarServices() {
         is_dual_participation: form.is_dual_participation,
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
+        is_lh_completion: form.is_lh_completion,
         notes: txt(form.notes),
         phases: phasesPayload,
         cert_pdf_path: certPath,
@@ -343,6 +352,7 @@ export default function SimilarServices() {
   const filtered = rows.filter((r) => {
     if ((r as any).is_private && !includePrivate) return false;
     if ((r as any).is_under_90days && !includeUnder90) return false;
+    if ((r as any).is_lh_completion && !includeLh) return false;
     if (!search) return true;
     return [r.project_name, r.client, r.service_type, r.evaluation_type]
       .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
@@ -720,6 +730,10 @@ export default function SimilarServices() {
               <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
               <span className="text-xs">90일미만 포함</span>
             </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeLh} onCheckedChange={(v) => setIncludeLh(!!v)} />
+              <span className="text-xs">LH기성실적 포함</span>
+            </label>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
               <span className="text-xs text-muted-foreground">공고일</span>
               <Input
@@ -833,6 +847,11 @@ export default function SimilarServices() {
                           <Checkbox checked={form.is_under_90days}
                             onCheckedChange={(v) => setForm({ ...form, is_under_90days: !!v })} />
                           <span className="text-sm">90일미만</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_lh_completion}
+                            onCheckedChange={(v) => setForm({ ...form, is_lh_completion: !!v })} />
+                          <span className="text-sm">LH기성실적</span>
                         </label>
                       </div>
 

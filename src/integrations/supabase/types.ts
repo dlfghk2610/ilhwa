@@ -217,6 +217,7 @@ export type Database = {
           evaluation_type: string | null
           id: string
           is_dual_participation: boolean
+          is_lh_completion: boolean
           is_private: boolean
           is_under_90days: boolean
           notes: string | null
@@ -242,6 +243,7 @@ export type Database = {
           evaluation_type?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_lh_completion?: boolean
           is_private?: boolean
           is_under_90days?: boolean
           notes?: string | null
@@ -267,6 +269,7 @@ export type Database = {
           evaluation_type?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_lh_completion?: boolean
           is_private?: boolean
           is_under_90days?: boolean
           notes?: string | null

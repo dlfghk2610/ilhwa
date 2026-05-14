@@ -1,0 +1,1 @@
+ALTER TABLE public.similar_services ADD COLUMN IF NOT EXISTS is_lh_completion boolean NOT NULL DEFAULT false;
