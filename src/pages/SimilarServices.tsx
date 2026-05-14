@@ -611,6 +611,19 @@ export default function SimilarServices() {
                         />
                       </div>
 
+                      <div className="md:col-span-2 flex flex-wrap items-center gap-4 p-3 rounded-md border bg-muted/20">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_private}
+                            onCheckedChange={(v) => setForm({ ...form, is_private: !!v })} />
+                          <span className="text-sm">민간사업</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_under_90days}
+                            onCheckedChange={(v) => setForm({ ...form, is_under_90days: !!v })} />
+                          <span className="text-sm">90일미만</span>
+                        </label>
+                      </div>
+
                       <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-md border bg-muted/30">
                         <Checkbox id="dual" checked={form.is_dual_participation}
                           onCheckedChange={(v) => {
