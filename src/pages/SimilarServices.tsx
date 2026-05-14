@@ -196,6 +196,14 @@ export default function SimilarServices() {
 
   const num = (v: string) => (v === "" || v === null ? null : Number(v));
   const txt = (v: string) => (v === "" ? null : v);
+  // 년도 4자리로 제한 (YYYY-MM-DD)
+  const clampDate = (v: string) => {
+    if (!v) return "";
+    const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+    if (!m) return v;
+    const y = m[1].slice(-4).padStart(4, "0");
+    return `${y}-${m[2]}-${m[3]}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -554,15 +562,15 @@ export default function SimilarServices() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
-                        <Input type="date" value={form.contract_date} onChange={(e) => setForm({ ...form, contract_date: e.target.value })} />
+                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.contract_date} onChange={(e) => setForm({ ...form, contract_date: clampDate(e.target.value) })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>착수일</Label>
-                        <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: clampDate(e.target.value) })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>준공일</Label>
-                        <Input type="date" value={form.completion_date} onChange={(e) => setForm({ ...form, completion_date: e.target.value })} />
+                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.completion_date} onChange={(e) => setForm({ ...form, completion_date: clampDate(e.target.value) })} />
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>용역개요</Label>
@@ -633,14 +641,18 @@ export default function SimilarServices() {
                                 <Input
                                   className="col-span-3"
                                   type="date"
+                                  min="1900-01-01"
+                                  max="9999-12-31"
                                   value={p.start_date}
-                                  onChange={(e) => updatePhase(i, "start_date", e.target.value)}
+                                  onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
                                 />
                                 <Input
                                   className="col-span-3"
                                   type="date"
+                                  min="1900-01-01"
+                                  max="9999-12-31"
                                   value={p.end_date}
-                                  onChange={(e) => updatePhase(i, "end_date", e.target.value)}
+                                  onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
                                 />
                                 <Input
                                   className="col-span-3"

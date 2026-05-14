@@ -184,7 +184,17 @@ export function DataManager({ table, fields, searchKeys, exportName }: Props) {
                         <Textarea id={f.key} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                       ) : (
                         <Input id={f.key} type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
-                          value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                          value={form[f.key] ?? ""}
+                          min={f.type === "date" ? "1900-01-01" : undefined}
+                          max={f.type === "date" ? "9999-12-31" : undefined}
+                          onChange={(e) => {
+                            let v = e.target.value;
+                            if (f.type === "date" && v) {
+                              const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+                              if (m) v = `${m[1].slice(-4).padStart(4, "0")}-${m[2]}-${m[3]}`;
+                            }
+                            setForm({ ...form, [f.key]: v });
+                          }}
                           step={f.type === "number" ? "any" : undefined} />
                       )}
                     </div>
