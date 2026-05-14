@@ -48,7 +48,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (error) toast.error(error.message);
-    else { toast.success("로그인 성공"); navigate("/"); }
+    else { applyAutoLoginPref(autoLogin); toast.success("로그인 성공"); navigate("/"); }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
