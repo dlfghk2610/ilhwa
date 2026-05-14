@@ -501,7 +501,13 @@ export default function SimilarServices() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>평가종류</Label>
-                        <Input value={form.evaluation_type} onChange={(e) => setForm({ ...form, evaluation_type: e.target.value })} placeholder="예: PQ, TP, 사후" />
+                        <Select value={form.evaluation_type || "__none__"} onValueChange={(v) => setForm({ ...form, evaluation_type: v === "__none__" ? "" : v })}>
+                          <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">선택 안 함</SelectItem>
+                            {EVAL_TYPES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1.5">
                         <Label>계약일</Label>
