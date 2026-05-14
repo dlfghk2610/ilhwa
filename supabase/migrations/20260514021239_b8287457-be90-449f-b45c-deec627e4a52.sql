@@ -1,0 +1,1 @@
+ALTER TABLE public.similar_services ALTER COLUMN company_share_rate TYPE text USING company_share_rate::text;
