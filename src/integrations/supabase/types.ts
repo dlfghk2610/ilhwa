@@ -173,7 +173,7 @@ export type Database = {
       similar_services: {
         Row: {
           client: string | null
-          company_share_rate: number | null
+          company_share_rate: string | null
           completion_date: string | null
           contract_amount: number | null
           contract_date: string | null
@@ -193,7 +193,7 @@ export type Database = {
         }
         Insert: {
           client?: string | null
-          company_share_rate?: number | null
+          company_share_rate?: string | null
           completion_date?: string | null
           contract_amount?: number | null
           contract_date?: string | null
@@ -213,7 +213,7 @@ export type Database = {
         }
         Update: {
           client?: string | null
-          company_share_rate?: number | null
+          company_share_rate?: string | null
           completion_date?: string | null
           contract_amount?: number | null
           contract_date?: string | null

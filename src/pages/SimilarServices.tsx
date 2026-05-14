@@ -27,7 +27,7 @@ type Row = {
   start_date: string | null;
   completion_date: string | null;
   participation_rate: number | null;
-  company_share_rate: number | null;
+  company_share_rate: string | null;
   share_amount: number | null;
   is_dual_participation: boolean;
   notes: string | null;
@@ -74,22 +74,20 @@ export default function SimilarServices() {
 
   useEffect(() => { load(); }, []);
 
-  // 자동 계산: 계약금액 × 참여지분율 × 각사지분율 (수기 입력 후엔 덮어쓰지 않음)
+  // 자동 계산: 계약금액 × 참여지분율 (수기 입력 후엔 덮어쓰지 않음)
   useEffect(() => {
     if (shareAmountTouched) return;
     if (form.is_dual_participation) return;
     const amt = Number(form.contract_amount);
     const p = Number(form.participation_rate);
-    const c = Number(form.company_share_rate);
     if (!amt || isNaN(amt)) return;
     let calc = amt;
     if (p && !isNaN(p)) calc = calc * (p / 100);
-    if (c && !isNaN(c)) calc = calc * (c / 100);
-    if (p || c) {
+    if (p) {
       setForm((prev) => ({ ...prev, share_amount: String(Math.round(calc)) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.contract_amount, form.participation_rate, form.company_share_rate, form.is_dual_participation]);
+  }, [form.contract_amount, form.participation_rate, form.is_dual_participation]);
 
   const openCreate = () => {
     setEditing(null);
@@ -139,7 +137,7 @@ export default function SimilarServices() {
       start_date: txt(form.start_date),
       completion_date: txt(form.completion_date),
       participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
-      company_share_rate: form.is_dual_participation ? null : num(form.company_share_rate),
+      company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
       is_dual_participation: form.is_dual_participation,
       notes: txt(form.notes),
@@ -188,7 +186,7 @@ export default function SimilarServices() {
       "준공일": r.completion_date,
       "2종 분담참여": r.is_dual_participation ? "Y" : "N",
       "참여지분율(%)": r.participation_rate,
-      "각사지분율(%)": r.company_share_rate,
+      "각사지분율": r.company_share_rate,
       "지분금액": r.share_amount,
       "비고": r.notes,
     }));
@@ -219,7 +217,7 @@ export default function SimilarServices() {
         completion_date: toDate(r["준공일"]),
         is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
         participation_rate: r["참여지분율(%)"] != null && r["참여지분율(%)"] !== "" ? Number(r["참여지분율(%)"]) : null,
-        company_share_rate: r["각사지분율(%)"] != null && r["각사지분율(%)"] !== "" ? Number(r["각사지분율(%)"]) : null,
+        company_share_rate: r["각사지분율"] != null && r["각사지분율"] !== "" ? String(r["각사지분율"]) : null,
         share_amount: r["지분금액"] != null && r["지분금액"] !== "" ? Number(r["지분금액"]) : null,
         notes: r["비고"] ?? null,
       })).filter((r) => r.project_name);
@@ -326,10 +324,11 @@ export default function SimilarServices() {
                           onChange={(e) => setForm({ ...form, participation_rate: e.target.value })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>각사지분율 (%)</Label>
-                        <Input type="number" step="any" disabled={form.is_dual_participation}
+                        <Label>각사지분율</Label>
+                        <Textarea rows={2} disabled={form.is_dual_participation}
                           value={form.company_share_rate}
-                          onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })} />
+                          onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })}
+                          placeholder="예: A사 60% / B사 40%" />
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 자동 계산되며 수기 수정 가능</span></Label>
@@ -377,7 +376,7 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap">준공일</TableHead>
                   <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">참여(%)</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">각사(%)</TableHead>
+                  <TableHead className="w-[180px]">각사지분율</TableHead>
                   <TableHead className="whitespace-nowrap text-right">지분금액</TableHead>
                   <TableHead className="text-right w-[120px]">관리</TableHead>
                 </TableRow>
@@ -403,7 +402,7 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.participation_rate)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{r.is_dual_participation ? "-" : fmtNum(r.company_share_rate)}</TableCell>
+                    <TableCell className="w-[180px] whitespace-pre-wrap break-words align-top">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
