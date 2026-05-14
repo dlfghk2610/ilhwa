@@ -786,6 +786,33 @@ export default function Performances() {
                 <Label>비고</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
+
+              <div className="md:col-span-2">
+                <Label>실적증명서 PDF</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="max-w-md"
+                    onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] ?? null })}
+                  />
+                  {(form.cert_pdf_path || form.cert_pdf_file) && (
+                    <Badge variant="secondary">
+                      {form.cert_pdf_file?.name ?? "기존 파일 등록됨"}
+                    </Badge>
+                  )}
+                  {(form.cert_pdf_path || form.cert_pdf_file) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setForm({ ...form, cert_pdf_file: null, cert_pdf_path: "" })}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* 참여자명단 */}
