@@ -217,7 +217,7 @@ export default function SimilarServices() {
         completion_date: toDate(r["준공일"]),
         is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
         participation_rate: r["참여지분율(%)"] != null && r["참여지분율(%)"] !== "" ? Number(r["참여지분율(%)"]) : null,
-        company_share_rate: r["각사지분율(%)"] != null && r["각사지분율(%)"] !== "" ? Number(r["각사지분율(%)"]) : null,
+        company_share_rate: r["각사지분율"] != null && r["각사지분율"] !== "" ? String(r["각사지분율"]) : null,
         share_amount: r["지분금액"] != null && r["지분금액"] !== "" ? Number(r["지분금액"]) : null,
         notes: r["비고"] ?? null,
       })).filter((r) => r.project_name);
