@@ -291,9 +291,10 @@ export default function Performances() {
     );
   }, [rows, search]);
 
-  function exportExcel() {
-    // 착수일(계약시작일) 오름차순 정렬
-    const sorted = [...filtered].sort((a, b) => {
+  // 선택된 행 (없으면 전체 filtered) - 착수일 오름차순 정렬
+  function getTargets(): Row[] {
+    const base = selectedIds.size > 0 ? filtered.filter((r) => selectedIds.has(r.id)) : filtered;
+    return [...base].sort((a, b) => {
       const av = a.contract_start_date ?? "";
       const bv = b.contract_start_date ?? "";
       if (!av && !bv) return 0;
@@ -301,6 +302,10 @@ export default function Performances() {
       if (!bv) return -1;
       return av.localeCompare(bv);
     });
+  }
+
+  function exportExcel() {
+    const sorted = getTargets();
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
       return {
@@ -322,6 +327,70 @@ export default function Performances() {
     });
     exportToExcel(data, "PQ개인별실적");
   }
+
+  async function exportMergedPdf(includeParticipants: boolean) {
+    const targets = getTargets();
+    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+    setExportingPdf(true);
+    try {
+      const merged = await PDFDocument.create();
+      const seqFont = addSeqNumbers ? await merged.embedFont(StandardFonts.HelveticaBold) : null;
+      let added = 0;
+      let pdfSeq = 0;
+      for (const r of targets) {
+        pdfSeq++;
+        const paths: { path: string; bucket: "performance-certs" | "participant-lists" }[] = [];
+        if (r.cert_pdf_path) paths.push({ path: r.cert_pdf_path, bucket: "performance-certs" });
+        if (includeParticipants && r.participant_file_path) {
+          paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
+        }
+        let stamped = false;
+        for (const { path, bucket } of paths) {
+          const { data: blob, error } = await supabase.storage.from(bucket).download(path);
+          if (error || !blob) continue;
+          // 참여자명단이 PDF가 아닐 수도 있음 (DOCX) → PDF만 병합
+          if (!path.toLowerCase().endsWith(".pdf")) continue;
+          const bytes = await blob.arrayBuffer();
+          try {
+            const src = await PDFDocument.load(bytes);
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg, idx) => {
+              merged.addPage(pg);
+              if (addSeqNumbers && seqFont && !stamped && idx === 0) {
+                const { height } = pg.getSize();
+                pg.drawText(String(pdfSeq), {
+                  x: 30,
+                  y: height - 50,
+                  size: 40,
+                  font: seqFont,
+                  color: rgb(0, 0, 0),
+                });
+                stamped = true;
+              }
+            });
+            added++;
+          } catch { /* 손상 PDF 건너뜀 */ }
+        }
+      }
+      if (added === 0) { toast.message("등록된 PDF가 없어 병합 파일을 만들지 않았습니다"); return; }
+      const out = await merged.save();
+      const blob = new Blob([out as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = includeParticipants ? "실적증명서_참여자명단_병합.pdf" : "실적증명서_병합.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`PDF 병합 완료 (${added}개)`);
+    } catch (e: any) {
+      toast.error("PDF 병합 오류: " + (e?.message ?? ""));
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
 
   // 사업종류 chip 추가
   function addServiceType() {
