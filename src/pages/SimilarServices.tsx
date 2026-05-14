@@ -1046,7 +1046,7 @@ export default function SimilarServices() {
             </Table>
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t flex justify-between">
-            <span>총 {filtered.length}건</span>
+            <span>총 {filtered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
