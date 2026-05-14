@@ -101,42 +101,75 @@ export type Database = {
       personal_performances: {
         Row: {
           client: string | null
+          company_share_rate: string | null
+          contract_amount: number | null
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string
           created_by: string
           end_date: string | null
+          evaluation_types: string[]
           id: string
           notes: string | null
+          participant_file_path: string | null
+          participants: Json
           performance_amount: number | null
           project_name: string
           role: string | null
+          service_overview: string | null
+          service_types: string[]
+          share_amount: number | null
+          share_rate: number | null
           start_date: string | null
           technician_name: string
           updated_at: string
         }
         Insert: {
           client?: string | null
+          company_share_rate?: string | null
+          contract_amount?: number | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           created_by: string
           end_date?: string | null
+          evaluation_types?: string[]
           id?: string
           notes?: string | null
+          participant_file_path?: string | null
+          participants?: Json
           performance_amount?: number | null
           project_name: string
           role?: string | null
+          service_overview?: string | null
+          service_types?: string[]
+          share_amount?: number | null
+          share_rate?: number | null
           start_date?: string | null
           technician_name: string
           updated_at?: string
         }
         Update: {
           client?: string | null
+          company_share_rate?: string | null
+          contract_amount?: number | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           created_by?: string
           end_date?: string | null
+          evaluation_types?: string[]
           id?: string
           notes?: string | null
+          participant_file_path?: string | null
+          participants?: Json
           performance_amount?: number | null
           project_name?: string
           role?: string | null
+          service_overview?: string | null
+          service_types?: string[]
+          share_amount?: number | null
+          share_rate?: number | null
           start_date?: string | null
           technician_name?: string
           updated_at?: string
