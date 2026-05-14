@@ -73,6 +73,48 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
+  // 사용자 정의 사업종류 그룹 (localStorage)
+  const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
+    { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
+    { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
+    { group: "도로계열", items: ["고속도로", "국도", "지방도", "도시계획도로"] },
+    { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
+    { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
+  ];
+  const SERVICE_GROUPS_KEY = "similar_services.service_groups.v1";
+  const [customGroups, setCustomGroups] = useState<{ group: string; items: string[] }[]>(() => {
+    try {
+      const raw = localStorage.getItem(SERVICE_GROUPS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return DEFAULT_GROUPS;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SERVICE_GROUPS_KEY, JSON.stringify(customGroups)); } catch {}
+  }, [customGroups]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
+  const addGroup = () => {
+    const n = newGroupName.trim();
+    if (!n) return;
+    if (customGroups.some((g) => g.group === n)) { toast.error("이미 존재하는 계열"); return; }
+    setCustomGroups([...customGroups, { group: n, items: [] }]);
+    setNewGroupName("");
+  };
+  const removeGroup = (g: string) => setCustomGroups(customGroups.filter((x) => x.group !== g));
+  const addItem = (g: string) => {
+    const v = (newItemInputs[g] ?? "").trim();
+    if (!v) return;
+    setCustomGroups(customGroups.map((x) => x.group === g
+      ? (x.items.includes(v) ? x : { ...x, items: [...x.items, v] })
+      : x));
+    setNewItemInputs({ ...newItemInputs, [g]: "" });
+  };
+  const removeItem = (g: string, item: string) => {
+    setCustomGroups(customGroups.map((x) => x.group === g ? { ...x, items: x.items.filter((i) => i !== item) } : x));
+    setFilterServiceTypes((prev) => prev.filter((s) => s !== item));
+  };
+
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("similar_services").select("*").order("created_at", { ascending: false });
