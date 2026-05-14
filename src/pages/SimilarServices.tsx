@@ -439,28 +439,35 @@ export default function SimilarServices() {
   const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    // 선택된 행만 (없으면 전체)
+    const targets = (selectedIds.size > 0
+      ? filtered.filter((r) => selectedIds.has(r.id))
+      : filtered);
+    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+
+    // 메인 화면 컬럼 순서와 동일
     const data: Record<string, any>[] = [];
-    filtered.forEach((r) => {
+    targets.forEach((r) => {
       const ps = Array.isArray(r.phases)
         ? r.phases.filter((p) => p && (p.label || p.amount != null || p.start_date || p.end_date))
         : [];
       const makeRow = (nameSuffix: string, overrides: Record<string, any> = {}) => ({
         "사업명": r.project_name + nameSuffix,
         "발주처": r.client,
-        "사업종류": r.service_type,
-        "평가종류": r.evaluation_type,
-        "용역개요": r.service_overview,
-        "계약금액": r.contract_amount,
         "계약일": r.contract_date,
         "착수일": r.start_date,
         "준공일": r.completion_date,
-        "2종 분담참여": r.is_dual_participation ? "Y" : "N",
-        "참여지분율(%)": r.participation_rate,
-        "각사지분율": r.company_share_rate,
+        "계약금액": r.contract_amount,
+        "참여(%)": r.is_dual_participation ? null : r.participation_rate,
         "지분금액": r.share_amount,
+        "평가종류": r.evaluation_type,
+        "사업종류": r.service_type,
+        "각사지분율": r.is_dual_participation ? null : r.company_share_rate,
+        "2종": r.is_dual_participation ? "✓" : "",
         "적용건수": Number(appliedCount(r).toFixed(2)),
         "적용금액": Math.round(appliedAmount(r)),
+        "용역개요": r.service_overview,
         "비고": r.notes,
         ...overrides,
       });
@@ -479,6 +486,53 @@ export default function SimilarServices() {
     });
     exportToExcel(data, "PQ유사용역");
     toast.success("엑셀 다운로드 완료");
+
+    // 실적증명서 PDF 병합 (대표 착수일 오름차순; 사후는 차수 PDF를 통으로)
+    try {
+      const merged = await PDFDocument.create();
+      let added = 0;
+      for (const r of targets) {
+        // 차수별 PDF (있으면 1차→N차 순서대로)
+        const phasePdfs = (Array.isArray(r.phases) ? r.phases : [])
+          .map((p) => (p as any).pdf_path as string | undefined)
+          .filter((x): x is string => !!x);
+
+        const paths: string[] = phasePdfs.length > 0
+          ? phasePdfs
+          : (r.cert_pdf_path ? [r.cert_pdf_path] : []);
+
+        for (const path of paths) {
+          const { data: blob, error } = await supabase.storage.from("performance-certs").download(path);
+          if (error || !blob) continue;
+          const bytes = await blob.arrayBuffer();
+          try {
+            const src = await PDFDocument.load(bytes);
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg) => merged.addPage(pg));
+            added++;
+          } catch {
+            // 손상된 PDF는 건너뜀
+          }
+        }
+      }
+      if (added > 0) {
+        const out = await merged.save();
+        const blob = new Blob([out], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "실적증명서_병합.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success(`실적증명서 PDF 병합 완료 (${added}개)`);
+      } else {
+        toast.message("등록된 실적증명서 PDF가 없어 병합 파일은 만들지 않았습니다");
+      }
+    } catch (err: any) {
+      toast.error("PDF 병합 오류: " + (err?.message ?? ""));
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
