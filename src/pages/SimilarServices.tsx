@@ -261,6 +261,8 @@ export default function SimilarServices() {
       company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
       share_amount: num(form.share_amount),
       is_dual_participation: form.is_dual_participation,
+      is_private: form.is_private,
+      is_under_90days: form.is_under_90days,
       notes: txt(form.notes),
       phases: phasesPayload,
     };
