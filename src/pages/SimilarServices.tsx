@@ -199,6 +199,7 @@ export default function SimilarServices() {
       service_overview: row.service_overview ?? "",
       contract_amount: row.contract_amount?.toString() ?? "",
       contract_date: row.contract_date ?? "",
+      announcement_date: (row as any).announcement_date ?? "",
       start_date: row.start_date ?? "",
       completion_date: row.completion_date ?? "",
       participation_rate: row.participation_rate?.toString() ?? "",
