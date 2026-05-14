@@ -77,6 +77,18 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
+  // 민간사업 / 90일미만 필터 (localStorage 영속)
+  const PRIVATE_FILTER_KEY = "similar_services.include_private.v1";
+  const UNDER90_FILTER_KEY = "similar_services.include_under90.v1";
+  const [includePrivate, setIncludePrivate] = useState<boolean>(() => {
+    try { return localStorage.getItem(PRIVATE_FILTER_KEY) === "1"; } catch { return false; }
+  });
+  const [includeUnder90, setIncludeUnder90] = useState<boolean>(() => {
+    try { return localStorage.getItem(UNDER90_FILTER_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
+  useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
+
   // 사용자 정의 사업종류 그룹 (localStorage)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
     { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
