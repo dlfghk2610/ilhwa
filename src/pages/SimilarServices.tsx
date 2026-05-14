@@ -523,7 +523,7 @@ export default function SimilarServices() {
               </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-center">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-center">
             <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
               <span className="text-[11px] text-muted-foreground mr-2">총 적용건수</span>
               <span className="text-sm font-bold text-primary">{totalAppliedCount.toFixed(2)}</span>
@@ -532,6 +532,14 @@ export default function SimilarServices() {
               <span className="text-[11px] text-muted-foreground mr-2">총 적용금액</span>
               <span className="text-sm font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</span>
             </div>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includePrivate} onCheckedChange={(v) => setIncludePrivate(!!v)} />
+              <span className="text-xs">민간사업 포함</span>
+            </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
+              <span className="text-xs">90일미만 포함</span>
+            </label>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
