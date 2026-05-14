@@ -588,6 +588,7 @@ export default function SimilarServices() {
                 </button>
               )}
             </div>
+          </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
           </div>
