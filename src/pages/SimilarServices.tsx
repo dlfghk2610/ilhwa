@@ -483,11 +483,11 @@ export default function SimilarServices() {
       <div className="space-y-4">
         {/* 적용계수 필터 + 합계 */}
         <Card className="p-4 shadow-card">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-semibold">평가종류 (기준)</Label>
               <Select value={filterEvalType} onValueChange={(v) => setFilterEvalType(v)}>
-                <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[200px] text-sm"><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
                 <SelectContent>
                   {evalTypeOptions.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
                 </SelectContent>
