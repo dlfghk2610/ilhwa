@@ -380,7 +380,7 @@ export default function SimilarServices() {
                   </TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
+                    <TableCell className="font-medium max-w-[280px] whitespace-normal break-words">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.service_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.evaluation_type ?? "-"}</TableCell>
