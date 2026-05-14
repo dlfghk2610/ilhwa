@@ -607,19 +607,31 @@ export default function SimilarServices() {
                           </Button>
                         </div>
                         {form.phases.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 1차/2차 등 입력 시 합계가 지분금액에 자동 반영됩니다.</div>
+                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 사후의 경우 첫 차수 착수일·마지막 차수 준공일이 대표일자로 자동 반영됩니다.</div>
                         ) : (
                           <div className="space-y-2">
                             {form.phases.map((p, i) => (
-                              <div key={i} className="flex items-center gap-2">
+                              <div key={i} className="grid grid-cols-12 gap-2 items-center">
                                 <Input
-                                  className="w-24"
+                                  className="col-span-2"
                                   placeholder="1차"
                                   value={p.label}
                                   onChange={(e) => updatePhase(i, "label", e.target.value)}
                                 />
                                 <Input
-                                  className="flex-1"
+                                  className="col-span-3"
+                                  type="date"
+                                  value={p.start_date}
+                                  onChange={(e) => updatePhase(i, "start_date", e.target.value)}
+                                />
+                                <Input
+                                  className="col-span-3"
+                                  type="date"
+                                  value={p.end_date}
+                                  onChange={(e) => updatePhase(i, "end_date", e.target.value)}
+                                />
+                                <Input
+                                  className="col-span-3"
                                   inputMode="decimal"
                                   placeholder="차수 지분금액"
                                   value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
@@ -628,11 +640,17 @@ export default function SimilarServices() {
                                     updatePhase(i, "amount", raw);
                                   }}
                                 />
-                                <Button type="button" size="icon" variant="ghost" onClick={() => removePhase(i)}>
+                                <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ))}
+                            <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
+                              <div className="col-span-2">차수명</div>
+                              <div className="col-span-3">착수일</div>
+                              <div className="col-span-3">준공일</div>
+                              <div className="col-span-3 text-right">지분금액</div>
+                            </div>
                             <div className="text-xs text-right text-muted-foreground">
                               차수 합계: {phasesTotal.toLocaleString()} 원
                             </div>
