@@ -196,6 +196,14 @@ export default function SimilarServices() {
 
   const num = (v: string) => (v === "" || v === null ? null : Number(v));
   const txt = (v: string) => (v === "" ? null : v);
+  // 년도 4자리로 제한 (YYYY-MM-DD)
+  const clampDate = (v: string) => {
+    if (!v) return "";
+    const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+    if (!m) return v;
+    const y = m[1].slice(-4).padStart(4, "0");
+    return `${y}-${m[2]}-${m[3]}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
