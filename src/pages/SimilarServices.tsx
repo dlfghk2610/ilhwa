@@ -33,6 +33,8 @@ type Row = {
   company_share_rate: string | null;
   share_amount: number | null;
   is_dual_participation: boolean;
+  is_private: boolean;
+  is_under_90days: boolean;
   notes: string | null;
   phases: Phase[] | null;
 };
