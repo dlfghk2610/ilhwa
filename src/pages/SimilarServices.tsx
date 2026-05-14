@@ -331,10 +331,10 @@ export default function SimilarServices() {
     return ` (${ps[0].label}~${ps[ps.length - 1].label})`;
   };
 
-  // 적용계수 계산 ("평가" 행은 항상 1.0)
+  // 적용계수 계산 ("평가"는 항상 1.0, 미선택 시 기본 평가=1.0/그외=0.6)
   const evalCoef = (r: Row) => {
     if ((r.evaluation_type ?? "") === "평가") return 1.0;
-    if (!filterEvalType) return 1;
+    if (!filterEvalType) return 0.6;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
   const serviceCoef = (r: Row) => {
