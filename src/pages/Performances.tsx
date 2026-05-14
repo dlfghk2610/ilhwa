@@ -1,24 +1,729 @@
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { DataManager } from "@/components/DataManager";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles } from "lucide-react";
+import { exportToExcel } from "@/lib/excel";
+
+type Participant = {
+  name: string;
+  birth_date?: string;
+  period_start?: string;
+  period_end?: string;
+  specialty?: string;
+  duties?: string;
+  position?: string;
+  responsibility?: string;
+};
+
+type Row = {
+  id: string;
+  project_name: string;
+  service_overview: string | null;
+  client: string | null;
+  contract_start_date: string | null;
+  contract_end_date: string | null;
+  contract_amount: number | null;
+  share_rate: number | null;
+  share_amount: number | null;
+  evaluation_types: string[];
+  service_types: string[];
+  company_share_rate: string | null;
+  notes: string | null;
+  participants: Participant[];
+  participant_file_path: string | null;
+};
+
+const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
+
+const emptyForm = {
+  project_name: "",
+  service_overview: "",
+  client: "",
+  contract_start_date: "",
+  contract_end_date: "",
+  contract_amount: "",
+  share_rate: "",
+  share_amount: "",
+  evaluation_types: [] as string[],
+  service_types: [] as string[],
+  service_type_input: "",
+  company_share_rate: "",
+  notes: "",
+  participants: [] as Participant[],
+  participant_file: null as File | null,
+  participant_file_path: "",
+};
+
+type FormState = typeof emptyForm;
+
+const fmt = (n: number | null | undefined) =>
+  n == null || isNaN(Number(n)) ? "" : Number(n).toLocaleString();
+
+const daysBetween = (a: string, b: string) => {
+  const d1 = new Date(a).getTime();
+  const d2 = new Date(b).getTime();
+  if (isNaN(d1) || isNaN(d2)) return 0;
+  return Math.floor((d2 - d1) / 86400000) + 1;
+};
+
+const overlapDays = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
+  const s = new Date(Math.max(new Date(aStart).getTime(), new Date(bStart).getTime()));
+  const e = new Date(Math.min(new Date(aEnd).getTime(), new Date(bEnd).getTime()));
+  if (e < s) return 0;
+  return Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
+};
 
 export default function Performances() {
+  const { user } = useAuth();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [shareAmountTouched, setShareAmountTouched] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  // 기술자별 분석 상태
+  const [selectedTech, setSelectedTech] = useState<string>("");
+  const [techEvalFilter, setTechEvalFilter] = useState<string[]>([]);
+  const [techServiceFilter, setTechServiceFilter] = useState<string[]>([]);
+  const [techServiceFilterInput, setTechServiceFilterInput] = useState("");
+
+  useEffect(() => { fetchRows(); }, []);
+
+  async function fetchRows() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("personal_performances")
+      .select("*")
+      .order("contract_start_date", { ascending: true });
+    if (error) toast.error(error.message);
+    else setRows((data as any[]).map(normalize));
+    setLoading(false);
+  }
+
+  function normalize(r: any): Row {
+    return {
+      ...r,
+      evaluation_types: Array.isArray(r.evaluation_types) ? r.evaluation_types : [],
+      service_types: Array.isArray(r.service_types) ? r.service_types : [],
+      participants: Array.isArray(r.participants) ? r.participants : [],
+    };
+  }
+
+  function openCreate() {
+    setEditing(null);
+    setForm(emptyForm);
+    setShareAmountTouched(false);
+    setOpen(true);
+  }
+
+  function openEdit(r: Row) {
+    setEditing(r);
+    setForm({
+      project_name: r.project_name || "",
+      service_overview: r.service_overview || "",
+      client: r.client || "",
+      contract_start_date: r.contract_start_date || "",
+      contract_end_date: r.contract_end_date || "",
+      contract_amount: r.contract_amount?.toString() ?? "",
+      share_rate: r.share_rate?.toString() ?? "",
+      share_amount: r.share_amount?.toString() ?? "",
+      evaluation_types: r.evaluation_types,
+      service_types: r.service_types,
+      service_type_input: "",
+      company_share_rate: r.company_share_rate || "",
+      notes: r.notes || "",
+      participants: r.participants,
+      participant_file: null,
+      participant_file_path: r.participant_file_path || "",
+    });
+    setShareAmountTouched(true);
+    setOpen(true);
+  }
+
+  // 지분금액 자동계산
+  useEffect(() => {
+    if (shareAmountTouched) return;
+    const amt = Number(form.contract_amount);
+    const rate = Number(form.share_rate);
+    if (!isNaN(amt) && !isNaN(rate) && form.contract_amount && form.share_rate) {
+      setForm((f) => ({ ...f, share_amount: Math.round(amt * rate / 100).toString() }));
+    }
+  }, [form.contract_amount, form.share_rate, shareAmountTouched]);
+
+  async function handleExtractParticipants() {
+    if (!form.participant_file) {
+      toast.error("먼저 파일을 선택하세요");
+      return;
+    }
+    setExtracting(true);
+    try {
+      const file = form.participant_file;
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const fileBase64 = btoa(binary);
+      const { data, error } = await supabase.functions.invoke("parse-participant-list", {
+        body: { fileBase64, mimeType: file.type || "application/pdf" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const participants: Participant[] = data?.participants ?? [];
+      setForm((f) => ({ ...f, participants }));
+      toast.success(`${participants.length}명 추출 완료`);
+    } catch (e: any) {
+      toast.error(e.message || "추출 실패");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!user) return;
+    if (!form.project_name.trim()) { toast.error("사업명을 입력하세요"); return; }
+    setSubmitting(true);
+    try {
+      let participant_file_path = form.participant_file_path;
+      if (form.participant_file) {
+        const ext = form.participant_file.name.split(".").pop();
+        const path = `${user.id}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("participant-lists")
+          .upload(path, form.participant_file, { upsert: false });
+        if (upErr) throw upErr;
+        participant_file_path = path;
+      }
+
+      const payload = {
+        project_name: form.project_name.trim(),
+        service_overview: form.service_overview || null,
+        client: form.client || null,
+        contract_start_date: form.contract_start_date || null,
+        contract_end_date: form.contract_end_date || null,
+        contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
+        share_rate: form.share_rate ? Number(form.share_rate) : null,
+        share_amount: form.share_amount ? Number(form.share_amount) : null,
+        evaluation_types: form.evaluation_types,
+        service_types: form.service_types,
+        company_share_rate: form.company_share_rate || null,
+        notes: form.notes || null,
+        participants: form.participants as any,
+        participant_file_path,
+        // legacy required fields
+        technician_name: form.participants[0]?.name || form.project_name,
+        start_date: form.contract_start_date || null,
+        end_date: form.contract_end_date || null,
+      };
+
+      if (editing) {
+        const { error } = await supabase.from("personal_performances").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        toast.success("수정 완료");
+      } else {
+        const { error } = await supabase.from("personal_performances").insert({ ...payload, created_by: user.id });
+        if (error) throw error;
+        toast.success("등록 완료");
+      }
+      setOpen(false);
+      fetchRows();
+    } catch (e: any) {
+      toast.error(e.message || "저장 실패");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteId) return;
+    const { error } = await supabase.from("personal_performances").delete().eq("id", deleteId);
+    if (error) toast.error(error.message);
+    else { toast.success("삭제 완료"); fetchRows(); }
+    setDeleteId(null);
+  }
+
+  // 검색
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      [r.project_name, r.client, ...(r.participants?.map((p) => p.name) ?? [])]
+        .filter(Boolean)
+        .some((s) => String(s).toLowerCase().includes(q))
+    );
+  }, [rows, search]);
+
+  function exportExcel() {
+    const data = filtered.map((r) => ({
+      사업명: r.project_name,
+      사업개요: r.service_overview ?? "",
+      발주처: r.client ?? "",
+      계약시작일: r.contract_start_date ?? "",
+      계약종료일: r.contract_end_date ?? "",
+      계약금액: r.contract_amount ?? "",
+      "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
+      지분금액: r.share_amount ?? "",
+      평가종류: r.evaluation_types.join(", "),
+      사업종류: r.service_types.join(", "),
+      각사지분율: r.company_share_rate ?? "",
+      참여자수: r.participants.length,
+      비고: r.notes ?? "",
+    }));
+    exportToExcel(data, "PQ개인별실적");
+  }
+
+  // 사업종류 chip 추가
+  function addServiceType() {
+    const v = form.service_type_input.trim();
+    if (!v) return;
+    if (form.service_types.includes(v)) { setForm({ ...form, service_type_input: "" }); return; }
+    setForm({ ...form, service_types: [...form.service_types, v], service_type_input: "" });
+  }
+
+  // 참여자 편집
+  function updateParticipant(idx: number, key: keyof Participant, val: string) {
+    setForm((f) => ({
+      ...f,
+      participants: f.participants.map((p, i) => (i === idx ? { ...p, [key]: val } : p)),
+    }));
+  }
+  function removeParticipant(idx: number) {
+    setForm((f) => ({ ...f, participants: f.participants.filter((_, i) => i !== idx) }));
+  }
+  function addParticipant() {
+    setForm((f) => ({ ...f, participants: [...f.participants, { name: "" }] }));
+  }
+
+  // ===== 기술자별 분석 =====
+  const allTechnicians = useMemo(() => {
+    const s = new Set<string>();
+    rows.forEach((r) => r.participants?.forEach((p) => p.name && s.add(p.name)));
+    return Array.from(s).sort();
+  }, [rows]);
+
+  const techRows = useMemo(() => {
+    if (!selectedTech) return [];
+    return rows
+      .map((r) => {
+        const part = r.participants?.find((p) => p.name === selectedTech);
+        if (!part) return null;
+        // 평가가중치: 평가가 포함되면 무조건 1.0; 그 외 필터와 교집합 있으면 1.0; 없으면 0.6
+        const evalSet = new Set(r.evaluation_types);
+        let evalW = 0.6;
+        if (evalSet.has("평가")) evalW = 1.0;
+        else if (techEvalFilter.length === 0) evalW = 1.0;
+        else if (techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
+
+        // 사업가중치: 필터와 교집합 있으면 1.0; 필터 비었으면 1.0; 없으면 0.6
+        let svcW = 1.0;
+        if (techServiceFilter.length > 0) {
+          svcW = techServiceFilter.some((t) => r.service_types.includes(t)) ? 1.0 : 0.6;
+        }
+
+        const simple = evalW * svcW;
+
+        let ratio = 0;
+        if (r.contract_start_date && r.contract_end_date && part.period_start && part.period_end) {
+          const total = daysBetween(r.contract_start_date, r.contract_end_date);
+          const ov = overlapDays(r.contract_start_date, r.contract_end_date, part.period_start, part.period_end);
+          ratio = total > 0 ? ov / total : 0;
+        }
+        const periodCount = ratio * evalW * svcW;
+
+        return { row: r, part, evalW, svcW, simple, ratio, periodCount };
+      })
+      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number }>;
+  }, [rows, selectedTech, techEvalFilter, techServiceFilter]);
+
+  const techTotals = useMemo(() => {
+    const simple = techRows.reduce((a, b) => a + b.simple, 0);
+    const period = techRows.reduce((a, b) => a + b.periodCount, 0);
+    return { simple, period };
+  }, [techRows]);
+
+  function addTechServiceFilter() {
+    const v = techServiceFilterInput.trim();
+    if (!v || techServiceFilter.includes(v)) { setTechServiceFilterInput(""); return; }
+    setTechServiceFilter([...techServiceFilter, v]);
+    setTechServiceFilterInput("");
+  }
+
   return (
     <AppLayout title="PQ 개인별 실적관리">
-      <DataManager
-        table="personal_performances"
-        exportName="PQ개인별실적"
-        searchKeys={["technician_name", "project_name", "client"]}
-        fields={[
-          { key: "technician_name", label: "기술자명", required: true },
-          { key: "project_name", label: "사업명", required: true },
-          { key: "client", label: "발주처" },
-          { key: "start_date", label: "시작일", type: "date" },
-          { key: "end_date", label: "종료일", type: "date" },
-          { key: "role", label: "직무" },
-          { key: "performance_amount", label: "실적금액", type: "number" },
-          { key: "notes", label: "비고", type: "textarea" },
-        ]}
-      />
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList>
+          <TabsTrigger value="list">사업 목록</TabsTrigger>
+          <TabsTrigger value="tech">기술자별 분석</TabsTrigger>
+        </TabsList>
+
+        {/* ====== 사업 목록 탭 ====== */}
+        <TabsContent value="list" className="space-y-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              placeholder="사업명/발주처/기술자명 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-sm"
+            />
+            <div className="ml-auto flex gap-2">
+              <Button variant="outline" onClick={exportExcel}>
+                <Download className="h-4 w-4 mr-1" /> 엑셀 내보내기
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1" /> 사업 등록
+              </Button>
+            </div>
+          </div>
+
+          <Card className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>사업명</TableHead>
+                  <TableHead>발주처</TableHead>
+                  <TableHead>계약기간</TableHead>
+                  <TableHead className="text-right">계약금액</TableHead>
+                  <TableHead className="text-right">지분율</TableHead>
+                  <TableHead className="text-right">지분금액</TableHead>
+                  <TableHead>평가종류</TableHead>
+                  <TableHead>사업종류</TableHead>
+                  <TableHead className="text-right">참여자</TableHead>
+                  <TableHead className="text-right">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={10} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
+                ) : filtered.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.project_name}</TableCell>
+                    <TableCell>{r.client}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {r.contract_start_date} ~ {r.contract_end_date}
+                    </TableCell>
+                    <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
+                    <TableCell className="text-right">{r.share_rate != null ? `${r.share_rate}%` : ""}</TableCell>
+                    <TableCell className="text-right">{fmt(r.share_amount)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{r.participants.length}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* ====== 기술자별 분석 탭 ====== */}
+        <TabsContent value="tech" className="space-y-4">
+          <Card className="p-4 space-y-3">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>기술자 선택</Label>
+                <Select value={selectedTech} onValueChange={setSelectedTech}>
+                  <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
+                  <SelectContent>
+                    {allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>평가종류 필터 (복수)</Label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {EVAL_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox
+                        checked={techEvalFilter.includes(opt)}
+                        onCheckedChange={(c) =>
+                          setTechEvalFilter((p) => c ? [...p, opt] : p.filter((x) => x !== opt))
+                        }
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>사업종류 필터 (복수)</Label>
+                <div className="flex gap-1 mt-2">
+                  <Input
+                    value={techServiceFilterInput}
+                    onChange={(e) => setTechServiceFilterInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTechServiceFilter(); } }}
+                    placeholder="입력 후 Enter"
+                  />
+                  <Button type="button" size="sm" onClick={addTechServiceFilter}>추가</Button>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {techServiceFilter.map((t) => (
+                    <Badge key={t} variant="outline" className="gap-1">
+                      {t}
+                      <button onClick={() => setTechServiceFilter(techServiceFilter.filter((x) => x !== t))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {selectedTech && (
+            <Card className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>사업명</TableHead>
+                    <TableHead>계약기간</TableHead>
+                    <TableHead>참여기간</TableHead>
+                    <TableHead className="text-right">평가W</TableHead>
+                    <TableHead className="text-right">사업W</TableHead>
+                    <TableHead className="text-right">단순건수</TableHead>
+                    <TableHead className="text-right">기간비율</TableHead>
+                    <TableHead className="text-right">기간대비건수</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {techRows.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
+                  ) : techRows.map((t, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{t.row.project_name}</TableCell>
+                      <TableCell className="text-xs">{t.row.contract_start_date} ~ {t.row.contract_end_date}</TableCell>
+                      <TableCell className="text-xs">{t.part.period_start} ~ {t.part.period_end}</TableCell>
+                      <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{(t.ratio * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-right">{t.periodCount.toFixed(3)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {techRows.length > 0 && (
+                    <TableRow className="font-semibold bg-muted/40">
+                      <TableCell colSpan={5} className="text-right">합계</TableCell>
+                      <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-right">{techTotals.period.toFixed(3)}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* ====== 등록/수정 다이얼로그 ====== */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? "사업 수정" : "사업 등록"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="md:col-span-2">
+                <Label>사업명 *</Label>
+                <Input value={form.project_name} onChange={(e) => setForm({ ...form, project_name: e.target.value })} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>사업개요</Label>
+                <Textarea value={form.service_overview} onChange={(e) => setForm({ ...form, service_overview: e.target.value })} />
+              </div>
+              <div>
+                <Label>발주처</Label>
+                <Input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
+              </div>
+              <div>
+                <Label>각사지분율</Label>
+                <Input value={form.company_share_rate} onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })} />
+              </div>
+              <div>
+                <Label>계약시작일</Label>
+                <Input type="date" value={form.contract_start_date} onChange={(e) => setForm({ ...form, contract_start_date: e.target.value })} />
+              </div>
+              <div>
+                <Label>계약종료일</Label>
+                <Input type="date" value={form.contract_end_date} onChange={(e) => setForm({ ...form, contract_end_date: e.target.value })} />
+              </div>
+              <div>
+                <Label>계약금액</Label>
+                <Input type="number" value={form.contract_amount} onChange={(e) => setForm({ ...form, contract_amount: e.target.value })} />
+              </div>
+              <div>
+                <Label>지분율 (%)</Label>
+                <Input type="number" value={form.share_rate} onChange={(e) => setForm({ ...form, share_rate: e.target.value })} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>지분금액 (자동계산, 수기수정 가능)</Label>
+                <Input
+                  type="number"
+                  value={form.share_amount}
+                  onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value }); }}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>평가종류 (복수선택)</Label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {EVAL_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox
+                        checked={form.evaluation_types.includes(opt)}
+                        onCheckedChange={(c) =>
+                          setForm((f) => ({
+                            ...f,
+                            evaluation_types: c ? [...f.evaluation_types, opt] : f.evaluation_types.filter((x) => x !== opt),
+                          }))
+                        }
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>사업종류 (자유입력 + 복수)</Label>
+                <div className="flex gap-1">
+                  <Input
+                    value={form.service_type_input}
+                    onChange={(e) => setForm({ ...form, service_type_input: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addServiceType(); } }}
+                    placeholder="입력 후 Enter 또는 추가"
+                  />
+                  <Button type="button" onClick={addServiceType}>추가</Button>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {form.service_types.map((t) => (
+                    <Badge key={t} variant="outline" className="gap-1">
+                      {t}
+                      <button type="button" onClick={() => setForm({ ...form, service_types: form.service_types.filter((x) => x !== t) })}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>비고</Label>
+                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </div>
+            </div>
+
+            {/* 참여자명단 */}
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">참여자명단</h3>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="file"
+                    accept=".pdf,.docx,.doc,application/pdf"
+                    className="max-w-xs"
+                    onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] ?? null })}
+                  />
+                  <Button type="button" variant="outline" disabled={!form.participant_file || extracting} onClick={handleExtractParticipants}>
+                    {extracting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                    AI 자동추출
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={addParticipant}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">HWP는 직접 지원되지 않습니다. PDF 또는 DOCX로 변환 후 업로드하세요.</p>
+
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>성명</TableHead>
+                      <TableHead>생년월일</TableHead>
+                      <TableHead>참여시작</TableHead>
+                      <TableHead>참여종료</TableHead>
+                      <TableHead>전문분야</TableHead>
+                      <TableHead>담당업무</TableHead>
+                      <TableHead>직위</TableHead>
+                      <TableHead>책임정도</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {form.participants.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-4">파일 업로드 후 AI 자동추출 또는 + 버튼으로 추가</TableCell></TableRow>
+                    ) : form.participants.map((p, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Input value={p.name || ""} onChange={(e) => updateParticipant(i, "name", e.target.value)} /></TableCell>
+                        <TableCell><Input value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", e.target.value)} placeholder="YYYY-MM-DD" /></TableCell>
+                        <TableCell><Input type="date" value={p.period_start || ""} onChange={(e) => updateParticipant(i, "period_start", e.target.value)} /></TableCell>
+                        <TableCell><Input type="date" value={p.period_end || ""} onChange={(e) => updateParticipant(i, "period_end", e.target.value)} /></TableCell>
+                        <TableCell><Input value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} /></TableCell>
+                        <TableCell><Input value={p.duties || ""} onChange={(e) => updateParticipant(i, "duties", e.target.value)} /></TableCell>
+                        <TableCell><Input value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} /></TableCell>
+                        <TableCell><Input value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} /></TableCell>
+                        <TableCell><Button size="icon" variant="ghost" onClick={() => removeParticipant(i)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>취소</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
