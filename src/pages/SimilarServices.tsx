@@ -238,10 +238,9 @@ export default function SimilarServices() {
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
 
-  // 평가종류/사업종류 후보 목록 (기존 데이터에서 추출)
-  const evalTypeOptions = useMemo(() => {
-    return Array.from(new Set(rows.map((r) => (r.evaluation_type ?? "").trim()).filter(Boolean))).sort();
-  }, [rows]);
+  // 평가종류 (고정 4가지)
+  const EVAL_TYPES = ["소규모", "전략", "사후", "평가"] as const;
+  const evalTypeOptions = EVAL_TYPES as readonly string[];
   // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
   const serviceTypeOptions = useMemo(() => {
@@ -259,8 +258,9 @@ export default function SimilarServices() {
     return ` (${ps[0].label}~${ps[ps.length - 1].label})`;
   };
 
-  // 적용계수 계산
+  // 적용계수 계산 ("평가" 행은 항상 1.0)
   const evalCoef = (r: Row) => {
+    if ((r.evaluation_type ?? "") === "평가") return 1.0;
     if (!filterEvalType) return 1;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
