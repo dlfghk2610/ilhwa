@@ -324,10 +324,11 @@ export default function SimilarServices() {
                           onChange={(e) => setForm({ ...form, participation_rate: e.target.value })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>각사지분율 (%)</Label>
-                        <Input type="number" step="any" disabled={form.is_dual_participation}
+                        <Label>각사지분율</Label>
+                        <Textarea rows={2} disabled={form.is_dual_participation}
                           value={form.company_share_rate}
-                          onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })} />
+                          onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })}
+                          placeholder="예: A사 60% / B사 40%" />
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 자동 계산되며 수기 수정 가능</span></Label>
