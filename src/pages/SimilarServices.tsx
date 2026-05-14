@@ -239,62 +239,92 @@ export default function SimilarServices() {
     return `${y}-${m[2]}-${m[3]}`;
   };
 
+  const uploadPdf = async (file: File, folder: string, name: string) => {
+    const path = `${user!.id}/${folder}/${Date.now()}-${name}`;
+    const { error } = await supabase.storage.from("performance-certs").upload(path, file, { contentType: "application/pdf", upsert: true });
+    if (error) throw error;
+    return path;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
 
-    const phasesPayload = form.phases
-      .filter((p) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "")
-      .map((p) => ({
-        label: p.label.trim(),
-        amount: p.amount === "" ? null : Number(p.amount),
-        start_date: p.start_date || null,
-        end_date: p.end_date || null,
+    setSubmitting(true);
+    try {
+      const rowFolder = editing?.id ?? crypto.randomUUID();
+
+      // Upload project-level cert PDF if a new one was selected
+      let certPath: string | null = form.cert_pdf_path || null;
+      if (form.cert_pdf_file) {
+        certPath = await uploadPdf(form.cert_pdf_file, rowFolder, "cert.pdf");
+      }
+
+      // Upload per-phase PDFs
+      const phasesUploaded = await Promise.all(form.phases.map(async (p, i) => {
+        let pdf_path: string | null = p.pdf_path || null;
+        if (p.pdf_file) {
+          pdf_path = await uploadPdf(p.pdf_file, rowFolder, `phase-${i + 1}.pdf`);
+        }
+        return { p, pdf_path };
       }));
 
-    // 사후: 첫 차수 착수일 → 대표 착수일, 마지막 차수 준공일 → 대표 준공일
-    let derivedStart = txt(form.start_date);
-    let derivedCompletion = txt(form.completion_date);
-    if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
-      const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
-      const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
-      if (firstStart) derivedStart = firstStart;
-      if (lastEnd) derivedCompletion = lastEnd;
-    }
+      const phasesPayload = phasesUploaded
+        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
+        .map(({ p, pdf_path }) => ({
+          label: p.label.trim(),
+          amount: p.amount === "" ? null : Number(p.amount),
+          start_date: p.start_date || null,
+          end_date: p.end_date || null,
+          pdf_path,
+        }));
 
-    const payload: any = {
-      project_name: form.project_name,
-      client: txt(form.client),
-      service_type: txt(form.service_type),
-      evaluation_type: txt(form.evaluation_type),
-      service_overview: txt(form.service_overview),
-      contract_amount: num(form.contract_amount),
-      contract_date: txt(form.contract_date),
-      announcement_date: txt(form.announcement_date),
-      start_date: derivedStart,
-      completion_date: derivedCompletion,
-      participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
-      company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
-      share_amount: num(form.share_amount),
-      is_dual_participation: form.is_dual_participation,
-      is_private: form.is_private,
-      is_under_90days: form.is_under_90days,
-      notes: txt(form.notes),
-      phases: phasesPayload,
-    };
+      let derivedStart = txt(form.start_date);
+      let derivedCompletion = txt(form.completion_date);
+      if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
+        const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
+        const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+        if (firstStart) derivedStart = firstStart;
+        if (lastEnd) derivedCompletion = lastEnd;
+      }
 
-    setSubmitting(true);
-    if (editing) {
-      const { error } = await supabase.from("similar_services").update(payload).eq("id", editing.id);
-      if (error) toast.error(error.message);
-      else { toast.success("수정 완료"); setOpen(false); load(); }
-    } else {
-      const { error } = await supabase.from("similar_services").insert({ ...payload, created_by: user.id });
-      if (error) toast.error(error.message);
-      else { toast.success("등록 완료"); setOpen(false); load(); }
+      const payload: any = {
+        project_name: form.project_name,
+        client: txt(form.client),
+        service_type: txt(form.service_type),
+        evaluation_type: txt(form.evaluation_type),
+        service_overview: txt(form.service_overview),
+        contract_amount: num(form.contract_amount),
+        contract_date: txt(form.contract_date),
+        announcement_date: txt(form.announcement_date),
+        start_date: derivedStart,
+        completion_date: derivedCompletion,
+        participation_rate: form.is_dual_participation ? null : num(form.participation_rate),
+        company_share_rate: form.is_dual_participation ? null : txt(form.company_share_rate),
+        share_amount: num(form.share_amount),
+        is_dual_participation: form.is_dual_participation,
+        is_private: form.is_private,
+        is_under_90days: form.is_under_90days,
+        notes: txt(form.notes),
+        phases: phasesPayload,
+        cert_pdf_path: certPath,
+      };
+
+      if (editing) {
+        const { error } = await supabase.from("similar_services").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        toast.success("수정 완료"); setOpen(false); load();
+      } else {
+        const { error } = await supabase.from("similar_services").insert({ ...payload, id: rowFolder, created_by: user.id });
+        if (error) throw error;
+        toast.success("등록 완료"); setOpen(false); load();
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "저장 실패");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleDelete = async () => {
