@@ -288,11 +288,13 @@ export default function SimilarServices() {
     setDeleteId(null);
   };
 
-  const filtered = rows.filter((r) =>
-    !search ||
-    [r.project_name, r.client, r.service_type, r.evaluation_type]
-      .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = rows.filter((r) => {
+    if ((r as any).is_private && !includePrivate) return false;
+    if ((r as any).is_under_90days && !includeUnder90) return false;
+    if (!search) return true;
+    return [r.project_name, r.client, r.service_type, r.evaluation_type]
+      .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
+  });
 
   const fmtNum = (v: number | null) => (v == null ? "-" : Number(v).toLocaleString());
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
