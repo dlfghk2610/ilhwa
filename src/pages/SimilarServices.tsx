@@ -359,6 +359,8 @@ export default function SimilarServices() {
     setFilterServiceTypes((prev) => prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]);
   };
 
+  const [editGroups, setEditGroups] = useState(false);
+
   return (
     <AppLayout title="PQ 유사용역 (회사실적)">
       <div className="space-y-4">
