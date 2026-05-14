@@ -376,7 +376,7 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap">준공일</TableHead>
                   <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">참여(%)</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">각사(%)</TableHead>
+                  <TableHead className="w-[180px]">각사지분율</TableHead>
                   <TableHead className="whitespace-nowrap text-right">지분금액</TableHead>
                   <TableHead className="text-right w-[120px]">관리</TableHead>
                 </TableRow>
