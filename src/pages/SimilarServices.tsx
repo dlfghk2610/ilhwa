@@ -13,10 +13,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
+import { PDFDocument } from "pdf-lib";
 
-type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null };
+type Phase = { label: string; amount: number | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
 
 type Row = {
   id: string;
