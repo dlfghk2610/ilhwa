@@ -101,6 +101,56 @@ export type OverlapItem = {
   participationDays: number;
 };
 
+// 시간순 시프트 방식: 시작일 오름차순 정렬 후, 직전 행의 원본 종료일과 겹치면
+// 중복제외 시작일을 (직전 종료일 + 1일)로 밀어준다. (엑셀 IF(E<=F_prev, F_prev+1, E))
+export type ShiftItem = {
+  row: RecognitionRow;
+  origStart: Date;
+  origEnd: Date;
+  adjStart: Date;
+  adjEnd: Date;
+  participationDays: number; // adjEnd - adjStart + 1, clamp 0
+  convertedDays: number;
+};
+
+export const computeShifted = (rows: RecognitionRow[]): ShiftItem[] => {
+  const parsed = rows
+    .map((r) => {
+      const s = parseDate(r.entry.period_start);
+      const e = parseDate(r.entry.period_end_text);
+      if (!s || !e) return null;
+      return { r, s, e };
+    })
+    .filter((x): x is { r: RecognitionRow; s: Date; e: Date } => x !== null)
+    .sort((a, b) => a.s.getTime() - b.s.getTime());
+
+  const out: ShiftItem[] = [];
+  let prevEnd: Date | null = null;
+  for (const { r, s, e } of parsed) {
+    let adjStart = s;
+    if (prevEnd && s.getTime() <= prevEnd.getTime()) {
+      adjStart = new Date(prevEnd.getTime() + 86400000);
+    }
+    const days = Math.max(0, Math.round((e.getTime() - adjStart.getTime()) / 86400000) + 1);
+    out.push({
+      row: r,
+      origStart: s,
+      origEnd: e,
+      adjStart,
+      adjEnd: e,
+      participationDays: days,
+      convertedDays: +(days * r.weight).toFixed(2),
+    });
+    prevEnd = e;
+  }
+  return out;
+};
+
+export const fmtDate = (d: Date): string => {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${dd}`;
+};
+
 export const selectOptimal = (rows: RecognitionRow[]): OverlapItem[] => {
   const items: OverlapItem[] = rows
     .map((r) => {

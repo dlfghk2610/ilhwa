@@ -17,7 +17,7 @@ import { exportToExcel, importFromExcel } from "@/lib/excel";
 import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
-  dateDiffDaysInclusive, evalWeight, selectOptimal,
+  dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
 } from "@/lib/career-calc";
 
 type Technician = {
@@ -293,54 +293,50 @@ function TechnicianDetail({
       exportToExcel(rows, `경력_인정일계산_${tech.name}`);
       return;
     }
-    // 중복일수 계산
-    const recRows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
+    // 중복일수 계산 (시간순 시프트)
+    const recRows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.recognizedDays > 0);
     const map = new Map<string, typeof recRows>();
     for (const r of recRows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
+    const blank = {
+      사업명: "", 발주처: "", 전문분야: "", 담당업무: "", 평가구분: "",
+      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+      참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
+      참여회사: "", 참여직위: "",
+    };
     const out: any[] = [];
     let grandPart = 0, grandConv = 0;
     for (const [specialty, arr] of map) {
-      const chosen = selectOptimal(arr);
+      const items = computeShifted(arr);
       let sumPart = 0, sumConv = 0;
-      for (const it of chosen) {
-        const conv = +(it.participationDays * it.row.weight).toFixed(2);
+      for (const it of items) {
         sumPart += it.participationDays;
-        sumConv += conv;
+        sumConv += it.convertedDays;
         out.push({
           사업명: it.row.entry.project_name || "",
           발주처: it.row.entry.client || "",
           전문분야: it.row.entry.specialty || "",
+          담당업무: it.row.entry.duties || "",
           평가구분: it.row.evalGroup,
-          참여시작일: formatIso(it.row.entry.period_start),
-          참여종료일: it.row.entry.period_end_text || "",
-          "중복제외 시작일": formatIso(it.row.entry.period_start),
-          "중복제외 종료일": it.row.entry.period_end_text || "",
+          참여시작일: fmtDate(it.origStart),
+          참여종료일: fmtDate(it.origEnd),
+          "중복제외 시작일": fmtDate(it.adjStart),
+          "중복제외 종료일": fmtDate(it.adjEnd),
           참여일수: it.participationDays,
           가중치: it.row.weight,
-          환산일수: conv,
+          환산일수: it.convertedDays,
+          참여회사: it.row.entry.participation_company || "",
+          참여직위: it.row.entry.participation_position || "",
         });
       }
-      out.push({
-        사업명: `[${specialty}] 소계`, 발주처: "", 전문분야: "", 평가구분: "",
-        참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
-        참여일수: sumPart, 가중치: "" as any, 환산일수: +sumConv.toFixed(2),
-      });
+      out.push({ ...blank, 사업명: `[${specialty}] 소계`, 참여일수: sumPart, 환산일수: +sumConv.toFixed(2) });
       grandPart += sumPart; grandConv += sumConv;
     }
-    out.push({
-      사업명: "합계", 발주처: "", 전문분야: "", 평가구분: "",
-      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
-      참여일수: grandPart, 가중치: "" as any, 환산일수: +grandConv.toFixed(2),
-    });
-    out.push({
-      사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}`, 발주처: "", 전문분야: "", 평가구분: "",
-      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
-      참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
-    });
+    out.push({ ...blank, 사업명: "합계", 참여일수: grandPart, 환산일수: +grandConv.toFixed(2) });
+    out.push({ ...blank, 사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}` });
     exportToExcel(out, `경력_중복일수계산_${tech.name}`);
   };
 
@@ -592,54 +588,61 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
 }
 
 // ─────────────────────────────────────────────────────────
-// ② 중복일수 계산 (가중 구간 스케줄링)
+// ② 중복일수 계산 (시간순 시프트)
 // ─────────────────────────────────────────────────────────
 function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.recognizedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
-    const result: { specialty: string; chosen: ReturnType<typeof selectOptimal> }[] = [];
+    const result: { specialty: string; items: ReturnType<typeof computeShifted> }[] = [];
     for (const [specialty, arr] of map) {
-      result.push({ specialty, chosen: selectOptimal(arr) });
+      result.push({ specialty, items: computeShifted(arr) });
     }
     return result;
   }, [entries, tech.specialty]);
 
-  const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
-  const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
+  const grandConv = +groups.reduce((s, g) => s + g.items.reduce((a, b) => a + b.convertedDays, 0), 0).toFixed(2);
+  const grandPart = groups.reduce((s, g) => s + g.items.reduce((a, b) => a + b.participationDays, 0), 0);
+  const grandCount = groups.reduce((s, g) => s + g.items.length, 0);
 
   if (!entries.length) {
     return <div className="text-center py-8 text-muted-foreground">엑셀을 업로드하면 결과가 표시됩니다</div>;
   }
-  if (groups.every((g) => g.chosen.length === 0)) {
+  if (!grandCount) {
     return <div className="text-center py-8 text-muted-foreground">계산 가능한 경력이 없습니다 (전문분야 불일치 또는 "근무중" 항목)</div>;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      <Card className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div><div className="text-muted-foreground">총 건수</div><div className="font-bold text-lg">{grandCount}건</div></div>
+        <div><div className="text-muted-foreground">총 참여일수</div><div className="font-bold text-lg">{grandPart.toLocaleString()}일</div></div>
+        <div><div className="text-muted-foreground">총 환산일수</div><div className="font-bold text-lg">{grandConv.toLocaleString()}일</div></div>
+        <div><div className="text-muted-foreground">환산 (년/월)</div><div className="font-bold text-lg">{daysToYearMonth(grandConv)}</div></div>
+      </Card>
       <div className="text-xs text-muted-foreground">
-        같은 전문분야 안에서 기간이 겹치지 않는 조합 중 환산일수 합이 최대가 되도록 선택된 항목만 표시합니다.
+        같은 전문분야 안에서 시간순으로 정렬한 뒤, 직전 사업의 종료일과 겹치는 구간은 잘라내고 (중복제외 시작일 = 직전 종료일 + 1일) 이후 일수만 인정합니다.
       </div>
       {groups.map((g) => {
-        if (!g.chosen.length) return null;
-        const itemsConv = g.chosen.map((it) => ({ it, conv: +(it.participationDays * it.row.weight).toFixed(2) }));
-        const sumConv = itemsConv.reduce((a, b) => a + b.conv, 0);
-        const sumPart = g.chosen.reduce((a, b) => a + b.participationDays, 0);
+        if (!g.items.length) return null;
+        const sumConv = +g.items.reduce((a, b) => a + b.convertedDays, 0).toFixed(2);
+        const sumPart = g.items.reduce((a, b) => a + b.participationDays, 0);
         return (
           <Card key={g.specialty} className="p-3">
             <div className="font-semibold mb-2">전문분야: {g.specialty}</div>
             <div className="overflow-auto">
-              <Table className="min-w-[900px] text-xs">
+              <Table className="min-w-[1200px] text-xs">
                 <TableHeader>
                   <TableRow>
                     <TableHead>사업명</TableHead>
                     <TableHead>발주처</TableHead>
                     <TableHead>전문분야</TableHead>
+                    <TableHead>담당업무</TableHead>
                     <TableHead>평가구분</TableHead>
                     <TableHead>참여시작일</TableHead>
                     <TableHead>참여종료일</TableHead>
@@ -648,22 +651,27 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
                     <TableHead className="text-right">참여일수</TableHead>
                     <TableHead className="text-right">가중치</TableHead>
                     <TableHead className="text-right">환산일수</TableHead>
+                    <TableHead>참여회사</TableHead>
+                    <TableHead>참여직위</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {itemsConv.map(({ it, conv }, i) => (
-                    <TableRow key={it.row.entry.id || i}>
+                  {g.items.map((it, i) => (
+                    <TableRow key={it.row.entry.id || i} className={it.participationDays === 0 ? "opacity-60" : ""}>
                       <TableCell className="max-w-[200px] truncate">{it.row.entry.project_name}</TableCell>
                       <TableCell>{it.row.entry.client}</TableCell>
                       <TableCell>{it.row.entry.specialty}</TableCell>
+                      <TableCell>{it.row.entry.duties}</TableCell>
                       <TableCell><Badge variant={it.row.evalGroup === "환경" ? "default" : "secondary"}>{it.row.evalGroup}</Badge></TableCell>
-                      <TableCell>{formatIso(it.row.entry.period_start)}</TableCell>
-                      <TableCell>{it.row.entry.period_end_text}</TableCell>
-                      <TableCell>{formatIso(it.row.entry.period_start)}</TableCell>
-                      <TableCell>{it.row.entry.period_end_text}</TableCell>
+                      <TableCell>{fmtDate(it.origStart)}</TableCell>
+                      <TableCell>{fmtDate(it.origEnd)}</TableCell>
+                      <TableCell>{fmtDate(it.adjStart)}</TableCell>
+                      <TableCell>{fmtDate(it.adjEnd)}</TableCell>
                       <TableCell className="text-right">{it.participationDays}</TableCell>
                       <TableCell className="text-right">{it.row.weight.toFixed(1)}</TableCell>
-                      <TableCell className="text-right font-medium">{conv}</TableCell>
+                      <TableCell className="text-right font-medium">{it.convertedDays}</TableCell>
+                      <TableCell>{it.row.entry.participation_company}</TableCell>
+                      <TableCell>{it.row.entry.participation_position}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -675,12 +683,6 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
           </Card>
         );
       })}
-      <Card className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div><div className="text-muted-foreground">선택된 건수</div><div className="font-bold text-lg">{groups.reduce((s, g) => s + g.chosen.length, 0)}건</div></div>
-        <div><div className="text-muted-foreground">총 참여일수</div><div className="font-bold text-lg">{grandPart.toLocaleString()}일</div></div>
-        <div><div className="text-muted-foreground">총 환산일수</div><div className="font-bold text-lg">{grandConv.toLocaleString()}일</div></div>
-        <div><div className="text-muted-foreground">환산 (년/월)</div><div className="font-bold text-lg">{daysToYearMonth(grandConv)}</div></div>
-      </Card>
     </div>
   );
 }
