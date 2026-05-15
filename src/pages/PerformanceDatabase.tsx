@@ -24,7 +24,7 @@ type Participant = {
   position?: string;
   responsibility?: string;
 };
-type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
+type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; share_amount?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null; participants?: Participant[] };
 
 type Row = {
   id: string;
