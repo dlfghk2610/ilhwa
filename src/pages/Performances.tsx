@@ -91,6 +91,7 @@ type Row = {
   client: string | null;
   contract_start_date: string | null;
   contract_end_date: string | null;
+  contract_periods: Period[];
   contract_amount: number | null;
   share_rate: number | null;
   share_amount: number | null;
@@ -105,12 +106,18 @@ type Row = {
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
 
+// 계약기간 배열 (비어있으면 단일 contract_start/end_date로 폴백)
+const getContractPeriods = (r: { contract_periods?: Period[]; contract_start_date?: string | null; contract_end_date?: string | null }): Period[] => {
+  if (Array.isArray(r.contract_periods) && r.contract_periods.length > 0) return r.contract_periods;
+  if (r.contract_start_date || r.contract_end_date) return [{ start: r.contract_start_date || undefined, end: r.contract_end_date || undefined }];
+  return [];
+};
+
 const emptyForm = {
   project_name: "",
   service_overview: "",
   client: "",
-  contract_start_date: "",
-  contract_end_date: "",
+  contract_periods: [{ start: "", end: "" }] as Period[],
   contract_amount: "",
   share_rate: "",
   share_amount: "",
@@ -186,6 +193,7 @@ export default function Performances() {
       evaluation_types: Array.isArray(r.evaluation_types) ? r.evaluation_types : [],
       service_types: Array.isArray(r.service_types) ? r.service_types : [],
       participants: Array.isArray(r.participants) ? r.participants : [],
+      contract_periods: Array.isArray(r.contract_periods) ? r.contract_periods : [],
     };
   }
 
@@ -202,8 +210,7 @@ export default function Performances() {
       project_name: r.project_name || "",
       service_overview: r.service_overview || "",
       client: r.client || "",
-      contract_start_date: r.contract_start_date || "",
-      contract_end_date: r.contract_end_date || "",
+      contract_periods: getContractPeriods(r).length > 0 ? getContractPeriods(r) : [{ start: "", end: "" }],
       contract_amount: r.contract_amount?.toString() ?? "",
       share_rate: r.share_rate?.toString() ?? "",
       share_amount: r.share_amount?.toString() ?? "",
@@ -303,12 +310,17 @@ export default function Performances() {
         cert_pdf_path = path;
       }
 
+      const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
+      const earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
+      const latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+
       const payload = {
         project_name: form.project_name.trim(),
         service_overview: form.service_overview || null,
         client: form.client || null,
-        contract_start_date: form.contract_start_date || null,
-        contract_end_date: form.contract_end_date || null,
+        contract_periods: cleanedPeriods as any,
+        contract_start_date: earliestStart,
+        contract_end_date: latestEnd,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
         share_amount: form.share_amount ? Number(form.share_amount) : null,
@@ -321,8 +333,8 @@ export default function Performances() {
         cert_pdf_path,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
-        start_date: form.contract_start_date || null,
-        end_date: form.contract_end_date || null,
+        start_date: earliestStart,
+        end_date: latestEnd,
       };
 
       if (editing) {
@@ -380,14 +392,15 @@ export default function Performances() {
     const tech = selectedTech.trim();
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
+      const cps = getContractPeriods(r);
+      const contractDays = cps.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
       const row: Record<string, any> = {
         ...base,
         사업명: r.project_name,
         사업개요: r.service_overview ?? "",
         발주처: r.client ?? "",
-        계약시작일: r.contract_start_date ?? "",
-        계약종료일: r.contract_end_date ?? "",
-        "계약기간일수": r.contract_start_date && r.contract_end_date ? daysBetween(r.contract_start_date, r.contract_end_date) : "",
+        계약기간: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        "계약기간일수": contractDays || "",
         계약금액: r.contract_amount ?? "",
         "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
         지분금액: r.share_amount ?? "",
@@ -398,10 +411,9 @@ export default function Performances() {
       if (tech) {
         const part = r.participants?.find((p) => p.name === tech);
         const periods = part ? getPeriods(part) : [];
-        const partDays = (r.contract_start_date && r.contract_end_date)
-          ? periods.reduce((s, pd) => s + (pd.start && pd.end ? overlapDays(r.contract_start_date!, r.contract_end_date!, pd.start, pd.end) : 0), 0)
-          : 0;
-        row["참여기간"] = periods.map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ");
+        const partDays = cps.reduce((s, cp) =>
+          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+        row["참여기간"] = periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n");
         row["참여기간일수"] = part ? partDays : "";
         row["전문분야"] = part?.specialty ?? "";
         row["직위"] = part?.position ?? "";
@@ -546,13 +558,12 @@ export default function Performances() {
 
         const simple = evalW * svcW;
 
-        let ratio = 0;
-        if (r.contract_start_date && r.contract_end_date) {
-          const total = daysBetween(r.contract_start_date, r.contract_end_date);
-          const periods = getPeriods(part);
-          const ovSum = periods.reduce((s, pd) => s + (pd.start && pd.end ? overlapDays(r.contract_start_date!, r.contract_end_date!, pd.start, pd.end) : 0), 0);
-          ratio = total > 0 ? Math.min(1, ovSum / total) : 0;
-        }
+        const cps = getContractPeriods(r);
+        const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
+        const periods = getPeriods(part);
+        const ovSum = cps.reduce((s, cp) =>
+          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+        const ratio = total > 0 ? Math.min(1, ovSum / total) : 0;
         const periodCount = ratio * evalW * svcW;
 
         return { row: r, part, evalW, svcW, simple, ratio, periodCount };
@@ -624,7 +635,9 @@ export default function Performances() {
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {isoToDisplay(r.contract_start_date)} ~ {isoToDisplay(r.contract_end_date)}
+                      {getContractPeriods(r).map((pd, pi) => (
+                        <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                      ))}
                     </TableCell>
                     <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
                     <TableCell className="text-right">{r.share_rate != null ? `${r.share_rate}%` : ""}</TableCell>
@@ -763,8 +776,17 @@ export default function Performances() {
                           {t.row.service_types.map((x) => <Badge key={x} variant="outline">{x}</Badge>)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{isoToDisplay(t.row.contract_start_date)} ~ {isoToDisplay(t.row.contract_end_date)}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{getPeriods(t.part).map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join(", ")}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {getContractPeriods(t.row).map((pd, pi) => (
+                          <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                        ))}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {getPeriods(t.part).map((pd, pi) => (
+                          <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                        ))}
+                      </TableCell>
+                      
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
@@ -811,13 +833,37 @@ export default function Performances() {
                 <Label>각사지분율</Label>
                 <Input value={form.company_share_rate} onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })} />
               </div>
-              <div>
-                <Label>계약시작일</Label>
-                <DateInput value={form.contract_start_date} onChange={(iso) => setForm({ ...form, contract_start_date: iso })} />
-              </div>
-              <div>
-                <Label>계약종료일</Label>
-                <DateInput value={form.contract_end_date} onChange={(iso) => setForm({ ...form, contract_end_date: iso })} />
+              <div className="md:col-span-2">
+                <Label>계약기간 (여러 차수 추가 가능)</Label>
+                <div className="space-y-1">
+                  {form.contract_periods.map((pd, pi) => (
+                    <div key={pi} className="flex items-center gap-1">
+                      <DateInput
+                        value={pd.start || ""}
+                        onChange={(iso) => setForm((f) => ({
+                          ...f,
+                          contract_periods: f.contract_periods.map((x, i) => i === pi ? { ...x, start: iso } : x),
+                        }))}
+                      />
+                      <span className="text-xs">~</span>
+                      <DateInput
+                        value={pd.end || ""}
+                        onChange={(iso) => setForm((f) => ({
+                          ...f,
+                          contract_periods: f.contract_periods.map((x, i) => i === pi ? { ...x, end: iso } : x),
+                        }))}
+                      />
+                      {form.contract_periods.length > 1 && (
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setForm((f) => ({ ...f, contract_periods: f.contract_periods.filter((_, i) => i !== pi) }))}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setForm((f) => ({ ...f, contract_periods: [...f.contract_periods, { start: "", end: "" }] }))}>
+                    <Plus className="h-3 w-3 mr-1" />계약기간 추가
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>계약금액</Label>
