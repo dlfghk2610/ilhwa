@@ -786,7 +786,7 @@ export default function Performances() {
                           <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
                         ))}
                       </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{getPeriods(t.part).map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join(", ")}</TableCell>
+                      
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
