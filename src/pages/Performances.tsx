@@ -180,6 +180,8 @@ export default function Performances() {
   const [noticeDate, setNoticeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
+  const [includeUnder90, setIncludeUnder90] = useState(false);
+  const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev);
