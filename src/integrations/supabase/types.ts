@@ -53,6 +53,74 @@ export type Database = {
         }
         Relationships: []
       }
+      career_entries: {
+        Row: {
+          client: string | null
+          created_at: string
+          created_by: string
+          duties: string | null
+          evaluation_category: string | null
+          id: string
+          notes: string | null
+          participation_company: string | null
+          participation_position: string | null
+          period_end_text: string | null
+          period_start: string | null
+          project_name: string | null
+          recognized_days: number | null
+          service_field: string | null
+          specialty: string | null
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          client?: string | null
+          created_at?: string
+          created_by: string
+          duties?: string | null
+          evaluation_category?: string | null
+          id?: string
+          notes?: string | null
+          participation_company?: string | null
+          participation_position?: string | null
+          period_end_text?: string | null
+          period_start?: string | null
+          project_name?: string | null
+          recognized_days?: number | null
+          service_field?: string | null
+          specialty?: string | null
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          client?: string | null
+          created_at?: string
+          created_by?: string
+          duties?: string | null
+          evaluation_category?: string | null
+          id?: string
+          notes?: string | null
+          participation_company?: string | null
+          participation_position?: string | null
+          period_end_text?: string | null
+          period_start?: string | null
+          project_name?: string | null
+          recognized_days?: number | null
+          service_field?: string | null
+          specialty?: string | null
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_entries_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_careers: {
         Row: {
           company: string
@@ -325,6 +393,45 @@ export type Database = {
           project_name?: string
           start_date?: string
           technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      technicians: {
+        Row: {
+          birth_date: string | null
+          company: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          notes: string | null
+          position: string | null
+          specialty: string | null
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          company?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          notes?: string | null
+          position?: string | null
+          specialty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          company?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          position?: string | null
+          specialty?: string | null
           updated_at?: string
         }
         Relationships: []

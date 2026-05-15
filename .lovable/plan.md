@@ -1,73 +1,95 @@
-# PQ 개인별 실적관리 개편 계획
+# PQ 개인별 경력관리 개편
 
-## 1. 데이터베이스 변경
+## 1. 데이터 구조
 
-기존 `personal_performances` 테이블에 컬럼을 추가하고, 참여자 정보는 JSON으로 저장합니다.
+### 새 테이블 `technicians` (기술자 마스터)
+- name (이름)
+- birth_date (생년월일, 옵션, 동명이인 구분)
+- specialty (전문분야, 단일 — 예: 대기, 수질, 토목 등)
+- company, position (옵션)
 
-추가 컬럼:
-- `service_overview` (사업개요)
-- `contract_start_date`, `contract_end_date` (계약 시작/종료)
-- `contract_amount` (계약금액)
-- `share_rate` (지분율 %), `share_amount` (지분금액 - 자동계산 + 수기수정)
-- `evaluation_types` (text[], 평가종류 복수선택)
-- `service_types` (text[], 사업종류 복수선택 - 자유입력)
-- `company_share_rate` (각사지분율, text)
-- `participants` (jsonb, 참여자 배열)
-- `participant_file_path` (참여자명단 PDF/DOCX 경로)
+### 새 테이블 `career_entries` (경력 항목 — 엑셀 1행 = 1건)
+- technician_id (FK → technicians)
+- project_name (사업명)
+- client (발주처)
+- service_field (사업공종)
+- specialty (전문분야 — 엑셀 행 자체의 값)
+- duties (담당업무)
+- evaluation_category (평가구분 원문 — 환경영향평가/설계/조사 등)
+- participation_company (참여회사)
+- participation_position (참여직위)
+- period_start (참여시작일, date)
+- period_end_text (참여종료일 원문, "근무중" 가능 → text)
+- recognized_days (인정일, 엑셀 입력값)
+- notes
 
-참여자 JSON 구조:
-```json
-{ "name": "홍길동", "birth_date": "1980-01-01", "period_start": "...", "period_end": "...",
-  "specialty": "도로", "duties": "설계", "position": "책임", "responsibility": "100%" }
-```
+RLS: 기존 패턴(`created_by` + admin) 동일.
 
-새 Storage 버킷: `participant-lists` (비공개, 본인만 접근).
+기존 `personal_careers` 테이블은 유지(다른 데이터가 있을 수 있음). 신규 화면은 새 테이블 사용.
 
-## 2. 사업 등록/수정 화면 (메인 변경)
+## 2. 화면 구조 (`src/pages/Careers.tsx` 전면 개편)
 
-기존 DataManager 대체 - 전용 폼 컴포넌트 신규 작성.
+### 탭 구성
+- **기술자 목록**: 기술자 카드/리스트 → 클릭 시 해당 기술자 상세
+- **기술자 상세**: 좌측에 기술자 정보(전문분야 편집 가능), 우측에 두 개 서브탭
+  - **① 인정일 계산** (경력 목록)
+  - **② 중복일수 계산** (최적 조합)
 
-필드:
-- 사업명, 사업개요(textarea), 발주처
-- 계약시작일 / 계약종료일 (date picker)
-- 계약금액, 지분율(%) → 지분금액 = 계약금액 × 지분율 (자동, 수기 덮어쓰기 가능)
-- 평가종류: 체크박스 그룹 (평가 / 전략 / 사후 / 소규모 - 복수선택)
-- 사업종류: 칩 입력 방식 (자유 추가/삭제, 복수선택)
-- 각사지분율 (text), 비고 (textarea)
-- 참여자명단 파일 업로드 (PDF/DOCX) → "AI 자동 추출" 버튼 → 참여자 표 자동 채움 + 수기 수정 가능
+### 기술자 목록
+- 이름/전문분야 표시, 검색, 신규 추가, 편집, 삭제
 
-## 3. 참여자명단 자동 추출
+### 기술자 상세 — 전문분야 편집
+- 인라인 편집 또는 다이얼로그로 specialty 수정/저장
 
-신규 Edge Function `parse-participant-list`:
-- 업로드된 PDF/DOCX를 받아 Lovable AI Gateway (`google/gemini-2.5-flash`)로 표 추출
-- 반환: 참여자 배열 JSON
-- 프론트에서 참여자 표에 채워넣고 사용자가 수정 후 저장
+## 3. ① 인정일 계산 화면
 
-## 4. 기술자별 건수 계산 화면
+### 엑셀 업로드
+- "엑셀 업로드" 버튼 → `.xlsx`/`.xls` 파싱 → `career_entries`에 일괄 저장
+- 표준 컬럼명: `참여시작일, 참여종료일, 인정일, 사업명, 발주처, 사업공종, 전문분야, 담당업무, 평가구분, 참여회사, 참여직위`
+- "엑셀 양식 다운로드" 버튼 제공
 
-새 탭/섹션 "기술자별 실적조회":
-- 등록된 모든 참여자 이름을 dedup하여 select
-- 기술자 선택 + 평가종류 필터(복수) + 사업종류 필터(복수)
-- 해당 기술자가 참여한 사업만 표시
+### 표 컬럼 (계산 컬럼은 자동 산출)
+| 참여시작 | 참여종료 | 인정일 | 사업명 | 발주처 | 사업공종 | 전문분야 | 담당업무 | 평가구분 | 가중치 | 참여회사 | 참여직위 | 환산일수 |
 
-각 사업별 계산:
-- `평가가중치` = (평가종류 필터 중 하나라도 사업의 평가종류에 포함) ? 1.0 : 0.6 / 평가는 무조건 1.0 적용
-- `사업가중치` = (사업종류 필터 중 하나라도 사업의 사업종류에 포함) ? 1.0 : 0.6
-- `단순건수` = 평가가중치 × 사업가중치
-- `기간비율` = max(0, min(계약종료, 참여종료) - max(계약시작, 참여시작)) / (계약종료 - 계약시작)
-- `기간대비건수` = 기간비율 × 평가가중치 × 사업가중치
+### 계산 로직
+- **평가구분 매핑**: ["환경영향평가","사전환경성검토","소규모환경영향평가","전략환경영향평가","사후환경영향조사"] 포함 → "환경", 그 외 → "기타"
+- **가중치**: 환경=1.0, 기타=0.6
+- **인정일**:
+  - 참여종료가 "근무중"(또는 비어있음) → 0
+  - 행의 전문분야 ≠ 기술자 프로필의 전문분야 → 0
+  - 그 외 → 엑셀의 인정일 값
+- **환산일수** = 인정일 × 가중치
+- 하단 합계: 총 인정일, 총 환산일수, **년/월 환산** (연 365일, 월 30일 기준 — 예: 1234일 → 3년 4개월)
 
-표 하단: 단순건수 합계, 기간대비건수 합계.
+## 4. ② 중복일수 계산 화면
 
-## 5. 엑셀 내보내기
+같은 기술자의 `career_entries`를 **전문분야별로 묶어서** 처리.
 
-기존 패턴 유지하되 새 필드 반영, 지분율은 `%` 표시.
+### 알고리즘 (가중 구간 스케줄링)
+1. 같은 전문분야 행만 추림 (인정일=0 행 제외)
+2. 각 행을 (시작일, 종료일, 환산일수) 구간으로 변환
+3. 종료일 기준 정렬
+4. DP로 겹치지 않는 부분집합 중 환산일수 합 최대 선택
+5. 선택된 행만 결과 표에 노출. 중복제외 시작/종료일은 원래 시작/종료와 동일 (겹치지 않으므로)
 
-## 기술 세부사항
+> 주: 사용자가 선택한 옵션은 "가중 구간 스케줄링". 부분 자르기가 아닌 **건 단위 선택**입니다.
 
-- 마이그레이션: `ALTER TABLE personal_performances ADD COLUMN ...` + storage bucket 생성 + RLS
-- 신규 컴포넌트: `src/pages/Performances.tsx` 전면 재작성, `src/components/PerformanceForm.tsx`, `src/components/TechnicianAnalysis.tsx`
-- Edge function: `supabase/functions/parse-participant-list/index.ts` (verify_jwt = true 기본)
-- HWP는 직접 미지원 → 사용자가 PDF/DOCX로 변환 후 업로드 (안내 문구 표시)
+### 표 컬럼
+| 사업명 | 발주처 | 전문분야 | 평가구분 | 참여시작일 | 참여종료일 | 중복제외 시작일 | 중복제외 종료일 | 참여일수 | 환산일수 |
 
-승인하시면 마이그레이션부터 진행합니다.
+전문분야별 그룹 헤더 + 그룹별 합계, 전체 합계(년/월 표기).
+
+## 5. 기술 세부
+
+- 마이그레이션: `technicians`, `career_entries` 테이블 + RLS + `set_updated_at` 트리거
+- 신규 컴포넌트:
+  - `src/pages/Careers.tsx` — 라우터/탭 컨테이너로 재작성
+  - `src/components/careers/TechnicianList.tsx`
+  - `src/components/careers/TechnicianDetail.tsx`
+  - `src/components/careers/CareerRecognition.tsx` (① 인정일)
+  - `src/components/careers/CareerOverlap.tsx` (② 중복제외)
+  - `src/lib/career-calc.ts` — 평가구분 매핑/가중치/구간스케줄링 DP/일수→년월
+- 엑셀 import/export: 기존 `src/lib/excel.ts` 재사용
+- 기존 `personal_careers` 라우트/데이터는 그대로 두고, UI만 신규 테이블로 전환
+
+승인하시면 마이그레이션부터 진행하겠습니다.
