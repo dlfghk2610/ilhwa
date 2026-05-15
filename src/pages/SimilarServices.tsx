@@ -493,17 +493,6 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
-  // 공고일~준공일 5년 초과 여부 (공고일 입력 시 항상 판정)
-  const isOver5y = (r: Row) => {
-    const ann = filterAnnouncementDate;
-    const comp = r.completion_date;
-    if (!ann || !comp) return false;
-    const a = new Date(ann).getTime();
-    const c = new Date(comp).getTime();
-    if (isNaN(a) || isNaN(c)) return false;
-    const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
-    return a - c > fiveYearsMs;
-  };
   // 집계 제외 (체크박스 켜진 경우만)
   const isExpired5y = (r: Row) => exclude5y && isOver5y(r);
 
