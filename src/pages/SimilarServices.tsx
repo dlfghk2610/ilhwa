@@ -959,38 +959,45 @@ export default function SimilarServices() {
                           <div className="space-y-3">
                             {form.phases.map((p, i) => (
                               <div key={i} className="space-y-1.5 p-2 rounded border bg-background">
-                                <div className="grid grid-cols-12 gap-2 items-center">
-                                  <Input
-                                    className="col-span-2"
-                                    placeholder="1차"
-                                    value={p.label}
-                                    onChange={(e) => updatePhase(i, "label", e.target.value)}
-                                  />
-                                  <Input
-                                    className="col-span-3"
-                                    type="date"
-                                    min="1900-01-01"
-                                    max="9999-12-31"
-                                    value={p.start_date}
-                                    onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
-                                  />
-                                  <Input
-                                    className="col-span-3"
-                                    type="date"
-                                    min="1900-01-01"
-                                    max="9999-12-31"
-                                    value={p.end_date}
-                                    onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
-                                  />
-                                  <Input
-                                    className="col-span-3"
-                                    type="date"
-                                    min="1900-01-01"
-                                    max="9999-12-31"
-                                    placeholder="계약일자"
-                                    value={p.contract_date}
-                                    onChange={(e) => updatePhase(i, "contract_date", clampDate(e.target.value))}
-                                  />
+                                <div className="grid grid-cols-12 gap-2 items-end">
+                                  <div className="col-span-2">
+                                    <Label className="text-[10px] text-muted-foreground">차수명</Label>
+                                    <Input
+                                      placeholder="1차"
+                                      value={p.label}
+                                      onChange={(e) => updatePhase(i, "label", e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <Label className="text-[10px] text-muted-foreground">계약일</Label>
+                                    <Input
+                                      type="date"
+                                      min="1900-01-01"
+                                      max="9999-12-31"
+                                      value={p.contract_date}
+                                      onChange={(e) => updatePhase(i, "contract_date", clampDate(e.target.value))}
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <Label className="text-[10px] text-muted-foreground">착수일</Label>
+                                    <Input
+                                      type="date"
+                                      min="1900-01-01"
+                                      max="9999-12-31"
+                                      value={p.start_date}
+                                      onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <Label className="text-[10px] text-muted-foreground">준공일</Label>
+                                    <Input
+                                      type="date"
+                                      min="1900-01-01"
+                                      max="9999-12-31"
+                                      value={p.end_date}
+                                      onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
+                                    />
+                                  </div>
                                   <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                     <X className="h-4 w-4" />
                                   </Button>
