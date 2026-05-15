@@ -711,7 +711,18 @@ export default function SimilarServices() {
                 {customGroups.length === 0 && <span className="text-xs text-muted-foreground">계열을 추가하세요</span>}
                 {customGroups.map((g) => (
                   <div key={g.group} className="flex flex-wrap items-center gap-2 pb-1.5 border-b last:border-0">
-                    <span className="text-xs font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
+                    <label className="flex items-center gap-1.5 min-w-[88px] cursor-pointer">
+                      <Checkbox
+                        checked={g.items.length > 0 && g.items.every((t) => filterServiceTypes.includes(t))}
+                        onCheckedChange={(v) => {
+                          setFilterServiceTypes((prev) => {
+                            const others = prev.filter((s) => !g.items.includes(s));
+                            return v ? [...others, ...g.items] : others;
+                          });
+                        }}
+                      />
+                      <span className="text-xs font-semibold text-muted-foreground">{g.group}</span>
+                    </label>
                     {g.items.map((t) => (
                       <span key={t} className="flex items-center gap-1 text-sm px-2 py-0.5 rounded border hover:bg-muted">
                         <label className="flex items-center gap-1.5 cursor-pointer">
