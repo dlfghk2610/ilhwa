@@ -418,17 +418,23 @@ export default function SimilarServices() {
   // 연번 기입 옵션
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const toggleSelect = (id: string) => {
+    const row = filtered.find((r) => r.id === id);
+    if (row && isOver5y(row)) {
+      toast.error("공고일 기준 5년 경과 사업은 선택할 수 없습니다");
+      return;
+    }
     setSelectedIds((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
   };
-  const allSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const selectableRows = filtered.filter((r) => !isOver5y(r));
+  const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       if (allSelected) return new Set();
-      return new Set(filtered.map((r) => r.id));
+      return new Set(selectableRows.map((r) => r.id));
     });
   };
 
