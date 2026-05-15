@@ -866,6 +866,10 @@ export default function SimilarServices() {
               <Checkbox checked={includeProgress} onCheckedChange={(v) => setIncludeProgress(!!v)} />
               <span className="text-xs">기성실적 포함</span>
             </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeDual} onCheckedChange={(v) => setIncludeDual(!!v)} />
+              <span className="text-xs">분담사업 포함</span>
+            </label>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
               <span className="text-xs text-muted-foreground">공고일</span>
               <Input
