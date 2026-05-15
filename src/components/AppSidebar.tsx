@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, LogOut } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const items = [
   { title: "대시보드", url: "/", icon: LayoutDashboard },
+  { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
   { title: "입찰참가관리", url: "/bids", icon: FileText },
   { title: "PQ 개인별 실적관리", url: "/performances", icon: Award },
   { title: "PQ 개인별 경력관리", url: "/careers", icon: Briefcase },
