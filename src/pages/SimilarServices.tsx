@@ -78,6 +78,7 @@ export default function SimilarServices() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [shareAmountTouched, setShareAmountTouched] = useState(false);
+  const [contractAmountTouched, setContractAmountTouched] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -187,6 +188,17 @@ export default function SimilarServices() {
     return form.phases.reduce((s, p) => s + (Number(p.amount) || 0), 0);
   }, [form.phases]);
 
+  const phasesContractTotal = useMemo(() => {
+    return form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
+  }, [form.phases]);
+
+  // 사후(차수) 입력 시 계약금액 = 차수 계약금액 합계 (수기 수정 가능)
+  useEffect(() => {
+    if (form.phases.length === 0) return;
+    if (contractAmountTouched) return;
+    setForm((prev) => ({ ...prev, contract_amount: String(Math.round(phasesContractTotal)) }));
+  }, [phasesContractTotal, form.phases.length, contractAmountTouched]);
+
   // 자동 계산: 차수 입력 시엔 차수 합계로 / 아니면 계약금액 × 참여지분율
   useEffect(() => {
     if (form.phases.length > 0) {
@@ -208,6 +220,7 @@ export default function SimilarServices() {
     setEditing(null);
     setForm(emptyForm);
     setShareAmountTouched(false);
+    setContractAmountTouched(false);
     setOpen(true);
   };
 
@@ -238,6 +251,7 @@ export default function SimilarServices() {
       cert_pdf_file: null,
     });
     setShareAmountTouched(true);
+    setContractAmountTouched(true);
     setOpen(true);
   };
 
@@ -866,12 +880,13 @@ export default function SimilarServices() {
                       </div>
 
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label>계약금액 (원)</Label>
+                        <Label>계약금액 (원) {form.phases.length > 0 && <span className="text-xs text-muted-foreground">— 차수 계약금액 합계 자동, 수기 수정 가능</span>}</Label>
                         <Input
                           inputMode="decimal"
                           value={form.contract_amount === "" ? "" : Number(form.contract_amount).toLocaleString()}
                           onChange={(e) => {
                             const raw = e.target.value.replace(/[^\d.-]/g, "");
+                            setContractAmountTouched(true);
                             setForm({ ...form, contract_amount: raw });
                           }}
                         />
