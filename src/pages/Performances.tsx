@@ -563,7 +563,15 @@ export default function Performances() {
         const periods = getPeriods(part);
         const ovSum = cps.reduce((s, cp) =>
           s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
-        const ratio = total > 0 ? Math.min(1, ovSum / total) : 0;
+        // 참여기간 첫 착수일 = 계약 첫 시작일, 참여기간 마지막 종료일 = 계약 마지막 종료일이면 100%
+        const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start.localeCompare(b.start));
+        const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start.localeCompare(b.start));
+        const fullCover =
+          validPeriods.length > 0 &&
+          validCps.length > 0 &&
+          validPeriods[0].start === validCps[0].start &&
+          validPeriods[validPeriods.length - 1].end === validCps[validCps.length - 1].end;
+        const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
         const periodCount = ratio * evalW * svcW;
 
         return { row: r, part, evalW, svcW, simple, ratio, periodCount };
