@@ -41,7 +41,7 @@ const formatBirth = (v: string) => {
 };
 
 // ISO(YYYY-MM-DD) ↔ display(YYYY.MM.DD)
-const isoToDisplay = (v?: string | null) => (v ? v.replaceAll("-", ".") : "");
+const isoToDisplay = (v?: string | null) => (v ? v.replace(/-/g, ".") : "");
 const displayToIso = (v: string) => {
   const d = (v || "").replace(/\D/g, "").slice(0, 8);
   if (d.length !== 8) return "";
