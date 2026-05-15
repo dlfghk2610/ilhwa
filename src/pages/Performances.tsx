@@ -444,7 +444,19 @@ export default function Performances() {
     setForm((f) => ({ ...f, participants: f.participants.filter((_, i) => i !== idx) }));
   }
   function addParticipant() {
-    setForm((f) => ({ ...f, participants: [...f.participants, { name: "" }] }));
+    setForm((f) => ({ ...f, participants: [...f.participants, { name: "", periods: [{ start: "", end: "" }] }] }));
+  }
+  function updatePeriods(idx: number, fn: (periods: Period[]) => Period[]) {
+    setForm((f) => ({
+      ...f,
+      participants: f.participants.map((p, i) => {
+        if (i !== idx) return p;
+        const cur = getPeriods(p);
+        const next = fn(cur);
+        const { period_start, period_end, ...rest } = p;
+        return { ...rest, periods: next };
+      }),
+    }));
   }
 
   // ===== 기술자별 분석 =====
