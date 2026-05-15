@@ -823,13 +823,37 @@ export default function Performances() {
                 <Label>각사지분율</Label>
                 <Input value={form.company_share_rate} onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })} />
               </div>
-              <div>
-                <Label>계약시작일</Label>
-                <DateInput value={form.contract_start_date} onChange={(iso) => setForm({ ...form, contract_start_date: iso })} />
-              </div>
-              <div>
-                <Label>계약종료일</Label>
-                <DateInput value={form.contract_end_date} onChange={(iso) => setForm({ ...form, contract_end_date: iso })} />
+              <div className="md:col-span-2">
+                <Label>계약기간 (여러 차수 추가 가능)</Label>
+                <div className="space-y-1">
+                  {form.contract_periods.map((pd, pi) => (
+                    <div key={pi} className="flex items-center gap-1">
+                      <DateInput
+                        value={pd.start || ""}
+                        onChange={(iso) => setForm((f) => ({
+                          ...f,
+                          contract_periods: f.contract_periods.map((x, i) => i === pi ? { ...x, start: iso } : x),
+                        }))}
+                      />
+                      <span className="text-xs">~</span>
+                      <DateInput
+                        value={pd.end || ""}
+                        onChange={(iso) => setForm((f) => ({
+                          ...f,
+                          contract_periods: f.contract_periods.map((x, i) => i === pi ? { ...x, end: iso } : x),
+                        }))}
+                      />
+                      {form.contract_periods.length > 1 && (
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => setForm((f) => ({ ...f, contract_periods: f.contract_periods.filter((_, i) => i !== pi) }))}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setForm((f) => ({ ...f, contract_periods: [...f.contract_periods, { start: "", end: "" }] }))}>
+                    <Plus className="h-3 w-3 mr-1" />계약기간 추가
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>계약금액</Label>
