@@ -78,6 +78,7 @@ export default function SimilarServices() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [shareAmountTouched, setShareAmountTouched] = useState(false);
+  const [contractAmountTouched, setContractAmountTouched] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
