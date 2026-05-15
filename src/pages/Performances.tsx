@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles, FileText } from "lucide-react";
-import { exportToExcel } from "@/lib/excel";
+import { exportToExcel, importFromExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 type Period = { start?: string; end?: string };
