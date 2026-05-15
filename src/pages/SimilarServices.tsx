@@ -429,6 +429,15 @@ export default function SimilarServices() {
       return n;
     });
   };
+  const isOver5y = (r: Row) => {
+    const ann = filterAnnouncementDate;
+    const comp = r.completion_date;
+    if (!ann || !comp) return false;
+    const a = new Date(ann).getTime();
+    const c = new Date(comp).getTime();
+    if (isNaN(a) || isNaN(c)) return false;
+    return a - c > 5 * 365.25 * 24 * 60 * 60 * 1000;
+  };
   const selectableRows = filtered.filter((r) => !isOver5y(r));
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
