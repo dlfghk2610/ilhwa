@@ -1,0 +1,1 @@
+ALTER TABLE public.similar_services ALTER COLUMN phases DROP NOT NULL;

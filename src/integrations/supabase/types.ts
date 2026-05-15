@@ -299,7 +299,7 @@ export type Database = {
           is_under_90days: boolean
           notes: string | null
           participation_rate: number | null
-          phases: Json
+          phases: Json | null
           project_name: string
           service_overview: string | null
           service_type: string | null
@@ -325,7 +325,7 @@ export type Database = {
           is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
-          phases?: Json
+          phases?: Json | null
           project_name: string
           service_overview?: string | null
           service_type?: string | null
@@ -351,7 +351,7 @@ export type Database = {
           is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
-          phases?: Json
+          phases?: Json | null
           project_name?: string
           service_overview?: string | null
           service_type?: string | null
