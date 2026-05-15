@@ -721,14 +721,20 @@ export default function Performances() {
         <TabsContent value="tech" className="space-y-4">
           <Card className="p-4 space-y-3">
             <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label>기술자 선택</Label>
-                <Select value={selectedTech} onValueChange={setSelectedTech}>
-                  <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
-                  <SelectContent>
-                    {allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <div>
+                  <Label>기술자 선택</Label>
+                  <Select value={selectedTech} onValueChange={setSelectedTech}>
+                    <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
+                    <SelectContent>
+                      {allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>공고일 (10년 경과 판정 기준)</Label>
+                  <DateInput value={noticeDate} onChange={(iso) => { setNoticeDate(iso); setTechSelectionTouched(false); }} />
+                </div>
               </div>
               <div>
                 <Label>평가종류 필터 (복수)</Label>
