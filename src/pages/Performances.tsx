@@ -193,6 +193,7 @@ export default function Performances() {
       evaluation_types: Array.isArray(r.evaluation_types) ? r.evaluation_types : [],
       service_types: Array.isArray(r.service_types) ? r.service_types : [],
       participants: Array.isArray(r.participants) ? r.participants : [],
+      contract_periods: Array.isArray(r.contract_periods) ? r.contract_periods : [],
     };
   }
 
