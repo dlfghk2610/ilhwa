@@ -251,6 +251,7 @@ export default function SimilarServices() {
       cert_pdf_file: null,
     });
     setShareAmountTouched(true);
+    setContractAmountTouched(true);
     setOpen(true);
   };
 
