@@ -275,38 +275,103 @@ function TechnicianDetail({
   };
 
   // 엑셀 업로드 → 기존 데이터 대체
+  // 두 가지 형식을 지원합니다:
+  // ① 표준 양식 (1행=헤더, 컬럼명: 참여시작일, 참여종료일, 인정일 등)
+  // ② 건기협 붙여넣기 형식 (3행=1건, A:참여회사, B행1=시작일/B행2=종료일,
+  //    C:인정일, D:사업명, E:발주처, F:사업공종, I:전문분야, J:평가구분, K:참여직위)
+  const parseGeonGiHyeop = (sheet: XLSX.WorkSheet) => {
+    const aoa: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
+    const inserts: any[] = [];
+    const cell = (row: any[] | undefined, idx: number) => {
+      const v = row?.[idx];
+      return v == null || v === "" ? null : v;
+    };
+    const str = (v: any) => (v == null ? null : String(v).trim() || null);
+    const numFromDays = (v: any): number | null => {
+      if (v == null || v === "") return null;
+      const s = String(v).replace(/[일\s,]/g, "");
+      const n = Number(s);
+      return isNaN(n) ? null : n;
+    };
+    for (let r = 0; r < aoa.length; r += 3) {
+      const r0 = aoa[r], r1 = aoa[r + 1];
+      // 한 건이라도 사업명/시작일이 비어있으면 skip
+      const projectName = str(cell(r0, 3)); // D
+      const startRaw = cell(r0, 1);          // B(row1)
+      if (!projectName && !startRaw) continue;
+
+      const company = str(cell(r0, 0)) || str(cell(r1, 0)); // A
+      const startIso = toIsoDate(startRaw);
+      const endRaw = cell(r1, 1);                            // B(row2)
+      const endStr = endRaw == null ? null
+        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+
+      inserts.push({
+        created_by: user!.id,
+        technician_id: tech.id,
+        period_start: startIso,
+        period_end_text: endStr,
+        recognized_days: numFromDays(cell(r0, 2)), // C
+        project_name: projectName,
+        client: str(cell(r0, 4)),                  // E
+        service_field: str(cell(r0, 5)),           // F
+        specialty: str(cell(r0, 8)),               // I
+        evaluation_category: str(cell(r0, 9)),     // J (원문 — 환경영향평가/설계 등)
+        duties: null,
+        participation_company: company,
+        participation_position: str(cell(r0, 10)) || str(cell(r1, 10)), // K
+      });
+    }
+    return inserts;
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f || !user) return;
     try {
-      const rows = await importFromExcel<Record<string, any>>(f);
-      if (!rows.length) { toast.error("엑셀이 비어있습니다"); return; }
-      const inserts = rows.map((r) => ({
-        created_by: user.id,
-        technician_id: tech.id,
-        period_start: toIsoDate(r["참여시작일"]),
-        period_end_text: r["참여종료일"] != null && r["참여종료일"] !== ""
-          ? (r["참여종료일"] instanceof Date
-              ? formatIso(toIsoDate(r["참여종료일"]))
-              : String(r["참여종료일"]))
-          : null,
-        recognized_days: r["인정일"] != null && r["인정일"] !== "" ? Number(r["인정일"]) : null,
-        project_name: r["사업명"] ? String(r["사업명"]) : null,
-        client: r["발주처"] ? String(r["발주처"]) : null,
-        service_field: r["사업공종"] ? String(r["사업공종"]) : null,
-        specialty: r["전문분야"] ? String(r["전문분야"]) : null,
-        duties: r["담당업무"] ? String(r["담당업무"]) : null,
-        evaluation_category: r["평가구분"] ? String(r["평가구분"]) : null,
-        participation_company: r["참여회사"] ? String(r["참여회사"]) : null,
-        participation_position: r["참여직위"] ? String(r["참여직위"]) : null,
-      }));
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf);
+      // 시트 우선순위: "①붙여넣기" → 첫 시트
+      const sheetName = wb.SheetNames.find((n) => n.includes("붙여넣기")) || wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      // 형식 감지: 첫 행에 표준 헤더가 있으면 표준 양식
+      const firstRow: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })[0] as any[] || [];
+      const isStandard = firstRow.some((v) => typeof v === "string" && /참여시작일|사업명|인정일/.test(v));
+
+      let inserts: any[] = [];
+      if (isStandard) {
+        const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: null });
+        if (!rows.length) { toast.error("엑셀이 비어있습니다"); return; }
+        inserts = rows.map((r) => ({
+          created_by: user.id,
+          technician_id: tech.id,
+          period_start: toIsoDate(r["참여시작일"]),
+          period_end_text: r["참여종료일"] != null && r["참여종료일"] !== ""
+            ? (r["참여종료일"] instanceof Date
+                ? formatIso(toIsoDate(r["참여종료일"]))
+                : String(r["참여종료일"]))
+            : null,
+          recognized_days: r["인정일"] != null && r["인정일"] !== "" ? Number(r["인정일"]) : null,
+          project_name: r["사업명"] ? String(r["사업명"]) : null,
+          client: r["발주처"] ? String(r["발주처"]) : null,
+          service_field: r["사업공종"] ? String(r["사업공종"]) : null,
+          specialty: r["전문분야"] ? String(r["전문분야"]) : null,
+          duties: r["담당업무"] ? String(r["담당업무"]) : null,
+          evaluation_category: r["평가구분"] ? String(r["평가구분"]) : null,
+          participation_company: r["참여회사"] ? String(r["참여회사"]) : null,
+          participation_position: r["참여직위"] ? String(r["참여직위"]) : null,
+        }));
+      } else {
+        inserts = parseGeonGiHyeop(sheet);
+        if (!inserts.length) { toast.error("인식된 경력이 없습니다"); return; }
+      }
       // 기존 데이터 삭제 후 일괄 insert
       const { error: delErr } = await supabase.from("career_entries").delete().eq("technician_id", tech.id);
       if (delErr) { toast.error(delErr.message); return; }
       const { error: insErr } = await supabase.from("career_entries").insert(inserts);
       if (insErr) { toast.error(insErr.message); return; }
-      toast.success(`${inserts.length}건 업로드되었습니다`);
+      toast.success(`${inserts.length}건 업로드되었습니다 (${isStandard ? "표준 양식" : "건기협 붙여넣기"})`);
       load();
     } catch (err: any) {
       toast.error("업로드 실패: " + (err?.message || err));
