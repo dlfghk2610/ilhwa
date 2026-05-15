@@ -180,6 +180,7 @@ export type Database = {
           end_date: string | null
           evaluation_types: string[]
           id: string
+          is_private: boolean
           notes: string | null
           participant_file_path: string | null
           participants: Json
@@ -207,6 +208,7 @@ export type Database = {
           end_date?: string | null
           evaluation_types?: string[]
           id?: string
+          is_private?: boolean
           notes?: string | null
           participant_file_path?: string | null
           participants?: Json
@@ -234,6 +236,7 @@ export type Database = {
           end_date?: string | null
           evaluation_types?: string[]
           id?: string
+          is_private?: boolean
           notes?: string | null
           participant_file_path?: string | null
           participants?: Json

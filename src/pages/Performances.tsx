@@ -106,6 +106,7 @@ type Row = {
   participants: Participant[];
   participant_file_path: string | null;
   cert_pdf_path: string | null;
+  is_private: boolean;
 };
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
@@ -135,6 +136,7 @@ const emptyForm = {
   participant_file_path: "",
   cert_pdf_file: null as File | null,
   cert_pdf_path: "",
+  is_private: false,
 };
 
 type FormState = typeof emptyForm;
@@ -182,6 +184,7 @@ export default function Performances() {
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
   const [includeUnder90, setIncludeUnder90] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
+  const [excludePrivate, setExcludePrivate] = useState(false);
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev);
@@ -245,6 +248,7 @@ export default function Performances() {
       participant_file_path: r.participant_file_path || "",
       cert_pdf_file: null,
       cert_pdf_path: r.cert_pdf_path || "",
+      is_private: (r as any).is_private ?? false,
     });
     setShareAmountTouched(true);
     setOpen(true);
@@ -352,6 +356,7 @@ export default function Performances() {
         participants: form.participants as any,
         participant_file_path,
         cert_pdf_path,
+        is_private: form.is_private,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
         start_date: earliestStart,
@@ -758,6 +763,7 @@ export default function Performances() {
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
+    if (excludePrivate && (t.row as any).is_private) return false;
     if (t.isPhase) {
       if (excludeLhPhases) return false;
       if (!t.isLastPhase) return false;
@@ -772,6 +778,7 @@ export default function Performances() {
         techRows.forEach((t) => {
           if (t.expired) next.delete(t.row.id);
           if (!includeUnder90 && t.under90) next.delete(t.row.id);
+          if (excludePrivate && (t.row as any).is_private) next.delete(t.row.id);
           if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
         });
         return next;
@@ -780,7 +787,7 @@ export default function Performances() {
     }
     setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases]);
+  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
 
   const techTotals = useMemo(() => {
     const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
@@ -792,7 +799,7 @@ export default function Performances() {
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [techRows, includeUnder90, excludeLhPhases]
+    [techRows, includeUnder90, excludeLhPhases, excludePrivate]
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
@@ -1029,6 +1036,13 @@ export default function Performances() {
                 />
                 LH사업의 경우 차수분 제외
               </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={excludePrivate}
+                  onCheckedChange={(c) => { setExcludePrivate(!!c); setTechSelectionTouched(false); }}
+                />
+                민간사업 제외
+              </label>
             </div>
           </Card>
 
@@ -1101,6 +1115,9 @@ export default function Performances() {
                         )}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
                           <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
+                        )}
+                        {!t.expired && excludePrivate && (t.row as any).is_private && (
+                          <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1182,6 +1199,9 @@ export default function Performances() {
                         )}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
                           <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
+                        )}
+                        {!t.expired && excludePrivate && (t.row as any).is_private && (
+                          <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>
                         )}
                       </button>
                       <button
@@ -1360,6 +1380,16 @@ export default function Performances() {
                     </Badge>
                   ))}
                 </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={form.is_private}
+                    onCheckedChange={(c) => setForm({ ...form, is_private: !!c })}
+                  />
+                  민간사업
+                </label>
               </div>
 
               <div className="md:col-span-2">

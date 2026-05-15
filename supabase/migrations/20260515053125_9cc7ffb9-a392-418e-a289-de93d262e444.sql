@@ -1,0 +1,1 @@
+ALTER TABLE public.personal_performances ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false;
