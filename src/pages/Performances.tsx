@@ -91,6 +91,7 @@ type Row = {
   client: string | null;
   contract_start_date: string | null;
   contract_end_date: string | null;
+  contract_periods: Period[];
   contract_amount: number | null;
   share_rate: number | null;
   share_amount: number | null;
@@ -105,12 +106,18 @@ type Row = {
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
 
+// 계약기간 배열 (비어있으면 단일 contract_start/end_date로 폴백)
+const getContractPeriods = (r: { contract_periods?: Period[]; contract_start_date?: string | null; contract_end_date?: string | null }): Period[] => {
+  if (Array.isArray(r.contract_periods) && r.contract_periods.length > 0) return r.contract_periods;
+  if (r.contract_start_date || r.contract_end_date) return [{ start: r.contract_start_date || undefined, end: r.contract_end_date || undefined }];
+  return [];
+};
+
 const emptyForm = {
   project_name: "",
   service_overview: "",
   client: "",
-  contract_start_date: "",
-  contract_end_date: "",
+  contract_periods: [{ start: "", end: "" }] as Period[],
   contract_amount: "",
   share_rate: "",
   share_amount: "",
