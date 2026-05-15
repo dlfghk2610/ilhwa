@@ -481,7 +481,7 @@ function TechnicianDetail({
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1" />엑셀 양식</Button>
+        
         <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" />엑셀 업로드</Button>
         <Button variant="outline" size="sm" onClick={exportEntries} disabled={!entries.length}><Download className="h-4 w-4 mr-1" />엑셀 내보내기</Button>
         <Button variant="ghost" size="sm" onClick={clearAll} disabled={!entries.length} className="text-destructive">
