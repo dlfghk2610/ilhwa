@@ -1036,6 +1036,13 @@ export default function Performances() {
                 />
                 LH사업의 경우 차수분 제외
               </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={excludePrivate}
+                  onCheckedChange={(c) => { setExcludePrivate(!!c); setTechSelectionTouched(false); }}
+                />
+                민간사업 제외
+              </label>
             </div>
           </Card>
 
