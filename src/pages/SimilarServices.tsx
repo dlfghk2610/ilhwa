@@ -1195,8 +1195,8 @@ export default function SimilarServices() {
                 ) : filtered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
+                  const over5 = isOver5y(r);
                   return (
-                {(() => { const over5 = isOver5y(r); return (
                   <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : undefined}>
                     <TableCell className="align-middle">
                       <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
