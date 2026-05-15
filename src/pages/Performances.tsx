@@ -392,14 +392,15 @@ export default function Performances() {
     const tech = selectedTech.trim();
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
+      const cps = getContractPeriods(r);
+      const contractDays = cps.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
       const row: Record<string, any> = {
         ...base,
         사업명: r.project_name,
         사업개요: r.service_overview ?? "",
         발주처: r.client ?? "",
-        계약시작일: r.contract_start_date ?? "",
-        계약종료일: r.contract_end_date ?? "",
-        "계약기간일수": r.contract_start_date && r.contract_end_date ? daysBetween(r.contract_start_date, r.contract_end_date) : "",
+        계약기간: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        "계약기간일수": contractDays || "",
         계약금액: r.contract_amount ?? "",
         "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
         지분금액: r.share_amount ?? "",
@@ -410,10 +411,9 @@ export default function Performances() {
       if (tech) {
         const part = r.participants?.find((p) => p.name === tech);
         const periods = part ? getPeriods(part) : [];
-        const partDays = (r.contract_start_date && r.contract_end_date)
-          ? periods.reduce((s, pd) => s + (pd.start && pd.end ? overlapDays(r.contract_start_date!, r.contract_end_date!, pd.start, pd.end) : 0), 0)
-          : 0;
-        row["참여기간"] = periods.map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ");
+        const partDays = cps.reduce((s, cp) =>
+          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+        row["참여기간"] = periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n");
         row["참여기간일수"] = part ? partDays : "";
         row["전문분야"] = part?.specialty ?? "";
         row["직위"] = part?.position ?? "";
