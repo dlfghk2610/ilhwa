@@ -355,6 +355,7 @@ export default function Performances() {
         participants: form.participants as any,
         participant_file_path,
         cert_pdf_path,
+        is_private: form.is_private,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
         start_date: earliestStart,
