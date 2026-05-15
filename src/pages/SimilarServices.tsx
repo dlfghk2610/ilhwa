@@ -662,6 +662,26 @@ export default function SimilarServices() {
         const s = String(v).trim();
         return s === "" ? null : s;
       };
+      // 지분율 파서: 숫자/문자/백분율(0.05, "5%", "5", "5.5 %") 모두 인식 → 퍼센트 숫자(예: 5)
+      const toPct = (v: any): number | null => {
+        if (v === "" || v == null) return null;
+        if (typeof v === "number") {
+          if (!isFinite(v)) return null;
+          // 엑셀 % 서식이면 0~1 사이 소수로 들어옴
+          return v > 0 && v < 1 ? +(v * 100).toFixed(6) : v;
+        }
+        const raw = String(v).trim();
+        if (!raw) return null;
+        const hasPct = raw.includes("%");
+        const n = Number(raw.replace(/[%,\s]/g, ""));
+        if (!isFinite(n)) return null;
+        if (hasPct) return n;
+        return n > 0 && n < 1 ? +(n * 100).toFixed(6) : n;
+      };
+      const toPctStr = (v: any): string | null => {
+        const n = toPct(v);
+        return n == null ? null : String(n);
+      };
       const parseRow = (r: Record<string, any>) => {
         const rawName = String(r["사업명"] ?? "").trim();
         // 사업명 끝의 "(○차)" 또는 "(○○)" 접미사를 차수 라벨로 추출
