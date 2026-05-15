@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
+import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal,
