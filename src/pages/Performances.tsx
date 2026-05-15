@@ -310,12 +310,17 @@ export default function Performances() {
         cert_pdf_path = path;
       }
 
+      const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
+      const earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
+      const latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+
       const payload = {
         project_name: form.project_name.trim(),
         service_overview: form.service_overview || null,
         client: form.client || null,
-        contract_start_date: form.contract_start_date || null,
-        contract_end_date: form.contract_end_date || null,
+        contract_periods: cleanedPeriods as any,
+        contract_start_date: earliestStart,
+        contract_end_date: latestEnd,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
         share_amount: form.share_amount ? Number(form.share_amount) : null,
@@ -328,8 +333,8 @@ export default function Performances() {
         cert_pdf_path,
         // legacy required fields
         technician_name: form.participants[0]?.name || form.project_name,
-        start_date: form.contract_start_date || null,
-        end_date: form.contract_end_date || null,
+        start_date: earliestStart,
+        end_date: latestEnd,
       };
 
       if (editing) {
