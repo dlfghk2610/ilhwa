@@ -803,7 +803,8 @@ export default function Performances() {
           </div>
 
           {selectedTech && (
-            <Card className="overflow-x-auto">
+            <>
+            <Card className="overflow-x-auto hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -882,6 +883,94 @@ export default function Performances() {
                 </TableBody>
               </Table>
             </Card>
+
+            {/* 모바일 카드 뷰 */}
+            <div className="md:hidden space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/40">
+                <Checkbox
+                  checked={techAllChecked}
+                  disabled={techAllSelectableIds.length === 0}
+                  onCheckedChange={(c) => toggleTechAll(!!c)}
+                />
+                <span className="text-xs font-medium">전체 선택</span>
+              </div>
+              {techRows.length === 0 ? (
+                <Card className="p-4 text-center text-sm text-muted-foreground">참여 사업이 없습니다</Card>
+              ) : techRows.map((t) => {
+                const expanded = expandedTechRows.has(t.row.id);
+                return (
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""}`}>
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        className="mt-1"
+                        checked={!t.expired && techSelectedRowIds.has(t.row.id)}
+                        disabled={t.expired}
+                        onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandedTechRow(t.row.id)}
+                        className="flex-1 text-left"
+                      >
+                        <div className="font-medium text-sm break-words">{t.row.project_name}</div>
+                        {t.expired && (
+                          <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandedTechRow(t.row.id)}
+                        className="text-xs px-2 py-1 rounded border bg-background shrink-0"
+                      >
+                        {expanded ? "접기" : "펼치기"}
+                      </button>
+                    </div>
+                    {expanded && (
+                      <div className="mt-3 space-y-2 text-xs border-t pt-2">
+                        <div>
+                          <div className="text-muted-foreground mb-1">평가종류</div>
+                          <div className="flex flex-wrap gap-1">
+                            {t.row.evaluation_types.map((x) => <Badge key={x} variant="secondary">{x}</Badge>)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">사업종류</div>
+                          <div className="flex flex-wrap gap-1">
+                            {t.row.service_types.map((x) => <Badge key={x} variant="outline">{x}</Badge>)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">계약기간</div>
+                          {getContractPeriods(t.row).map((pd, pi) => (
+                            <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                          ))}
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">참여기간</div>
+                          {getPeriods(t.part).map((pd, pi) => (
+                            <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div><span className="text-muted-foreground">평가건수: </span>{t.evalW.toFixed(2)}</div>
+                          <div><span className="text-muted-foreground">사업건수: </span>{t.svcW.toFixed(2)}</div>
+                          <div><span className="text-muted-foreground">단순건수: </span>{t.simple.toFixed(2)}</div>
+                          <div><span className="text-muted-foreground">기간비율: </span>{(t.ratio * 100).toFixed(1)}%</div>
+                          <div className="col-span-2"><span className="text-muted-foreground">기간대비건수: </span>{t.periodCount.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+              {techRows.length > 0 && (
+                <Card className="p-3 bg-muted/40 font-semibold text-sm flex justify-between">
+                  <span>합계 (선택)</span>
+                  <span>단순 {techTotals.simple.toFixed(2)} / 기간대비 {techTotals.period.toFixed(2)}</span>
+                </Card>
+              )}
+            </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
