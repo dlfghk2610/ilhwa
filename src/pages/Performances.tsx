@@ -476,10 +476,11 @@ export default function Performances() {
         const simple = evalW * svcW;
 
         let ratio = 0;
-        if (r.contract_start_date && r.contract_end_date && part.period_start && part.period_end) {
+        if (r.contract_start_date && r.contract_end_date) {
           const total = daysBetween(r.contract_start_date, r.contract_end_date);
-          const ov = overlapDays(r.contract_start_date, r.contract_end_date, part.period_start, part.period_end);
-          ratio = total > 0 ? ov / total : 0;
+          const periods = getPeriods(part);
+          const ovSum = periods.reduce((s, pd) => s + (pd.start && pd.end ? overlapDays(r.contract_start_date!, r.contract_end_date!, pd.start, pd.end) : 0), 0);
+          ratio = total > 0 ? Math.min(1, ovSum / total) : 0;
         }
         const periodCount = ratio * evalW * svcW;
 
