@@ -763,6 +763,7 @@ export default function Performances() {
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
+    if (excludePrivate && (t.row as any).is_private) return false;
     if (t.isPhase) {
       if (excludeLhPhases) return false;
       if (!t.isLastPhase) return false;
@@ -777,6 +778,7 @@ export default function Performances() {
         techRows.forEach((t) => {
           if (t.expired) next.delete(t.row.id);
           if (!includeUnder90 && t.under90) next.delete(t.row.id);
+          if (excludePrivate && (t.row as any).is_private) next.delete(t.row.id);
           if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
         });
         return next;
@@ -785,7 +787,7 @@ export default function Performances() {
     }
     setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases]);
+  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
 
   const techTotals = useMemo(() => {
     const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
@@ -797,7 +799,7 @@ export default function Performances() {
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [techRows, includeUnder90, excludeLhPhases]
+    [techRows, includeUnder90, excludeLhPhases, excludePrivate]
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
