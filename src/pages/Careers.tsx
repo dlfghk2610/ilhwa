@@ -316,8 +316,8 @@ function TechnicianDetail({
         client: str(cell(r0, 4)),                  // E
         service_field: str(cell(r0, 5)),           // F
         specialty: str(cell(r0, 8)),               // I
-        evaluation_category: str(cell(r0, 9)),     // J (원문 — 환경영향평가/설계 등)
-        duties: null,
+        evaluation_category: str(cell(r0, 9)),     // J (가중치 분류용 — 환경/기타)
+        duties: str(cell(r0, 9)),                  // J (담당업무)
         participation_company: company,
         participation_position: str(cell(r0, 10)) || str(cell(r1, 10)), // K
       });
@@ -462,6 +462,12 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
 
   return (
     <div className="space-y-3">
+      <Card className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div><div className="text-muted-foreground">총 인정일</div><div className="font-bold text-lg">{totalRecog.toLocaleString()}일</div></div>
+        <div><div className="text-muted-foreground">총 환산일수</div><div className="font-bold text-lg">{totalConv.toLocaleString()}일</div></div>
+        <div><div className="text-muted-foreground">환산 (년/월)</div><div className="font-bold text-lg">{daysToYearMonth(totalConv)}</div></div>
+        <div><div className="text-muted-foreground">행 수</div><div className="font-bold text-lg">{rows.length}건</div></div>
+      </Card>
       {!tech.specialty && (
         <div className="rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm">
           ⚠️ 기술자의 전문분야가 지정되지 않아 모든 인정일이 0으로 처리됩니다. 위에서 전문분야를 입력해 주세요.
@@ -511,12 +517,6 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
           </TableBody>
         </Table>
       </div>
-      <Card className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div><div className="text-muted-foreground">총 인정일</div><div className="font-bold text-lg">{totalRecog.toLocaleString()}일</div></div>
-        <div><div className="text-muted-foreground">총 환산일수</div><div className="font-bold text-lg">{totalConv.toLocaleString()}일</div></div>
-        <div><div className="text-muted-foreground">환산 (년/월)</div><div className="font-bold text-lg">{daysToYearMonth(totalConv)}</div></div>
-        <div><div className="text-muted-foreground">행 수</div><div className="font-bold text-lg">{rows.length}건</div></div>
-      </Card>
     </div>
   );
 }
