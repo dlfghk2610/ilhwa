@@ -540,7 +540,7 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
     return result;
   }, [entries, tech.specialty]);
 
-  const grandConv = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.row.convertedDays, 0), 0);
+  const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
 
   if (!entries.length) {
@@ -557,7 +557,8 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
       </div>
       {groups.map((g) => {
         if (!g.chosen.length) return null;
-        const sumConv = g.chosen.reduce((a, b) => a + b.row.convertedDays, 0);
+        const itemsConv = g.chosen.map((it) => ({ it, conv: +(it.participationDays * it.row.weight).toFixed(2) }));
+        const sumConv = itemsConv.reduce((a, b) => a + b.conv, 0);
         const sumPart = g.chosen.reduce((a, b) => a + b.participationDays, 0);
         return (
           <Card key={g.specialty} className="p-3">
@@ -575,11 +576,12 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
                     <TableHead>중복제외 시작일</TableHead>
                     <TableHead>중복제외 종료일</TableHead>
                     <TableHead className="text-right">참여일수</TableHead>
+                    <TableHead className="text-right">가중치</TableHead>
                     <TableHead className="text-right">환산일수</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {g.chosen.map((it, i) => (
+                  {itemsConv.map(({ it, conv }, i) => (
                     <TableRow key={it.row.entry.id || i}>
                       <TableCell className="max-w-[200px] truncate">{it.row.entry.project_name}</TableCell>
                       <TableCell>{it.row.entry.client}</TableCell>
@@ -590,7 +592,8 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
                       <TableCell>{formatIso(it.row.entry.period_start)}</TableCell>
                       <TableCell>{it.row.entry.period_end_text}</TableCell>
                       <TableCell className="text-right">{it.participationDays}</TableCell>
-                      <TableCell className="text-right font-medium">{it.row.convertedDays}</TableCell>
+                      <TableCell className="text-right">{it.row.weight.toFixed(1)}</TableCell>
+                      <TableCell className="text-right font-medium">{conv}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
