@@ -287,50 +287,54 @@ function TechnicianDetail({
       exportToExcel(rows, `경력_인정일계산_${tech.name}`);
       return;
     }
-    // 중복일수 계산 (시간순 시프트)
-    const recRows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.recognizedDays > 0);
+    // 중복일수 계산 (가중 구간 스케줄링)
+    const recRows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof recRows>();
     for (const r of recRows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
-    const blank = {
-      사업명: "", 발주처: "", 전문분야: "", 담당업무: "", 평가구분: "",
-      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
-      참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
-      참여회사: "", 참여직위: "",
-    };
     const out: any[] = [];
     let grandPart = 0, grandConv = 0;
     for (const [specialty, arr] of map) {
-      const items = computeShifted(arr);
+      const chosen = selectOptimal(arr);
       let sumPart = 0, sumConv = 0;
-      for (const it of items) {
+      for (const it of chosen) {
+        const conv = +(it.participationDays * it.row.weight).toFixed(2);
         sumPart += it.participationDays;
-        sumConv += it.convertedDays;
+        sumConv += conv;
         out.push({
           사업명: it.row.entry.project_name || "",
           발주처: it.row.entry.client || "",
           전문분야: it.row.entry.specialty || "",
-          담당업무: it.row.entry.duties || "",
           평가구분: it.row.evalGroup,
-          참여시작일: fmtDate(it.origStart),
-          참여종료일: fmtDate(it.origEnd),
-          "중복제외 시작일": fmtDate(it.adjStart),
-          "중복제외 종료일": fmtDate(it.adjEnd),
+          참여시작일: formatIso(it.row.entry.period_start),
+          참여종료일: it.row.entry.period_end_text || "",
+          "중복제외 시작일": formatIso(it.row.entry.period_start),
+          "중복제외 종료일": it.row.entry.period_end_text || "",
           참여일수: it.participationDays,
           가중치: it.row.weight,
-          환산일수: it.convertedDays,
-          참여회사: it.row.entry.participation_company || "",
-          참여직위: it.row.entry.participation_position || "",
+          환산일수: conv,
         });
       }
-      out.push({ ...blank, 사업명: `[${specialty}] 소계`, 참여일수: sumPart, 환산일수: +sumConv.toFixed(2) });
+      out.push({
+        사업명: `[${specialty}] 소계`, 발주처: "", 전문분야: "", 평가구분: "",
+        참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+        참여일수: sumPart, 가중치: "" as any, 환산일수: +sumConv.toFixed(2),
+      });
       grandPart += sumPart; grandConv += sumConv;
     }
-    out.push({ ...blank, 사업명: "합계", 참여일수: grandPart, 환산일수: +grandConv.toFixed(2) });
-    out.push({ ...blank, 사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}` });
+    out.push({
+      사업명: "합계", 발주처: "", 전문분야: "", 평가구분: "",
+      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+      참여일수: grandPart, 가중치: "" as any, 환산일수: +grandConv.toFixed(2),
+    });
+    out.push({
+      사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}`, 발주처: "", 전문분야: "", 평가구분: "",
+      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+      참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
+    });
     exportToExcel(out, `경력_중복일수계산_${tech.name}`);
   };
 
