@@ -173,6 +173,9 @@ export default function Performances() {
   const [techEvalFilter, setTechEvalFilter] = useState<string[]>([]);
   const [techServiceFilter, setTechServiceFilter] = useState<string[]>([]);
   const [techServiceFilterInput, setTechServiceFilterInput] = useState("");
+  const [noticeDate, setNoticeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
+  const [techSelectionTouched, setTechSelectionTouched] = useState(false);
 
   useEffect(() => { fetchRows(); }, []);
 
