@@ -1383,6 +1383,16 @@ export default function Performances() {
               </div>
 
               <div className="md:col-span-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={form.is_private}
+                    onCheckedChange={(c) => setForm({ ...form, is_private: !!c })}
+                  />
+                  민간사업
+                </label>
+              </div>
+
+              <div className="md:col-span-2">
                 <Label>비고</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
