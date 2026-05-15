@@ -1145,7 +1145,6 @@ export default function SimilarServices() {
                   </TableHead>
                   <TableHead className="min-w-[160px] max-w-[220px]">사업명</TableHead>
                   <TableHead className="min-w-[140px] max-w-[200px]">발주처</TableHead>
-                  <TableHead className="whitespace-nowrap">계약일</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공일</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
@@ -1153,8 +1152,6 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-right">지분금액</TableHead>
                   <TableHead className="whitespace-nowrap">평가종류</TableHead>
                   <TableHead className="whitespace-nowrap">사업종류</TableHead>
-                  <TableHead className="min-w-[140px] max-w-[200px]">각사지분율</TableHead>
-                  <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
