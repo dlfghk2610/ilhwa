@@ -824,10 +824,6 @@ export default function SimilarServices() {
                   <X className="h-3 w-3" />
                 </button>
               )}
-              <label className="flex items-center gap-1.5 ml-1 pl-2 border-l cursor-pointer">
-                <Checkbox checked={exclude5y} onCheckedChange={(v) => setExclude5y(!!v)} />
-                <span className="text-xs">5년 이상사업 제외</span>
-              </label>
             </div>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
