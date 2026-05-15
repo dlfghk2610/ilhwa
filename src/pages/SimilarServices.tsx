@@ -417,6 +417,15 @@ export default function SimilarServices() {
   };
   // 연번 기입 옵션
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
+  const isOver5y = (r: Row) => {
+    const ann = filterAnnouncementDate;
+    const comp = r.completion_date;
+    if (!ann || !comp) return false;
+    const a = new Date(ann).getTime();
+    const c = new Date(comp).getTime();
+    if (isNaN(a) || isNaN(c)) return false;
+    return a - c > 5 * 365.25 * 24 * 60 * 60 * 1000;
+  };
   const toggleSelect = (id: string) => {
     const row = filtered.find((r) => r.id === id);
     if (row && isOver5y(row)) {
@@ -428,15 +437,6 @@ export default function SimilarServices() {
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
-  };
-  const isOver5y = (r: Row) => {
-    const ann = filterAnnouncementDate;
-    const comp = r.completion_date;
-    if (!ann || !comp) return false;
-    const a = new Date(ann).getTime();
-    const c = new Date(comp).getTime();
-    if (isNaN(a) || isNaN(c)) return false;
-    return a - c > 5 * 365.25 * 24 * 60 * 60 * 1000;
   };
   const selectableRows = filtered.filter((r) => !isOver5y(r));
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
