@@ -880,12 +880,13 @@ export default function SimilarServices() {
                       </div>
 
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label>계약금액 (원)</Label>
+                        <Label>계약금액 (원) {form.phases.length > 0 && <span className="text-xs text-muted-foreground">— 차수 계약금액 합계 자동, 수기 수정 가능</span>}</Label>
                         <Input
                           inputMode="decimal"
                           value={form.contract_amount === "" ? "" : Number(form.contract_amount).toLocaleString()}
                           onChange={(e) => {
                             const raw = e.target.value.replace(/[^\d.-]/g, "");
+                            setContractAmountTouched(true);
                             setForm({ ...form, contract_amount: raw });
                           }}
                         />
