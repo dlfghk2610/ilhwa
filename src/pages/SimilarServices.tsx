@@ -1044,7 +1044,14 @@ export default function SimilarServices() {
                             className="text-sm"
                           />
                           {form.cert_pdf_path && !form.cert_pdf_file && (
-                            <div className="text-xs text-primary">기존 파일이 등록되어 있습니다.</div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-primary">기존 파일이 등록되어 있습니다.</span>
+                              <button
+                                type="button"
+                                className="text-primary hover:underline inline-flex items-center gap-0.5"
+                                onClick={() => downloadPdf(form.cert_pdf_path, `${form.project_name || "cert"}.pdf`)}
+                              ><Download className="h-3 w-3" />다운로드</button>
+                            </div>
                           )}
                           {(form.cert_pdf_path || form.cert_pdf_file) && (
                             <button
