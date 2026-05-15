@@ -852,6 +852,22 @@ export default function SimilarServices() {
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
+              <span className="text-xs text-muted-foreground">공고일</span>
+              <Input
+                type="date"
+                min="1900-01-01"
+                max="9999-12-31"
+                value={filterAnnouncementDate}
+                onChange={(e) => setFilterAnnouncementDate(clampDate(e.target.value))}
+                className="h-7 w-[150px] text-xs"
+              />
+              {filterAnnouncementDate && (
+                <button type="button" onClick={() => setFilterAnnouncementDate("")} className="text-muted-foreground hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
               <span className="text-[11px] text-muted-foreground mr-2">총 적용건수</span>
               <span className="text-sm font-bold text-primary">{totalAppliedCount.toFixed(2)}</span>
@@ -880,23 +896,8 @@ export default function SimilarServices() {
               <Checkbox checked={includeDual} onCheckedChange={(v) => setIncludeDual(!!v)} />
               <span className="text-xs">분담사업 포함</span>
             </label>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
-              <span className="text-xs text-muted-foreground">공고일</span>
-              <Input
-                type="date"
-                min="1900-01-01"
-                max="9999-12-31"
-                value={filterAnnouncementDate}
-                onChange={(e) => setFilterAnnouncementDate(clampDate(e.target.value))}
-                className="h-7 w-[150px] text-xs"
-              />
-              {filterAnnouncementDate && (
-                <button type="button" onClick={() => setFilterAnnouncementDate("")} className="text-muted-foreground hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
           </div>
+
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
           </div>
