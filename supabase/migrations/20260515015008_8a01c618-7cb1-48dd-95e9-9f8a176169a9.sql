@@ -1,0 +1,1 @@
+ALTER TABLE public.personal_performances ADD COLUMN IF NOT EXISTS contract_periods jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -105,6 +105,7 @@ export type Database = {
           company_share_rate: string | null
           contract_amount: number | null
           contract_end_date: string | null
+          contract_periods: Json
           contract_start_date: string | null
           created_at: string
           created_by: string
@@ -131,6 +132,7 @@ export type Database = {
           company_share_rate?: string | null
           contract_amount?: number | null
           contract_end_date?: string | null
+          contract_periods?: Json
           contract_start_date?: string | null
           created_at?: string
           created_by: string
@@ -157,6 +159,7 @@ export type Database = {
           company_share_rate?: string | null
           contract_amount?: number | null
           contract_end_date?: string | null
+          contract_periods?: Json
           contract_start_date?: string | null
           created_at?: string
           created_by?: string
