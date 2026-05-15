@@ -362,6 +362,7 @@ export default function SimilarServices() {
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
         is_lh_completion: form.is_lh_completion,
+        is_progress: form.is_progress,
         notes: txt(form.notes),
         phases: phasesPayload,
         cert_pdf_path: certPath,
