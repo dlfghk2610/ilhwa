@@ -1,95 +1,69 @@
-# PQ 개인별 경력관리 개편
+# 실적 데이터베이스 관리 탭 — 통합 마스터 DB
 
-## 1. 데이터 구조
+## 목표
 
-### 새 테이블 `technicians` (기술자 마스터)
-- name (이름)
-- birth_date (생년월일, 옵션, 동명이인 구분)
-- specialty (전문분야, 단일 — 예: 대기, 수질, 토목 등)
-- company, position (옵션)
+- 새 탭 **"실적 데이터베이스 관리"** 신설 — 모든 사업 실적의 마스터 레코드 (정보 + 파일).
+- 기존 **PQ 개인별 실적관리**, **PQ 유사용역(회사실적)** 두 페이지는 이 마스터 DB의 **뷰(View)** 역할로 전환 — 자체 등록 폼 제거, 마스터 레코드를 읽고 각자 목적(개인별 분석 / 회사 PQ 적용)에 맞게 가공·필터·엑셀 추출만 수행.
+- 기존 등록된 모든 `personal_performances` + `similar_services` 데이터를 신규 마스터 테이블로 마이그레이션.
 
-### 새 테이블 `career_entries` (경력 항목 — 엑셀 1행 = 1건)
-- technician_id (FK → technicians)
-- project_name (사업명)
-- client (발주처)
-- service_field (사업공종)
-- specialty (전문분야 — 엑셀 행 자체의 값)
-- duties (담당업무)
-- evaluation_category (평가구분 원문 — 환경영향평가/설계/조사 등)
-- participation_company (참여회사)
-- participation_position (참여직위)
-- period_start (참여시작일, date)
-- period_end_text (참여종료일 원문, "근무중" 가능 → text)
-- recognized_days (인정일, 엑셀 입력값)
-- notes
+## 데이터 모델
 
-RLS: 기존 패턴(`created_by` + admin) 동일.
+새 테이블 `performance_records` (두 기존 테이블의 superset):
 
-기존 `personal_careers` 테이블은 유지(다른 데이터가 있을 수 있음). 신규 화면은 새 테이블 사용.
+| 필드 | 설명 | 출처 |
+|---|---|---|
+| project_name, service_overview, client | 사업 기본 | 공통 |
+| contract_periods (jsonb), contract_start_date, contract_end_date | 계약기간(다중) | personal_performances |
+| announcement_date | 공고일 | similar_services |
+| completion_date | 준공일 | similar_services |
+| contract_amount, share_rate, share_amount, company_share_rate | 금액/지분 | 공통 |
+| evaluation_types (text[]) | 평가종류 (다중) | personal_performances + similar_services.evaluation_type 단일→배열 |
+| service_types (text[]) | 사업종류 (다중) | personal_performances + similar_services.service_type 콤마분리→배열 |
+| participants (jsonb) | 참여 기술자 명단 | personal_performances |
+| participant_file_path | 참여자명단 원본파일 | personal_performances |
+| cert_pdf_path | 실적증명PDF | 공통 |
+| phases (jsonb) | 분담사업 단계 | similar_services |
+| is_private, is_under_90days, is_lh_completion, is_progress, is_dual_participation | 플래그 | similar_services |
+| participation_rate | 적용건수(기성건수 등) | similar_services |
+| notes | 비고 | 공통 |
+| created_by | RLS owner | 공통 |
 
-## 2. 화면 구조 (`src/pages/Careers.tsx` 전면 개편)
+기존 `personal_performances`, `similar_services` 테이블은 **유지** (안전을 위해 백업 역할). 단, 두 페이지의 모든 등록/수정/삭제 로직은 마스터 테이블을 보도록 전환.
 
-### 탭 구성
-- **기술자 목록**: 기술자 카드/리스트 → 클릭 시 해당 기술자 상세
-- **기술자 상세**: 좌측에 기술자 정보(전문분야 편집 가능), 우측에 두 개 서브탭
-  - **① 인정일 계산** (경력 목록)
-  - **② 중복일수 계산** (최적 조합)
+## 마이그레이션 단계
 
-### 기술자 목록
-- 이름/전문분야 표시, 검색, 신규 추가, 편집, 삭제
+1. **DB 마이그레이션** (`supabase--migration`)
+   - `performance_records` 테이블 + RLS 정책 (소유자 only) + updated_at 트리거 생성.
+   - `personal_performances` 행 → `performance_records`로 INSERT (필드 1:1 매핑, source='performance' 플래그 안 둠 — 통합).
+   - `similar_services` 행 → `performance_records`로 INSERT (evaluation_type/service_type 단일값을 배열로 변환, 콤마 분리).
+   - 기존 두 테이블은 그대로 둠 (롤백 안전망).
 
-### 기술자 상세 — 전문분야 편집
-- 인라인 편집 또는 다이얼로그로 specialty 수정/저장
+2. **새 페이지** `src/pages/PerformanceDatabase.tsx`
+   - 라우트: `/performance-database` (사이드바 첫 번째 항목으로 추가, 아이콘 `Database`).
+   - 좌측 목록 + 우측 상세/등록 폼 (또는 전체 폭 테이블 + 다이얼로그).
+   - 모든 필드 입력: 사업명/개요/발주처, 다중 계약기간, 공고일/준공일, 금액·지분율·지분금액 자동계산, 평가종류·사업종류 다중선택, 각사지분율, 분담사업 단계, 참여 기술자 명단(파일업로드+자동추출 — 기존 edge function 재사용), 실적증명PDF 업로드, 플래그 체크박스 5개, 비고.
+   - 검색, 엑셀 가져오기/내보내기, PDF 일괄생성 등 기존 두 페이지의 핵심 기능 흡수.
 
-## 3. ① 인정일 계산 화면
+3. **기존 페이지 전환**
+   - **Performances.tsx**: 데이터 소스를 `performance_records`로 교체. 등록/수정/삭제 버튼 제거 (또는 "마스터 DB에서 관리" 안내 + 마스터 페이지로 이동 링크). 기술자별 필터/분석/엑셀 추출/PDF 일괄생성은 그대로 유지.
+   - **SimilarServices.tsx**: 동일 — 데이터 소스 교체, 등록/수정/삭제 제거, 회사실적 PQ 적용계산·엑셀 추출·필터·분담사업 토글 등 분석 기능만 유지.
 
-### 엑셀 업로드
-- "엑셀 업로드" 버튼 → `.xlsx`/`.xls` 파싱 → `career_entries`에 일괄 저장
-- 표준 컬럼명: `참여시작일, 참여종료일, 인정일, 사업명, 발주처, 사업공종, 전문분야, 담당업무, 평가구분, 참여회사, 참여직위`
-- "엑셀 양식 다운로드" 버튼 제공
+4. **사이드바** (`AppSidebar.tsx`)
+   - "실적 데이터베이스 관리" 항목을 대시보드 다음에 추가.
 
-### 표 컬럼 (계산 컬럼은 자동 산출)
-| 참여시작 | 참여종료 | 인정일 | 사업명 | 발주처 | 사업공종 | 전문분야 | 담당업무 | 평가구분 | 가중치 | 참여회사 | 참여직위 | 환산일수 |
+## 기술 메모
 
-### 계산 로직
-- **평가구분 매핑**: ["환경영향평가","사전환경성검토","소규모환경영향평가","전략환경영향평가","사후환경영향조사"] 포함 → "환경", 그 외 → "기타"
-- **가중치**: 환경=1.0, 기타=0.6
-- **인정일**:
-  - 참여종료가 "근무중"(또는 비어있음) → 0
-  - 행의 전문분야 ≠ 기술자 프로필의 전문분야 → 0
-  - 그 외 → 엑셀의 인정일 값
-- **환산일수** = 인정일 × 가중치
-- 하단 합계: 총 인정일, 총 환산일수, **년/월 환산** (연 365일, 월 30일 기준 — 예: 1234일 → 3년 4개월)
+- 기존 `parse-participant-list` edge function, `performance-certs` / `participant-lists` 스토리지 버킷 그대로 재사용.
+- 분담사업(phases) 구조: SimilarServices의 jsonb 형태 그대로 유지.
+- 엑셀 가져오기 매핑: 기존 두 페이지의 컬럼 라벨을 합집합으로 지원.
+- 기존 두 페이지의 자동계산 로직(지분금액=계약금액×지분율, 적용계수, 분담사업 합산 등)은 분석 단계에서 그대로 사용 — 마스터 데이터는 raw로만 저장.
 
-## 4. ② 중복일수 계산 화면
+## 영향 범위
 
-같은 기술자의 `career_entries`를 **전문분야별로 묶어서** 처리.
+- 신규: `performance_records` 테이블, `src/pages/PerformanceDatabase.tsx`
+- 수정: `src/App.tsx` (라우트), `src/components/AppSidebar.tsx`, `src/pages/Performances.tsx`, `src/pages/SimilarServices.tsx`
+- 데이터: 기존 두 테이블의 모든 행을 마스터로 복사 (기존 테이블 보존)
 
-### 알고리즘 (가중 구간 스케줄링)
-1. 같은 전문분야 행만 추림 (인정일=0 행 제외)
-2. 각 행을 (시작일, 종료일, 환산일수) 구간으로 변환
-3. 종료일 기준 정렬
-4. DP로 겹치지 않는 부분집합 중 환산일수 합 최대 선택
-5. 선택된 행만 결과 표에 노출. 중복제외 시작/종료일은 원래 시작/종료와 동일 (겹치지 않으므로)
+## 확인 사항
 
-> 주: 사용자가 선택한 옵션은 "가중 구간 스케줄링". 부분 자르기가 아닌 **건 단위 선택**입니다.
-
-### 표 컬럼
-| 사업명 | 발주처 | 전문분야 | 평가구분 | 참여시작일 | 참여종료일 | 중복제외 시작일 | 중복제외 종료일 | 참여일수 | 환산일수 |
-
-전문분야별 그룹 헤더 + 그룹별 합계, 전체 합계(년/월 표기).
-
-## 5. 기술 세부
-
-- 마이그레이션: `technicians`, `career_entries` 테이블 + RLS + `set_updated_at` 트리거
-- 신규 컴포넌트:
-  - `src/pages/Careers.tsx` — 라우터/탭 컨테이너로 재작성
-  - `src/components/careers/TechnicianList.tsx`
-  - `src/components/careers/TechnicianDetail.tsx`
-  - `src/components/careers/CareerRecognition.tsx` (① 인정일)
-  - `src/components/careers/CareerOverlap.tsx` (② 중복제외)
-  - `src/lib/career-calc.ts` — 평가구분 매핑/가중치/구간스케줄링 DP/일수→년월
-- 엑셀 import/export: 기존 `src/lib/excel.ts` 재사용
-- 기존 `personal_careers` 라우트/데이터는 그대로 두고, UI만 신규 테이블로 전환
-
-승인하시면 마이그레이션부터 진행하겠습니다.
+규모가 큰 변경입니다(약 4~5개 파일 수정 + 1500줄 분량 신규 페이지 + DB 마이그레이션). 이 방향으로 진행할까요? 아니면 우선 **1단계: 마스터 테이블 생성 + 데이터 마이그레이션 + 빈 신규 페이지 골격**까지만 하고 폼/뷰 전환은 다음 단계로 나눌까요?

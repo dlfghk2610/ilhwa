@@ -121,6 +121,102 @@ export type Database = {
           },
         ]
       }
+      performance_records: {
+        Row: {
+          announcement_date: string | null
+          cert_pdf_path: string | null
+          client: string | null
+          company_share_rate: string | null
+          completion_date: string | null
+          contract_amount: number | null
+          contract_end_date: string | null
+          contract_periods: Json
+          contract_start_date: string | null
+          created_at: string
+          created_by: string
+          evaluation_types: string[]
+          id: string
+          is_dual_participation: boolean
+          is_lh_completion: boolean
+          is_private: boolean
+          is_progress: boolean
+          is_under_90days: boolean
+          notes: string | null
+          participant_file_path: string | null
+          participants: Json
+          participation_rate: number | null
+          phases: Json
+          project_name: string
+          service_overview: string | null
+          service_types: string[]
+          share_amount: number | null
+          share_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          announcement_date?: string | null
+          cert_pdf_path?: string | null
+          client?: string | null
+          company_share_rate?: string | null
+          completion_date?: string | null
+          contract_amount?: number | null
+          contract_end_date?: string | null
+          contract_periods?: Json
+          contract_start_date?: string | null
+          created_at?: string
+          created_by: string
+          evaluation_types?: string[]
+          id?: string
+          is_dual_participation?: boolean
+          is_lh_completion?: boolean
+          is_private?: boolean
+          is_progress?: boolean
+          is_under_90days?: boolean
+          notes?: string | null
+          participant_file_path?: string | null
+          participants?: Json
+          participation_rate?: number | null
+          phases?: Json
+          project_name: string
+          service_overview?: string | null
+          service_types?: string[]
+          share_amount?: number | null
+          share_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          announcement_date?: string | null
+          cert_pdf_path?: string | null
+          client?: string | null
+          company_share_rate?: string | null
+          completion_date?: string | null
+          contract_amount?: number | null
+          contract_end_date?: string | null
+          contract_periods?: Json
+          contract_start_date?: string | null
+          created_at?: string
+          created_by?: string
+          evaluation_types?: string[]
+          id?: string
+          is_dual_participation?: boolean
+          is_lh_completion?: boolean
+          is_private?: boolean
+          is_progress?: boolean
+          is_under_90days?: boolean
+          notes?: string | null
+          participant_file_path?: string | null
+          participants?: Json
+          participation_rate?: number | null
+          phases?: Json
+          project_name?: string
+          service_overview?: string | null
+          service_types?: string[]
+          share_amount?: number | null
+          share_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       personal_careers: {
         Row: {
           company: string
