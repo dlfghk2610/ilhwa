@@ -435,7 +435,7 @@ export default function SimilarServices() {
   // 데이터에서 발견된 미분류 항목을 자동으로 "기타" 그룹에 추가 (편집 가능)
   useEffect(() => {
     const hidden = new Set(hiddenExtras);
-    const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
+    const fromData = Array.from(new Set(rows.flatMap((r) => String(r.service_type ?? "").split(",").map((s) => s.trim())).filter(Boolean)));
     const extras = fromData.filter((t) => !knownServiceTypes.has(t) && !hidden.has(t));
     if (extras.length === 0) return;
     setCustomGroups((prev) => {
