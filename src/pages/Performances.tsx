@@ -182,6 +182,12 @@ export default function Performances() {
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+  const [expandedListRows, setExpandedListRows] = useState<Set<string>>(new Set());
+  const toggleExpandedListRow = (id: string) => setExpandedListRows((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   useEffect(() => { fetchRows(); }, []);
 
