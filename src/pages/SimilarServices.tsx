@@ -220,6 +220,7 @@ export default function SimilarServices() {
     setEditing(null);
     setForm(emptyForm);
     setShareAmountTouched(false);
+    setContractAmountTouched(false);
     setOpen(true);
   };
 
