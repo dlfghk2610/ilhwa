@@ -88,10 +88,11 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
-  // 민간사업 / 90일미만 / LH기성실적 필터 (localStorage 영속)
+  // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (localStorage 영속)
   const PRIVATE_FILTER_KEY = "similar_services.include_private.v1";
   const UNDER90_FILTER_KEY = "similar_services.include_under90.v1";
   const LH_FILTER_KEY = "similar_services.include_lh.v1";
+  const PROGRESS_FILTER_KEY = "similar_services.include_progress.v1";
   const [includePrivate, setIncludePrivate] = useState<boolean>(() => {
     try { return localStorage.getItem(PRIVATE_FILTER_KEY) === "1"; } catch { return false; }
   });
@@ -101,9 +102,13 @@ export default function SimilarServices() {
   const [includeLh, setIncludeLh] = useState<boolean>(() => {
     try { return localStorage.getItem(LH_FILTER_KEY) === "1"; } catch { return false; }
   });
+  const [includeProgress, setIncludeProgress] = useState<boolean>(() => {
+    try { return localStorage.getItem(PROGRESS_FILTER_KEY) === "1"; } catch { return false; }
+  });
   useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
   useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
   useEffect(() => { try { localStorage.setItem(LH_FILTER_KEY, includeLh ? "1" : "0"); } catch {} }, [includeLh]);
+  useEffect(() => { try { localStorage.setItem(PROGRESS_FILTER_KEY, includeProgress ? "1" : "0"); } catch {} }, [includeProgress]);
 
   // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
