@@ -32,13 +32,51 @@ type Participant = {
   responsibility?: string;
 };
 
-// 생년월일 입력 → YYYY.MM.DD
+// 생년월일/날짜 입력 → YYYY.MM.DD (4자리 입력 시 자동으로 . 삽입되어 월 칸으로 이동)
 const formatBirth = (v: string) => {
   const d = (v || "").replace(/[^\d]/g, "").slice(0, 8);
   if (d.length <= 4) return d;
   if (d.length <= 6) return `${d.slice(0, 4)}.${d.slice(4)}`;
   return `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}`;
 };
+
+// ISO(YYYY-MM-DD) ↔ display(YYYY.MM.DD)
+const isoToDisplay = (v?: string | null) => (v ? v.replace(/-/g, ".") : "");
+const displayToIso = (v: string) => {
+  const d = (v || "").replace(/\D/g, "").slice(0, 8);
+  if (d.length !== 8) return "";
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+};
+
+// 텍스트 입력 기반 날짜 컴포넌트 (4자리 입력 시 . 자동 삽입 → 월 칸으로 이동 효과)
+function DateInput({
+  value,
+  onChange,
+  className,
+  placeholder = "YYYY.MM.DD",
+}: {
+  value: string;
+  onChange: (iso: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(isoToDisplay(value));
+  useEffect(() => { setText(isoToDisplay(value)); }, [value]);
+  return (
+    <Input
+      className={className}
+      value={text}
+      placeholder={placeholder}
+      maxLength={10}
+      inputMode="numeric"
+      onChange={(e) => {
+        const formatted = formatBirth(e.target.value);
+        setText(formatted);
+        onChange(displayToIso(formatted));
+      }}
+    />
+  );
+}
 
 const getPeriods = (p: Participant): Period[] => {
   if (Array.isArray(p.periods) && p.periods.length > 0) return p.periods;
@@ -537,25 +575,7 @@ export default function Performances() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
-            <div className="ml-auto flex gap-2 items-center flex-wrap">
-              <span className="text-xs text-muted-foreground">
-                {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 대상"}
-              </span>
-              <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
-                <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
-                <span className="text-xs">연번 기입 (착수일 오름차순)</span>
-              </label>
-              <Button variant="outline" onClick={exportExcel}>
-                <Download className="h-4 w-4 mr-1" /> 엑셀
-              </Button>
-              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
-                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
-                실적증명서 PDF
-              </Button>
-              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
-                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
-                실적+참여자명단 PDF
-              </Button>
+            <div className="ml-auto">
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-1" /> 사업 등록
               </Button>
@@ -566,15 +586,6 @@ export default function Performances() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-8">
-                    <Checkbox
-                      checked={filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))}
-                      onCheckedChange={(c) => {
-                        if (c) setSelectedIds(new Set(filtered.map((r) => r.id)));
-                        else setSelectedIds(new Set());
-                      }}
-                    />
-                  </TableHead>
                   <TableHead>사업명</TableHead>
                   <TableHead>발주처</TableHead>
                   <TableHead>계약기간</TableHead>
@@ -590,27 +601,15 @@ export default function Performances() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.has(r.id)}
-                        onCheckedChange={(c) => {
-                          setSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            if (c) next.add(r.id); else next.delete(r.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    </TableCell>
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {r.contract_start_date} ~ {r.contract_end_date}
+                      {isoToDisplay(r.contract_start_date)} ~ {isoToDisplay(r.contract_end_date)}
                     </TableCell>
                     <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
                     <TableCell className="text-right">{r.share_rate != null ? `${r.share_rate}%` : ""}</TableCell>
@@ -697,16 +696,37 @@ export default function Performances() {
             </div>
           </Card>
 
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground">전체 대상</span>
+            <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
+              <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+            </label>
+            <Button variant="outline" onClick={exportExcel}>
+              <Download className="h-4 w-4 mr-1" /> 엑셀
+            </Button>
+            <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              실적증명서 PDF
+            </Button>
+            <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              실적+참여자명단 PDF
+            </Button>
+          </div>
+
           {selectedTech && (
             <Card className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>사업명</TableHead>
+                    <TableHead>평가종류</TableHead>
+                    <TableHead>사업종류</TableHead>
                     <TableHead>계약기간</TableHead>
                     <TableHead>참여기간</TableHead>
-                    <TableHead className="text-right">평가W</TableHead>
-                    <TableHead className="text-right">사업W</TableHead>
+                    <TableHead className="text-right">평가건수</TableHead>
+                    <TableHead className="text-right">사업건수</TableHead>
                     <TableHead className="text-right">단순건수</TableHead>
                     <TableHead className="text-right">기간비율</TableHead>
                     <TableHead className="text-right">기간대비건수</TableHead>
@@ -714,25 +734,35 @@ export default function Performances() {
                 </TableHeader>
                 <TableBody>
                   {techRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-medium">{t.row.project_name}</TableCell>
-                      <TableCell className="text-xs">{t.row.contract_start_date} ~ {t.row.contract_end_date}</TableCell>
-                      <TableCell className="text-xs">{getPeriods(t.part).map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ")}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {t.row.evaluation_types.map((x) => <Badge key={x} variant="secondary">{x}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {t.row.service_types.map((x) => <Badge key={x} variant="outline">{x}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{isoToDisplay(t.row.contract_start_date)} ~ {isoToDisplay(t.row.contract_end_date)}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{getPeriods(t.part).map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join(", ")}</TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{(t.ratio * 100).toFixed(1)}%</TableCell>
-                      <TableCell className="text-right">{t.periodCount.toFixed(3)}</TableCell>
+                      <TableCell className="text-right">{t.periodCount.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
-                      <TableCell colSpan={5} className="text-right">합계</TableCell>
+                      <TableCell colSpan={7} className="text-right">합계</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
                       <TableCell></TableCell>
-                      <TableCell className="text-right">{techTotals.period.toFixed(3)}</TableCell>
+                      <TableCell className="text-right">{techTotals.period.toFixed(2)}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -768,11 +798,11 @@ export default function Performances() {
               </div>
               <div>
                 <Label>계약시작일</Label>
-                <Input type="date" value={form.contract_start_date} onChange={(e) => setForm({ ...form, contract_start_date: e.target.value })} />
+                <DateInput value={form.contract_start_date} onChange={(iso) => setForm({ ...form, contract_start_date: iso })} />
               </div>
               <div>
                 <Label>계약종료일</Label>
-                <Input type="date" value={form.contract_end_date} onChange={(e) => setForm({ ...form, contract_end_date: e.target.value })} />
+                <DateInput value={form.contract_end_date} onChange={(iso) => setForm({ ...form, contract_end_date: iso })} />
               </div>
               <div>
                 <Label>계약금액</Label>
@@ -932,9 +962,9 @@ export default function Performances() {
                           <div className="space-y-1">
                             {(periods.length === 0 ? [{ start: "", end: "" }] : periods).map((pd, pi) => (
                               <div key={pi} className="flex items-center gap-1">
-                                <Input className="h-8" type="date" value={pd.start || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: clampDate(e.target.value) }; return a; })} />
+                                <DateInput className="h-8" value={pd.start || ""} onChange={(iso) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: iso }; return a; })} />
                                 <span className="text-xs">~</span>
-                                <Input className="h-8" type="date" value={pd.end || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: clampDate(e.target.value) }; return a; })} />
+                                <DateInput className="h-8" value={pd.end || ""} onChange={(iso) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: iso }; return a; })} />
                                 {periods.length > 1 && (
                                   <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => updatePeriods(i, (arr) => arr.filter((_, x) => x !== pi))}>
                                     <X className="h-3.5 w-3.5" />
