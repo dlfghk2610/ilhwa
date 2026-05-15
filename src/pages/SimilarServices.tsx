@@ -657,7 +657,7 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", contract_amount: "", share_rate: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null, amount_touched: false }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", contract_amount: "", share_rate: "", contract_date: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null, amount_touched: false }] });
   };
   const updatePhase = (i: number, key: "label" | "amount" | "contract_amount" | "share_rate" | "start_date" | "end_date" | "pdf_path", v: string) => {
     const ps = [...form.phases];
