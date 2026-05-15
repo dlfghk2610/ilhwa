@@ -500,7 +500,7 @@ function TechnicianDetail({
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
       </div>
 
-      <Tabs defaultValue="recognition">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "recognition" | "overlap")}>
         <TabsList>
           <TabsTrigger value="recognition">① 인정일 계산</TabsTrigger>
           <TabsTrigger value="overlap">② 중복일수 계산</TabsTrigger>
