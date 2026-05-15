@@ -17,7 +17,7 @@ import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } 
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
+type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
 
 type Row = {
   id: string;
