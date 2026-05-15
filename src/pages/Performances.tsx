@@ -806,11 +806,11 @@ export default function Performances() {
               </div>
               <div>
                 <Label>계약시작일</Label>
-                <Input type="date" value={form.contract_start_date} onChange={(e) => setForm({ ...form, contract_start_date: e.target.value })} />
+                <DateInput value={form.contract_start_date} onChange={(iso) => setForm({ ...form, contract_start_date: iso })} />
               </div>
               <div>
                 <Label>계약종료일</Label>
-                <Input type="date" value={form.contract_end_date} onChange={(e) => setForm({ ...form, contract_end_date: e.target.value })} />
+                <DateInput value={form.contract_end_date} onChange={(iso) => setForm({ ...form, contract_end_date: iso })} />
               </div>
               <div>
                 <Label>계약금액</Label>
