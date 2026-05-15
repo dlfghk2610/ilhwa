@@ -512,9 +512,9 @@ export default function Performances() {
                 const marks = nameMarks.filter((m) => m.pageIndex === idx);
                 for (const m of marks) {
                   const size = Math.max(10, m.height);
-                  // 이름 왼쪽에 ✔ 표시 (벡터 패스)
-                  const cx = m.x - size * 1.4;
-                  const cy = m.y;
+                  // 이름 왼쪽에 ✔ 표시 (벡터 패스, SVG 좌표는 위→아래)
+                  const cx = m.x - size * 1.6;
+                  const cy = m.y + size; // 텍스트 상단 정렬
                   const s = size / 12;
                   pg.drawSvgPath(`M 0 6 L 4 0 L 12 10`, {
                     x: cx,
