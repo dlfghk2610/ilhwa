@@ -997,6 +997,13 @@ export default function SimilarServices() {
                                   {p.pdf_path && !p.pdf_file && (
                                     <span className="text-primary">기존 파일 등록됨</span>
                                   )}
+                                  {p.pdf_path && !p.pdf_file && (
+                                    <button
+                                      type="button"
+                                      className="text-primary hover:underline inline-flex items-center gap-0.5"
+                                      onClick={() => downloadPdf(p.pdf_path!, `${form.project_name || "phase"}-${p.label || (i + 1) + "차"}.pdf`)}
+                                    ><Download className="h-3 w-3" />다운로드</button>
+                                  )}
                                   {(p.pdf_path || p.pdf_file) && (
                                     <button
                                       type="button"
