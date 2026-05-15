@@ -446,6 +446,12 @@ export default function Performances() {
   function addParticipant() {
     setForm((f) => ({ ...f, participants: [...f.participants, { name: "", periods: [{ start: "", end: "" }] }] }));
   }
+  const clampDate = (v: string) => {
+    if (!v) return "";
+    const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+    if (!m) return v;
+    return `${m[1].slice(-4).padStart(4, "0")}-${m[2]}-${m[3]}`;
+  };
   function updatePeriods(idx: number, fn: (periods: Period[]) => Period[]) {
     setForm((f) => ({
       ...f,
