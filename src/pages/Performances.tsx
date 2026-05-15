@@ -32,13 +32,51 @@ type Participant = {
   responsibility?: string;
 };
 
-// 생년월일 입력 → YYYY.MM.DD
+// 생년월일/날짜 입력 → YYYY.MM.DD (4자리 입력 시 자동으로 . 삽입되어 월 칸으로 이동)
 const formatBirth = (v: string) => {
   const d = (v || "").replace(/[^\d]/g, "").slice(0, 8);
   if (d.length <= 4) return d;
   if (d.length <= 6) return `${d.slice(0, 4)}.${d.slice(4)}`;
   return `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}`;
 };
+
+// ISO(YYYY-MM-DD) ↔ display(YYYY.MM.DD)
+const isoToDisplay = (v?: string | null) => (v ? v.replaceAll("-", ".") : "");
+const displayToIso = (v: string) => {
+  const d = (v || "").replace(/\D/g, "").slice(0, 8);
+  if (d.length !== 8) return "";
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+};
+
+// 텍스트 입력 기반 날짜 컴포넌트 (4자리 입력 시 . 자동 삽입 → 월 칸으로 이동 효과)
+function DateInput({
+  value,
+  onChange,
+  className,
+  placeholder = "YYYY.MM.DD",
+}: {
+  value: string;
+  onChange: (iso: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(isoToDisplay(value));
+  useEffect(() => { setText(isoToDisplay(value)); }, [value]);
+  return (
+    <Input
+      className={className}
+      value={text}
+      placeholder={placeholder}
+      maxLength={10}
+      inputMode="numeric"
+      onChange={(e) => {
+        const formatted = formatBirth(e.target.value);
+        setText(formatted);
+        onChange(displayToIso(formatted));
+      }}
+    />
+  );
+}
 
 const getPeriods = (p: Participant): Period[] => {
   if (Array.isArray(p.periods) && p.periods.length > 0) return p.periods;
