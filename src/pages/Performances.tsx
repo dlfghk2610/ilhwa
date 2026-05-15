@@ -1299,6 +1299,15 @@ export default function Performances() {
                     {extracting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
                     AI 자동추출
                   </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={handleParticipantsExcelExport}>
+                    <Download className="h-4 w-4 mr-1" />엑셀양식
+                  </Button>
+                  <label>
+                    <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleParticipantsExcelImport} />
+                    <Button type="button" size="sm" variant="outline" asChild>
+                      <span className="cursor-pointer"><Upload className="h-4 w-4 mr-1" />엑셀업로드</span>
+                    </Button>
+                  </label>
                   <Button type="button" size="sm" variant="ghost" onClick={addParticipant}>
                     <Plus className="h-4 w-4" />
                   </Button>
