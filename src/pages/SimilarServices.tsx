@@ -1239,16 +1239,18 @@ export default function SimilarServices() {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
+              const over5 = isOver5y(r);
               return (
-                <div key={r.id} className="px-3 py-2.5">
+                <div key={r.id} className={`px-3 py-2.5 ${over5 ? "bg-destructive/5" : ""}`}>
                   <div className="flex items-center gap-2">
-                    <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                    <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     <button
                       type="button"
                       onClick={() => toggleExpand(r.id)}
                       className="flex-1 text-left text-sm font-medium break-words"
                     >
                       {r.project_name}{phaseSuffix(r)}
+                      {over5 && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
                     </button>
                     <span className="text-xs text-muted-foreground shrink-0">{expanded ? "접기" : "펼치기"}</span>
                   </div>
