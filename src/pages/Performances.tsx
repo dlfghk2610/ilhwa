@@ -516,18 +516,18 @@ export default function Performances() {
       .map((r) => {
         const part = r.participants?.find((p) => p.name === selectedTech);
         if (!part) return null;
-        // 평가가중치: 평가가 포함되면 무조건 1.0; 그 외 필터와 교집합 있으면 1.0; 없으면 0.6
+        // 평가가중치: 평가가 포함되면 무조건 1.0;
+        // 필터 미선택 시 "평가"만 1.0, 그 외 0.6;
+        // 필터 선택 시 교집합 있으면 1.0, 없으면 0.6
         const evalSet = new Set(r.evaluation_types);
         let evalW = 0.6;
         if (evalSet.has("평가")) evalW = 1.0;
-        else if (techEvalFilter.length === 0) evalW = 1.0;
-        else if (techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
+        else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
 
-        // 사업가중치: 필터와 교집합 있으면 1.0; 필터 비었으면 1.0; 없으면 0.6
-        let svcW = 1.0;
-        if (techServiceFilter.length > 0) {
-          svcW = techServiceFilter.some((t) => r.service_types.includes(t)) ? 1.0 : 0.6;
-        }
+        // 사업가중치: 필터 미선택 시 무조건 0.6;
+        // 필터 선택 시 교집합 있으면 1.0, 없으면 0.6
+        let svcW = 0.6;
+        if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
 
         const simple = evalW * svcW;
 
