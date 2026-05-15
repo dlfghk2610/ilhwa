@@ -667,7 +667,7 @@ export default function Performances() {
             </div>
           </div>
 
-          <Card className="overflow-x-auto">
+          <Card className="overflow-x-auto hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -727,6 +727,60 @@ export default function Performances() {
               </TableBody>
             </Table>
           </Card>
+
+          {/* Mobile card view */}
+          <div className="md:hidden space-y-2">
+            {loading ? (
+              <Card className="p-6 text-center"><Loader2 className="h-4 w-4 animate-spin inline" /></Card>
+            ) : filtered.length === 0 ? (
+              <Card className="p-6 text-center text-muted-foreground">데이터 없음</Card>
+            ) : filtered.map((r) => {
+              const expanded = expandedListRows.has(r.id);
+              return (
+                <Card key={r.id} className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-medium text-sm flex-1 break-words">{r.project_name}</div>
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs shrink-0" onClick={() => toggleExpandedListRow(r.id)}>
+                      {expanded ? "접기" : "펼치기"}
+                    </Button>
+                  </div>
+                  {expanded && (
+                    <div className="mt-3 pt-3 border-t space-y-2 text-xs">
+                      <div><span className="text-muted-foreground">발주처: </span>{r.client}</div>
+                      <div>
+                        <span className="text-muted-foreground">계약기간: </span>
+                        {getContractPeriods(r).map((pd, pi) => (
+                          <div key={pi} className="ml-2">{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                        ))}
+                      </div>
+                      <div><span className="text-muted-foreground">계약금액: </span>{fmt(r.contract_amount)}</div>
+                      <div><span className="text-muted-foreground">지분율: </span>{r.share_rate != null ? `${r.share_rate}%` : ""}</div>
+                      <div><span className="text-muted-foreground">지분금액: </span>{fmt(r.share_amount)}</div>
+                      <div className="flex items-start gap-1 flex-wrap">
+                        <span className="text-muted-foreground">평가종류: </span>
+                        {r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+                      </div>
+                      <div className="flex items-start gap-1 flex-wrap">
+                        <span className="text-muted-foreground">사업종류: </span>
+                        {r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}
+                      </div>
+                      <div><span className="text-muted-foreground">참여자: </span>{r.participants.length}</div>
+                      {(r.cert_pdf_path || r.participant_file_path) && (
+                        <div className="flex flex-wrap gap-1">
+                          {r.cert_pdf_path && <Badge variant="secondary">실적증명</Badge>}
+                          {r.participant_file_path && <Badge variant="outline">참여자명단</Badge>}
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1" />삭제</Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         </TabsContent>
 
         {/* ====== 기술자별 분석 탭 ====== */}
