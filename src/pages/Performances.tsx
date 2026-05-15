@@ -176,6 +176,12 @@ export default function Performances() {
   const [noticeDate, setNoticeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
+  const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
+  const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   useEffect(() => { fetchRows(); }, []);
 
