@@ -1200,6 +1200,9 @@ export default function Performances() {
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
                           <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
                         )}
+                        {!t.expired && excludePrivate && (t.row as any).is_private && (
+                          <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>
+                        )}
                       </button>
                       <button
                         type="button"
