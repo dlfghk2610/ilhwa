@@ -226,6 +226,7 @@ function TechnicianDetail({
   const [specialtyEdit, setSpecialtyEdit] = useState(false);
   const [specialtyDraft, setSpecialtyDraft] = useState(tech.specialty || "");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<"recognition" | "overlap">("recognition");
 
   const load = async () => {
     setLoading(true);
