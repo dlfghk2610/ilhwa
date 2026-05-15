@@ -406,6 +406,15 @@ export default function SimilarServices() {
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 모바일에서 행 펼치기
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
   // 연번 기입 옵션
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const toggleSelect = (id: string) => {
