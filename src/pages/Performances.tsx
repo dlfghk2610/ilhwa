@@ -173,6 +173,9 @@ export default function Performances() {
   const [techEvalFilter, setTechEvalFilter] = useState<string[]>([]);
   const [techServiceFilter, setTechServiceFilter] = useState<string[]>([]);
   const [techServiceFilterInput, setTechServiceFilterInput] = useState("");
+  const [noticeDate, setNoticeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
+  const [techSelectionTouched, setTechSelectionTouched] = useState(false);
 
   useEffect(() => { fetchRows(); }, []);
 
@@ -539,20 +542,17 @@ export default function Performances() {
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
+    const refDateStr = noticeDate || new Date().toISOString().slice(0, 10);
+    const refTime = new Date(refDateStr).getTime();
     return rows
       .map((r) => {
         const part = r.participants?.find((p) => p.name === selectedTech);
         if (!part) return null;
-        // 평가가중치: 평가가 포함되면 무조건 1.0;
-        // 필터 미선택 시 "평가"만 1.0, 그 외 0.6;
-        // 필터 선택 시 교집합 있으면 1.0, 없으면 0.6
         const evalSet = new Set(r.evaluation_types);
         let evalW = 0.6;
         if (evalSet.has("평가")) evalW = 1.0;
         else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
 
-        // 사업가중치: 필터 미선택 시 무조건 0.6;
-        // 필터 선택 시 교집합 있으면 1.0, 없으면 0.6
         let svcW = 0.6;
         if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
 
@@ -563,7 +563,6 @@ export default function Performances() {
         const periods = getPeriods(part);
         const ovSum = cps.reduce((s, cp) =>
           s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
-        // 참여기간 첫 착수일 = 계약 첫 시작일, 참여기간 마지막 종료일 = 계약 마지막 종료일이면 100%
         const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start.localeCompare(b.start));
         const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start.localeCompare(b.start));
         const fullCover =
@@ -574,16 +573,56 @@ export default function Performances() {
         const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
         const periodCount = ratio * evalW * svcW;
 
-        return { row: r, part, evalW, svcW, simple, ratio, periodCount };
+        // 10년 경과 판정: 마지막 계약 종료일 기준
+        const lastEnd = validCps.length > 0 ? validCps[validCps.length - 1].end : null;
+        let expired = false;
+        if (lastEnd && !isNaN(refTime)) {
+          const endTime = new Date(lastEnd).getTime();
+          const tenYearsMs = 10 * 365.25 * 86400000;
+          expired = refTime - endTime > tenYearsMs;
+        }
+
+        return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired };
       })
-      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number }>;
-  }, [rows, selectedTech, techEvalFilter, techServiceFilter]);
+      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean }>;
+  }, [rows, selectedTech, techEvalFilter, techServiceFilter, noticeDate]);
+
+  // techRows 변경 시 기본 선택 = 미경과 전체 (사용자가 직접 토글한 적 없으면)
+  useEffect(() => {
+    if (techSelectionTouched) {
+      // 만료된 항목은 항상 선택 해제
+      setTechSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        techRows.forEach((t) => { if (t.expired) next.delete(t.row.id); });
+        return next;
+      });
+      return;
+    }
+    setTechSelectedRowIds(new Set(techRows.filter((t) => !t.expired).map((t) => t.row.id)));
+  }, [techRows, techSelectionTouched]);
 
   const techTotals = useMemo(() => {
-    const simple = techRows.reduce((a, b) => a + b.simple, 0);
-    const period = techRows.reduce((a, b) => a + b.periodCount, 0);
+    const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
+    const simple = active.reduce((a, b) => a + b.simple, 0);
+    const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
-  }, [techRows]);
+  }, [techRows, techSelectedRowIds]);
+
+  const techAllSelectableIds = useMemo(() => techRows.filter((t) => !t.expired).map((t) => t.row.id), [techRows]);
+  const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
+
+  function toggleTechRow(id: string, checked: boolean) {
+    setTechSelectionTouched(true);
+    setTechSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+  function toggleTechAll(checked: boolean) {
+    setTechSelectionTouched(true);
+    setTechSelectedRowIds(checked ? new Set(techAllSelectableIds) : new Set());
+  }
 
   function addTechServiceFilter() {
     const v = techServiceFilterInput.trim();
@@ -682,14 +721,20 @@ export default function Performances() {
         <TabsContent value="tech" className="space-y-4">
           <Card className="p-4 space-y-3">
             <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label>기술자 선택</Label>
-                <Select value={selectedTech} onValueChange={setSelectedTech}>
-                  <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
-                  <SelectContent>
-                    {allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <div>
+                  <Label>기술자 선택</Label>
+                  <Select value={selectedTech} onValueChange={setSelectedTech}>
+                    <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
+                    <SelectContent>
+                      {allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>공고일 (10년 경과 판정 기준)</Label>
+                  <DateInput value={noticeDate} onChange={(iso) => { setNoticeDate(iso); setTechSelectionTouched(false); }} />
+                </div>
               </div>
               <div>
                 <Label>평가종류 필터 (복수)</Label>
@@ -756,6 +801,13 @@ export default function Performances() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={techAllChecked}
+                        disabled={techAllSelectableIds.length === 0}
+                        onCheckedChange={(c) => toggleTechAll(!!c)}
+                      />
+                    </TableHead>
                     <TableHead>사업명</TableHead>
                     <TableHead>평가종류</TableHead>
                     <TableHead>사업종류</TableHead>
@@ -770,10 +822,22 @@ export default function Performances() {
                 </TableHeader>
                 <TableBody>
                   {techRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{t.row.project_name}</TableCell>
+                    <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={!t.expired && techSelectedRowIds.has(t.row.id)}
+                          disabled={t.expired}
+                          onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {t.row.project_name}
+                        {t.expired && (
+                          <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {t.row.evaluation_types.map((x) => <Badge key={x} variant="secondary">{x}</Badge>)}
@@ -794,7 +858,6 @@ export default function Performances() {
                           <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
                         ))}
                       </TableCell>
-                      
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
@@ -804,7 +867,7 @@ export default function Performances() {
                   ))}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
-                      <TableCell colSpan={7} className="text-right">합계</TableCell>
+                      <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right">{techTotals.period.toFixed(2)}</TableCell>
