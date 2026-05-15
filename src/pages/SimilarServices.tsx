@@ -494,7 +494,7 @@ export default function SimilarServices() {
   };
 
   // 집계 제외 (체크박스 켜진 경우만)
-  const isExpired5y = (r: Row) => exclude5y && isOver5y(r);
+  const isExpired5y = (r: Row) => isOver5y(r);
 
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
   const appliedCount = (r: Row) => {
@@ -824,10 +824,6 @@ export default function SimilarServices() {
                   <X className="h-3 w-3" />
                 </button>
               )}
-              <label className="flex items-center gap-1.5 ml-1 pl-2 border-l cursor-pointer">
-                <Checkbox checked={exclude5y} onCheckedChange={(v) => setExclude5y(!!v)} />
-                <span className="text-xs">5년 이상사업 제외</span>
-              </label>
             </div>
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
