@@ -515,7 +515,7 @@ export default function SimilarServices() {
           "지분금액": r.share_amount,
           "평가종류": r.evaluation_type,
           "사업종류": r.service_type,
-          "각사지분율": r.is_dual_participation || r.company_share_rate == null || r.company_share_rate === "" ? null : `${r.company_share_rate}%`,
+          "각사지분율": r.is_dual_participation || r.company_share_rate == null || r.company_share_rate === "" ? null : String(r.company_share_rate).replace(/%$/, ""),
           "2종": r.is_dual_participation ? "✓" : "",
           "적용건수": Number(appliedCount(r).toFixed(2)),
           "적용금액": Math.round(appliedAmount(r)),
