@@ -259,6 +259,23 @@ export default function SimilarServices() {
     return path;
   };
 
+  const downloadPdf = async (path: string, filename?: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("performance-certs").download(path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || path.split("/").pop() || "download.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message ?? "다운로드 실패");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
