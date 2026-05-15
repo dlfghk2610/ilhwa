@@ -724,7 +724,11 @@ export default function Performances() {
               </div>
               <div>
                 <Label>계약금액</Label>
-                <Input type="number" value={form.contract_amount} onChange={(e) => setForm({ ...form, contract_amount: e.target.value })} />
+                <Input
+                  inputMode="decimal"
+                  value={form.contract_amount === "" ? "" : Number(form.contract_amount).toLocaleString()}
+                  onChange={(e) => setForm({ ...form, contract_amount: e.target.value.replace(/[^\d.-]/g, "") })}
+                />
               </div>
               <div>
                 <Label>지분율 (%)</Label>
@@ -733,9 +737,9 @@ export default function Performances() {
               <div className="md:col-span-2">
                 <Label>지분금액 (자동계산, 수기수정 가능)</Label>
                 <Input
-                  type="number"
-                  value={form.share_amount}
-                  onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value }); }}
+                  inputMode="decimal"
+                  value={form.share_amount === "" ? "" : Number(form.share_amount).toLocaleString()}
+                  onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value.replace(/[^\d.-]/g, "") }); }}
                 />
               </div>
 
