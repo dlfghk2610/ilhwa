@@ -4,9 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
 
-const STORAGE_KEY = "app_theme_color";
-const SIDEBAR_KEY = "app_sidebar_color";
+const PRIMARY_BASE = "app_theme_color";
+const SIDEBAR_BASE = "app_sidebar_color";
+const DEFAULT_PRIMARY = "#1d4ed8";
+const DEFAULT_SIDEBAR = "#15233d";
+
+const primaryKey = (uid?: string | null) => (uid ? `${PRIMARY_BASE}:${uid}` : PRIMARY_BASE);
+const sidebarKey = (uid?: string | null) => (uid ? `${SIDEBAR_BASE}:${uid}` : SIDEBAR_BASE);
 
 const PRESETS = [
   { name: "기본 블루", hex: "#1d4ed8" },
@@ -75,10 +81,11 @@ function applySidebar(hex: string) {
   root.style.setProperty("--sidebar-border", border);
 }
 
+/** Pre-auth init: applies the unscoped (legacy) saved theme if present, else defaults. */
 export function initTheme() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = localStorage.getItem(PRIMARY_BASE);
   if (saved) applyPrimary(saved);
-  const sb = localStorage.getItem(SIDEBAR_KEY);
+  const sb = localStorage.getItem(SIDEBAR_BASE);
   if (sb) applySidebar(sb);
 }
 
@@ -106,18 +113,35 @@ function ColorEditor({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 export function ThemeSettings() {
-  const [color, setColor] = useState<string>(() => localStorage.getItem(STORAGE_KEY) || "#1d4ed8");
-  const [sidebarColor, setSidebarColor] = useState<string>(() => localStorage.getItem(SIDEBAR_KEY) || "#15233d");
+  const { user } = useAuth();
+  const uid = user?.id;
+  const [color, setColor] = useState<string>(DEFAULT_PRIMARY);
+  const [sidebarColor, setSidebarColor] = useState<string>(DEFAULT_SIDEBAR);
+  const [hydrated, setHydrated] = useState(false);
 
+  // Load when user (scope) changes
   useEffect(() => {
+    const c = localStorage.getItem(primaryKey(uid)) || (uid ? DEFAULT_PRIMARY : (localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY));
+    const s = localStorage.getItem(sidebarKey(uid)) || (uid ? DEFAULT_SIDEBAR : (localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR));
+    setColor(c);
+    setSidebarColor(s);
+    applyPrimary(c);
+    applySidebar(s);
+    setHydrated(true);
+  }, [uid]);
+
+  // Persist + apply on change (only after hydration so we don't overwrite stored value with default)
+  useEffect(() => {
+    if (!hydrated) return;
     applyPrimary(color);
-    localStorage.setItem(STORAGE_KEY, color);
-  }, [color]);
+    try { localStorage.setItem(primaryKey(uid), color); } catch {}
+  }, [color, uid, hydrated]);
 
   useEffect(() => {
+    if (!hydrated) return;
     applySidebar(sidebarColor);
-    localStorage.setItem(SIDEBAR_KEY, sidebarColor);
-  }, [sidebarColor]);
+    try { localStorage.setItem(sidebarKey(uid), sidebarColor); } catch {}
+  }, [sidebarColor, uid, hydrated]);
 
   return (
     <Popover>
@@ -160,7 +184,7 @@ export function ThemeSettings() {
             <ColorEditor value={sidebarColor} onChange={setSidebarColor} />
           </div>
 
-          <Button variant="outline" size="sm" className="w-full" onClick={() => { setColor("#1d4ed8"); setSidebarColor("#15233d"); }}>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => { setColor(DEFAULT_PRIMARY); setSidebarColor(DEFAULT_SIDEBAR); }}>
             기본값으로 초기화
           </Button>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserStorage } from "@/hooks/useUserStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,41 +89,18 @@ export default function SimilarServices() {
   const [filterEvalType, setFilterEvalType] = useState<string>("");
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
-  // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (localStorage 영속)
-  const PRIVATE_FILTER_KEY = "similar_services.include_private.v1";
-  const UNDER90_FILTER_KEY = "similar_services.include_under90.v1";
-  const LH_FILTER_KEY = "similar_services.include_lh.v1";
-  const PROGRESS_FILTER_KEY = "similar_services.include_progress.v1";
-  const [includePrivate, setIncludePrivate] = useState<boolean>(() => {
-    try { return localStorage.getItem(PRIVATE_FILTER_KEY) === "1"; } catch { return false; }
-  });
-  const [includeUnder90, setIncludeUnder90] = useState<boolean>(() => {
-    try { return localStorage.getItem(UNDER90_FILTER_KEY) === "1"; } catch { return false; }
-  });
-  const [includeLh, setIncludeLh] = useState<boolean>(() => {
-    try { return localStorage.getItem(LH_FILTER_KEY) === "1"; } catch { return false; }
-  });
-  const [includeProgress, setIncludeProgress] = useState<boolean>(() => {
-    try { return localStorage.getItem(PROGRESS_FILTER_KEY) === "1"; } catch { return false; }
-  });
-  useEffect(() => { try { localStorage.setItem(PRIVATE_FILTER_KEY, includePrivate ? "1" : "0"); } catch {} }, [includePrivate]);
-  useEffect(() => { try { localStorage.setItem(UNDER90_FILTER_KEY, includeUnder90 ? "1" : "0"); } catch {} }, [includeUnder90]);
-  useEffect(() => { try { localStorage.setItem(LH_FILTER_KEY, includeLh ? "1" : "0"); } catch {} }, [includeLh]);
-  useEffect(() => { try { localStorage.setItem(PROGRESS_FILTER_KEY, includeProgress ? "1" : "0"); } catch {} }, [includeProgress]);
+  // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (계정별 영속)
+  const uid = user?.id;
+  const [includePrivate, setIncludePrivate] = useUserStorage<boolean>("similar_services.include_private.v1", false, uid);
+  const [includeUnder90, setIncludeUnder90] = useUserStorage<boolean>("similar_services.include_under90.v1", false, uid);
+  const [includeLh, setIncludeLh] = useUserStorage<boolean>("similar_services.include_lh.v1", false, uid);
+  const [includeProgress, setIncludeProgress] = useUserStorage<boolean>("similar_services.include_progress.v1", false, uid);
 
-  // 공고일 (전역): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
-  const ANNOUNCEMENT_KEY = "similar_services.announcement_date.v1";
-  const EXCLUDE5Y_KEY = "similar_services.exclude_5y.v1";
-  const [filterAnnouncementDate, setFilterAnnouncementDate] = useState<string>(() => {
-    try { return localStorage.getItem(ANNOUNCEMENT_KEY) ?? ""; } catch { return ""; }
-  });
-  const [exclude5y, setExclude5y] = useState<boolean>(() => {
-    try { return localStorage.getItem(EXCLUDE5Y_KEY) === "1"; } catch { return false; }
-  });
-  useEffect(() => { try { localStorage.setItem(ANNOUNCEMENT_KEY, filterAnnouncementDate); } catch {} }, [filterAnnouncementDate]);
-  useEffect(() => { try { localStorage.setItem(EXCLUDE5Y_KEY, exclude5y ? "1" : "0"); } catch {} }, [exclude5y]);
+  // 공고일 (계정별): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
+  const [filterAnnouncementDate, setFilterAnnouncementDate] = useUserStorage<string>("similar_services.announcement_date.v1", "", uid);
+  const [exclude5y, setExclude5y] = useUserStorage<boolean>("similar_services.exclude_5y.v1", false, uid);
 
-  // 사용자 정의 사업종류 그룹 (localStorage)
+  // 사용자 정의 사업종류 그룹 (계정별)
   const DEFAULT_GROUPS: { group: string; items: string[] }[] = [
     { group: "단지계열", items: ["관광", "도시개발", "택지개발", "산업단지", "주택단지"] },
     { group: "하천계열", items: ["국가하천", "지방하천", "소하천", "하천기본계획", "재해영향평가"] },
@@ -130,25 +108,12 @@ export default function SimilarServices() {
     { group: "상하수도계열", items: ["상수도", "하수도", "우수관거"] },
     { group: "환경계열", items: ["환경영향평가", "수질", "대기", "폐기물"] },
   ];
-  const SERVICE_GROUPS_KEY = "similar_services.service_groups.v1";
-  const [customGroups, setCustomGroups] = useState<{ group: string; items: string[] }[]>(() => {
-    try {
-      const raw = localStorage.getItem(SERVICE_GROUPS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return DEFAULT_GROUPS;
-  });
-  useEffect(() => {
-    try { localStorage.setItem(SERVICE_GROUPS_KEY, JSON.stringify(customGroups)); } catch {}
-  }, [customGroups]);
-  const HIDDEN_EXTRAS_KEY = "similar_services.hidden_extras.v1";
-  const [hiddenExtras, setHiddenExtras] = useState<string[]>(() => {
-    try { const raw = localStorage.getItem(HIDDEN_EXTRAS_KEY); if (raw) return JSON.parse(raw); } catch {}
-    return [];
-  });
-  useEffect(() => {
-    try { localStorage.setItem(HIDDEN_EXTRAS_KEY, JSON.stringify(hiddenExtras)); } catch {}
-  }, [hiddenExtras]);
+  const [customGroups, setCustomGroups] = useUserStorage<{ group: string; items: string[] }[]>(
+    "similar_services.service_groups.v1",
+    DEFAULT_GROUPS,
+    uid,
+  );
+  const [hiddenExtras, setHiddenExtras] = useUserStorage<string[]>("similar_services.hidden_extras.v1", [], uid);
   const [newGroupName, setNewGroupName] = useState("");
   const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
   const addGroup = () => {
