@@ -316,8 +316,8 @@ function TechnicianDetail({
         client: str(cell(r0, 4)),                  // E
         service_field: str(cell(r0, 5)),           // F
         specialty: str(cell(r0, 8)),               // I
-        evaluation_category: str(cell(r0, 9)),     // J (원문 — 환경영향평가/설계 등)
-        duties: null,
+        evaluation_category: str(cell(r0, 9)),     // J (가중치 분류용 — 환경/기타)
+        duties: str(cell(r0, 9)),                  // J (담당업무)
         participation_company: company,
         participation_position: str(cell(r0, 10)) || str(cell(r1, 10)), // K
       });
