@@ -38,6 +38,7 @@ type Row = {
   is_private: boolean;
   is_under_90days: boolean;
   is_lh_completion: boolean;
+  is_progress: boolean;
   notes: string | null;
   phases: Phase[] | null;
   cert_pdf_path: string | null;
