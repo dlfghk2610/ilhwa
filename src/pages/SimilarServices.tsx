@@ -435,7 +435,7 @@ export default function SimilarServices() {
   // 데이터에서 발견된 미분류 항목을 자동으로 "기타" 그룹에 추가 (편집 가능)
   useEffect(() => {
     const hidden = new Set(hiddenExtras);
-    const fromData = Array.from(new Set(rows.map((r) => (r.service_type ?? "").trim()).filter(Boolean)));
+    const fromData = Array.from(new Set(rows.flatMap((r) => String(r.service_type ?? "").split(",").map((s) => s.trim())).filter(Boolean)));
     const extras = fromData.filter((t) => !knownServiceTypes.has(t) && !hidden.has(t));
     if (extras.length === 0) return;
     setCustomGroups((prev) => {
@@ -465,9 +465,12 @@ export default function SimilarServices() {
     if (!filterEvalType) return 0.6;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
+  const splitTypes = (s: string | null | undefined) =>
+    String(s ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   const serviceCoef = (r: Row) => {
     if (filterServiceTypes.length === 0) return 0.6;
-    return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
+    const types = splitTypes(r.service_type);
+    return types.some((t) => filterServiceTypes.includes(t)) ? 1.0 : 0.6;
   };
 
   // 집계 제외 (체크박스 켜진 경우만)
@@ -927,8 +930,35 @@ export default function SimilarServices() {
                         <Input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>사업종류</Label>
-                        <Input value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })} />
+                        <Label>사업종류 (복수선택 가능)</Label>
+                        {(() => {
+                          const selected = splitTypes(form.service_type);
+                          const toggle = (t: string) => {
+                            const next = selected.includes(t) ? selected.filter((x) => x !== t) : [...selected, t];
+                            setForm({ ...form, service_type: next.join(", ") });
+                          };
+                          return (
+                            <div className="space-y-2 p-2 rounded-md border bg-background max-h-48 overflow-auto">
+                              {customGroups.map((g) => (
+                                <div key={g.group} className="flex flex-wrap items-center gap-1.5 pb-1 border-b last:border-0">
+                                  <span className="text-[11px] font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
+                                  {g.items.map((t) => (
+                                    <label key={t} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border cursor-pointer hover:bg-muted">
+                                      <Checkbox checked={selected.includes(t)} onCheckedChange={() => toggle(t)} />
+                                      <span>{t}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              ))}
+                              <Input
+                                value={form.service_type}
+                                onChange={(e) => setForm({ ...form, service_type: e.target.value })}
+                                placeholder="직접 입력 (쉼표로 구분)"
+                                className="h-7 text-xs mt-1"
+                              />
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="space-y-1.5">
                         <Label>평가종류</Label>
