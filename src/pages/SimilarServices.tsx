@@ -192,12 +192,17 @@ export default function SimilarServices() {
     return form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
   }, [form.phases]);
 
-  // 사후(차수) 입력 시 계약금액 = 차수 계약금액 합계 (수기 수정 가능)
+  // 사후(차수) 입력 시 계약금액 = 차수 계약금액 합계 (수기 수정 가능, 차수 변경 시 재반영)
   useEffect(() => {
     if (form.phases.length === 0) return;
-    if (contractAmountTouched) return;
-    setForm((prev) => ({ ...prev, contract_amount: String(Math.round(phasesContractTotal)) }));
-  }, [phasesContractTotal, form.phases.length, contractAmountTouched]);
+    if (phasesContractTotal === 0) return;
+    setForm((prev) => {
+      const next = String(Math.round(phasesContractTotal));
+      if (prev.contract_amount === next) return prev;
+      return { ...prev, contract_amount: next };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phasesContractTotal, form.phases.length]);
 
   // 자동 계산: 차수 입력 시엔 차수 합계로 / 아니면 계약금액 × 참여지분율
   useEffect(() => {
