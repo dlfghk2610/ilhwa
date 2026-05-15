@@ -418,17 +418,23 @@ export default function SimilarServices() {
   // 연번 기입 옵션
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const toggleSelect = (id: string) => {
+    const row = filtered.find((r) => r.id === id);
+    if (row && isOver5y(row)) {
+      toast.error("공고일 기준 5년 경과 사업은 선택할 수 없습니다");
+      return;
+    }
     setSelectedIds((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
   };
-  const allSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const selectableRows = filtered.filter((r) => !isOver5y(r));
+  const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       if (allSelected) return new Set();
-      return new Set(filtered.map((r) => r.id));
+      return new Set(selectableRows.map((r) => r.id));
     });
   };
 
@@ -478,9 +484,8 @@ export default function SimilarServices() {
     return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
   };
 
-  // 공고일~준공일 5년 초과 시 집계 제외 (공고일은 전역 입력)
-  const isExpired5y = (r: Row) => {
-    if (!exclude5y) return false;
+  // 공고일~준공일 5년 초과 여부 (공고일 입력 시 항상 판정)
+  const isOver5y = (r: Row) => {
     const ann = filterAnnouncementDate;
     const comp = r.completion_date;
     if (!ann || !comp) return false;
@@ -490,6 +495,8 @@ export default function SimilarServices() {
     const fiveYearsMs = 5 * 365.25 * 24 * 60 * 60 * 1000;
     return a - c > fiveYearsMs;
   };
+  // 집계 제외 (체크박스 켜진 경우만)
+  const isExpired5y = (r: Row) => exclude5y && isOver5y(r);
 
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
   const appliedCount = (r: Row) => {
@@ -1188,12 +1195,16 @@ export default function SimilarServices() {
                 ) : filtered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
+                  const over5 = isOver5y(r);
                   return (
-                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : undefined}>
                     <TableCell className="align-middle">
-                      <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                      <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     </TableCell>
-                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
+                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">
+                      {r.project_name}{phaseSuffix(r)}
+                      {over5 && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
+                    </TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
@@ -1228,16 +1239,18 @@ export default function SimilarServices() {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
+              const over5 = isOver5y(r);
               return (
-                <div key={r.id} className="px-3 py-2.5">
+                <div key={r.id} className={`px-3 py-2.5 ${over5 ? "bg-destructive/5" : ""}`}>
                   <div className="flex items-center gap-2">
-                    <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                    <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     <button
                       type="button"
                       onClick={() => toggleExpand(r.id)}
                       className="flex-1 text-left text-sm font-medium break-words"
                     >
                       {r.project_name}{phaseSuffix(r)}
+                      {over5 && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
                     </button>
                     <span className="text-xs text-muted-foreground shrink-0">{expanded ? "접기" : "펼치기"}</span>
                   </div>
