@@ -701,7 +701,7 @@ export default function Performances() {
                     <TableRow key={i}>
                       <TableCell className="font-medium">{t.row.project_name}</TableCell>
                       <TableCell className="text-xs">{t.row.contract_start_date} ~ {t.row.contract_end_date}</TableCell>
-                      <TableCell className="text-xs">{t.part.period_start} ~ {t.part.period_end}</TableCell>
+                      <TableCell className="text-xs">{getPeriods(t.part).map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ")}</TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
