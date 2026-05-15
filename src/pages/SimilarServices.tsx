@@ -551,6 +551,7 @@ export default function SimilarServices() {
         ps.forEach((p, idx) => {
           const label = (p.label && p.label.trim()) || "";
           data.push(makeRow(label ? `(${label})` : "", idx === 0 ? seqLabel : "", {
+            "계약일": (p as any).contract_date ?? r.contract_date,
             "착수일": p.start_date ?? r.start_date,
             "준공일": p.end_date ?? r.completion_date,
             "지분금액": p.amount ?? null,
