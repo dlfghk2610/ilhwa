@@ -494,7 +494,7 @@ export default function SimilarServices() {
   };
 
   // 집계 제외 (체크박스 켜진 경우만)
-  const isExpired5y = (r: Row) => exclude5y && isOver5y(r);
+  const isExpired5y = (r: Row) => isOver5y(r);
 
   // 적용건수 = 평가계수 × 사업계수 × 참여지분율(소수)
   const appliedCount = (r: Row) => {
