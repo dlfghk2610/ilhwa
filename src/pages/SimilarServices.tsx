@@ -95,6 +95,7 @@ export default function SimilarServices() {
   const [includeUnder90, setIncludeUnder90] = useUserStorage<boolean>("similar_services.include_under90.v1", false, uid);
   const [includeLh, setIncludeLh] = useUserStorage<boolean>("similar_services.include_lh.v1", false, uid);
   const [includeProgress, setIncludeProgress] = useUserStorage<boolean>("similar_services.include_progress.v1", false, uid);
+  const [includeDual, setIncludeDual] = useUserStorage<boolean>("similar_services.include_dual.v1", true, uid);
 
   // 공고일 (계정별): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const [filterAnnouncementDate, setFilterAnnouncementDate] = useUserStorage<string>("similar_services.announcement_date.v1", "", uid);
@@ -367,6 +368,7 @@ export default function SimilarServices() {
     if ((r as any).is_under_90days && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
     if ((r as any).is_progress && !includeProgress) return false;
+    if ((r as any).is_dual_participation && !includeDual) return false;
     if (!search) return true;
     return [r.project_name, r.client, r.service_type, r.evaluation_type]
       .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
@@ -863,6 +865,10 @@ export default function SimilarServices() {
             <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
               <Checkbox checked={includeProgress} onCheckedChange={(v) => setIncludeProgress(!!v)} />
               <span className="text-xs">기성실적 포함</span>
+            </label>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={includeDual} onCheckedChange={(v) => setIncludeDual(!!v)} />
+              <span className="text-xs">분담사업 포함</span>
             </label>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
               <span className="text-xs text-muted-foreground">공고일</span>
