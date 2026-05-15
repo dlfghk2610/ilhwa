@@ -136,6 +136,7 @@ const emptyForm = {
   participant_file_path: "",
   cert_pdf_file: null as File | null,
   cert_pdf_path: "",
+  is_private: false,
 };
 
 type FormState = typeof emptyForm;
