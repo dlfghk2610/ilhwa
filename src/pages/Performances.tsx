@@ -206,6 +206,23 @@ export default function Performances() {
     }
   }
 
+  async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string, filename?: string) {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || path.split("/").pop() || "download";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message ?? "다운로드 실패");
+    }
+  }
+
   async function handleSubmit() {
     if (!user) return;
     if (!form.project_name.trim()) { toast.error("사업명을 입력하세요"); return; }
