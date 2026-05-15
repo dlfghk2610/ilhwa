@@ -257,22 +257,91 @@ function TechnicianDetail({
     exportToExcel(sample, `경력_업로드양식_${tech.name}`);
   };
 
-  // 엑셀 내보내기 (현재 데이터)
+  // 엑셀 내보내기 — 활성 탭에 따라 다른 데이터 추출
   const exportEntries = () => {
-    const rows = entries.map((e) => ({
-      참여시작일: formatIso(e.period_start),
-      참여종료일: e.period_end_text || "",
-      인정일: e.recognized_days ?? "",
-      사업명: e.project_name || "",
-      발주처: e.client || "",
-      사업공종: e.service_field || "",
-      전문분야: e.specialty || "",
-      담당업무: e.duties || "",
-      평가구분: e.evaluation_category || "",
-      참여회사: e.participation_company || "",
-      참여직위: e.participation_position || "",
-    }));
-    exportToExcel(rows, `경력_${tech.name}`);
+    if (activeTab === "recognition") {
+      const rows = entries.map((e) => {
+        const r = computeRecognition(e, tech.specialty);
+        return {
+          참여시작일: formatIso(e.period_start),
+          참여종료일: e.period_end_text || "",
+          인정일: r.recognizedDays,
+          사업명: e.project_name || "",
+          발주처: e.client || "",
+          사업공종: e.service_field || "",
+          전문분야: e.specialty || "",
+          담당업무: e.duties || "",
+          평가구분: r.evalGroup,
+          가중치: r.weight,
+          참여회사: e.participation_company || "",
+          참여직위: e.participation_position || "",
+          환산일수: r.convertedDays,
+        };
+      });
+      const totalRecog = rows.reduce((s, r) => s + Number(r.인정일 || 0), 0);
+      const totalConv = rows.reduce((s, r) => s + Number(r.환산일수 || 0), 0);
+      rows.push({
+        참여시작일: "", 참여종료일: "", 인정일: totalRecog, 사업명: "합계", 발주처: "",
+        사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: 0 as any,
+        참여회사: "", 참여직위: "", 환산일수: +totalConv.toFixed(2),
+      } as any);
+      rows.push({
+        참여시작일: "", 참여종료일: "", 인정일: "" as any, 사업명: `환산 (년/월): ${daysToYearMonth(totalConv)}`,
+        발주처: "", 사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: "" as any,
+        참여회사: "", 참여직위: "", 환산일수: "" as any,
+      } as any);
+      exportToExcel(rows, `경력_인정일계산_${tech.name}`);
+      return;
+    }
+    // 중복일수 계산
+    const recRows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
+    const map = new Map<string, typeof recRows>();
+    for (const r of recRows) {
+      const key = (r.entry.specialty || "").trim() || "(미지정)";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    const out: any[] = [];
+    let grandPart = 0, grandConv = 0;
+    for (const [specialty, arr] of map) {
+      const chosen = selectOptimal(arr);
+      let sumPart = 0, sumConv = 0;
+      for (const it of chosen) {
+        const conv = +(it.participationDays * it.row.weight).toFixed(2);
+        sumPart += it.participationDays;
+        sumConv += conv;
+        out.push({
+          사업명: it.row.entry.project_name || "",
+          발주처: it.row.entry.client || "",
+          전문분야: it.row.entry.specialty || "",
+          평가구분: it.row.evalGroup,
+          참여시작일: formatIso(it.row.entry.period_start),
+          참여종료일: it.row.entry.period_end_text || "",
+          "중복제외 시작일": formatIso(it.row.entry.period_start),
+          "중복제외 종료일": it.row.entry.period_end_text || "",
+          참여일수: it.participationDays,
+          가중치: it.row.weight,
+          환산일수: conv,
+        });
+      }
+      out.push({
+        사업명: `[${specialty}] 소계`, 발주처: "", 전문분야: "", 평가구분: "",
+        참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+        참여일수: sumPart, 가중치: "" as any, 환산일수: +sumConv.toFixed(2),
+      });
+      grandPart += sumPart; grandConv += sumConv;
+    }
+    out.push({
+      사업명: "합계", 발주처: "", 전문분야: "", 평가구분: "",
+      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+      참여일수: grandPart, 가중치: "" as any, 환산일수: +grandConv.toFixed(2),
+    });
+    out.push({
+      사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}`, 발주처: "", 전문분야: "", 평가구분: "",
+      참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
+      참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
+    });
+    exportToExcel(out, `경력_중복일수계산_${tech.name}`);
   };
 
   // 엑셀 업로드 → 기존 데이터 대체
