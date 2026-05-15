@@ -540,7 +540,7 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
     return result;
   }, [entries, tech.specialty]);
 
-  const grandConv = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.row.convertedDays, 0), 0);
+  const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
 
   if (!entries.length) {
