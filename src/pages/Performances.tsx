@@ -526,6 +526,89 @@ export default function Performances() {
   function addParticipant() {
     setForm((f) => ({ ...f, participants: [...f.participants, { name: "", periods: [{ start: "", end: "" }] }] }));
   }
+
+  // 참여자명단 엑셀 내보내기 (현재 입력된 참여자 + 양식 헤더)
+  function handleParticipantsExcelExport() {
+    const data = (form.participants.length > 0 ? form.participants : [{ name: "", birth_date: "", periods: [] } as Participant]).map((p) => {
+      const periods = getPeriods(p);
+      const row: Record<string, any> = {
+        성명: p.name || "",
+        생년월일: p.birth_date || "",
+      };
+      for (let i = 0; i < 3; i++) {
+        row[`참여시작${i + 1}`] = isoToDisplay(periods[i]?.start);
+        row[`참여종료${i + 1}`] = isoToDisplay(periods[i]?.end);
+      }
+      row.전문분야 = p.specialty || "";
+      row.직위 = p.position || "";
+      row.책임정도 = p.responsibility || "";
+      return row;
+    });
+    exportToExcel(data, `${form.project_name || "참여자명단"}-참여자명단`);
+    toast.success("엑셀 양식 다운로드 완료");
+  }
+
+  async function handleParticipantsExcelImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await importFromExcel<Record<string, any>>(file);
+      const parsed: Participant[] = data
+        .map((r) => {
+          const name = String(r["성명"] ?? r["이름"] ?? "").trim();
+          if (!name) return null;
+          const periods: Period[] = [];
+          for (let i = 1; i <= 6; i++) {
+            const s = r[`참여시작${i}`];
+            const en = r[`참여종료${i}`];
+            if (s == null && en == null) continue;
+            const toIso = (v: any) => {
+              if (v == null || v === "") return "";
+              if (typeof v === "number") {
+                const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+                return d.toISOString().slice(0, 10);
+              }
+              const str = String(v).trim();
+              const digits = str.replace(/\D/g, "").slice(0, 8);
+              if (digits.length === 8) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+              return str.slice(0, 10);
+            };
+            const start = toIso(s);
+            const end = toIso(en);
+            if (start || end) periods.push({ start, end });
+          }
+          const birthRaw = r["생년월일"];
+          let birth = "";
+          if (birthRaw != null && birthRaw !== "") {
+            if (typeof birthRaw === "number") {
+              const d = new Date(Math.round((birthRaw - 25569) * 86400 * 1000));
+              birth = d.toISOString().slice(0, 10).replace(/-/g, ".");
+            } else {
+              birth = formatBirth(String(birthRaw));
+            }
+          }
+          return {
+            name,
+            birth_date: birth,
+            periods: periods.length > 0 ? periods : [{ start: "", end: "" }],
+            specialty: String(r["전문분야"] ?? "").trim() || undefined,
+            position: String(r["직위"] ?? "").trim() || undefined,
+            responsibility: String(r["책임정도"] ?? "").trim() || undefined,
+          } as Participant;
+        })
+        .filter((p): p is Participant => !!p);
+      if (parsed.length === 0) {
+        toast.error("가져올 참여자 데이터가 없습니다");
+        return;
+      }
+      setForm((f) => ({ ...f, participants: parsed }));
+      toast.success(`${parsed.length}명 가져오기 완료`);
+    } catch (err: any) {
+      toast.error("엑셀 처리 오류: " + (err?.message ?? ""));
+    } finally {
+      e.target.value = "";
+    }
+  }
   const clampDate = (v: string) => {
     if (!v) return "";
     const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
