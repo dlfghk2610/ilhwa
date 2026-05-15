@@ -970,9 +970,9 @@ export default function Performances() {
                           <div className="space-y-1">
                             {(periods.length === 0 ? [{ start: "", end: "" }] : periods).map((pd, pi) => (
                               <div key={pi} className="flex items-center gap-1">
-                                <Input className="h-8" type="date" value={pd.start || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: clampDate(e.target.value) }; return a; })} />
+                                <DateInput className="h-8" value={pd.start || ""} onChange={(iso) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: iso }; return a; })} />
                                 <span className="text-xs">~</span>
-                                <Input className="h-8" type="date" value={pd.end || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: clampDate(e.target.value) }; return a; })} />
+                                <DateInput className="h-8" value={pd.end || ""} onChange={(iso) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: iso }; return a; })} />
                                 {periods.length > 1 && (
                                   <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => updatePeriods(i, (arr) => arr.filter((_, x) => x !== pi))}>
                                     <X className="h-3.5 w-3.5" />
