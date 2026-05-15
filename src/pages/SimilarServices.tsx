@@ -465,9 +465,12 @@ export default function SimilarServices() {
     if (!filterEvalType) return 0.6;
     return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
   };
+  const splitTypes = (s: string | null | undefined) =>
+    String(s ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   const serviceCoef = (r: Row) => {
     if (filterServiceTypes.length === 0) return 0.6;
-    return filterServiceTypes.includes(r.service_type ?? "") ? 1.0 : 0.6;
+    const types = splitTypes(r.service_type);
+    return types.some((t) => filterServiceTypes.includes(t)) ? 1.0 : 0.6;
   };
 
   // 집계 제외 (체크박스 켜진 경우만)
