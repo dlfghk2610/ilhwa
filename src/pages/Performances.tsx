@@ -446,6 +446,12 @@ export default function Performances() {
   function addParticipant() {
     setForm((f) => ({ ...f, participants: [...f.participants, { name: "", periods: [{ start: "", end: "" }] }] }));
   }
+  const clampDate = (v: string) => {
+    if (!v) return "";
+    const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+    if (!m) return v;
+    return `${m[1].slice(-4).padStart(4, "0")}-${m[2]}-${m[3]}`;
+  };
   function updatePeriods(idx: number, fn: (periods: Period[]) => Period[]) {
     setForm((f) => ({
       ...f,
@@ -926,9 +932,9 @@ export default function Performances() {
                           <div className="space-y-1">
                             {(periods.length === 0 ? [{ start: "", end: "" }] : periods).map((pd, pi) => (
                               <div key={pi} className="flex items-center gap-1">
-                                <Input className="h-8" type="date" value={pd.start || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: e.target.value }; return a; })} />
+                                <Input className="h-8" type="date" value={pd.start || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: clampDate(e.target.value) }; return a; })} />
                                 <span className="text-xs">~</span>
-                                <Input className="h-8" type="date" value={pd.end || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: e.target.value }; return a; })} />
+                                <Input className="h-8" type="date" value={pd.end || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: clampDate(e.target.value) }; return a; })} />
                                 {periods.length > 1 && (
                                   <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => updatePeriods(i, (arr) => arr.filter((_, x) => x !== pi))}>
                                     <X className="h-3.5 w-3.5" />
