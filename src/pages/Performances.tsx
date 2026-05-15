@@ -19,15 +19,31 @@ import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles, FileText 
 import { exportToExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
+type Period = { start?: string; end?: string };
 type Participant = {
   name: string;
   birth_date?: string;
   period_start?: string;
   period_end?: string;
+  periods?: Period[];
   specialty?: string;
   duties?: string;
   position?: string;
   responsibility?: string;
+};
+
+// 생년월일 입력 → YYYY.MM.DD
+const formatBirth = (v: string) => {
+  const d = (v || "").replace(/[^\d]/g, "").slice(0, 8);
+  if (d.length <= 4) return d;
+  if (d.length <= 6) return `${d.slice(0, 4)}.${d.slice(4)}`;
+  return `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}`;
+};
+
+const getPeriods = (p: Participant): Period[] => {
+  if (Array.isArray(p.periods) && p.periods.length > 0) return p.periods;
+  if (p.period_start || p.period_end) return [{ start: p.period_start, end: p.period_end }];
+  return [];
 };
 
 type Row = {
