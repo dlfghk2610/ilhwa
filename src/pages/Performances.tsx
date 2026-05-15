@@ -912,25 +912,54 @@ export default function Performances() {
                       <TableHead className="min-w-[160px]">담당업무</TableHead>
                       <TableHead className="w-[110px]">직위</TableHead>
                       <TableHead className="w-[110px]">책임정도</TableHead>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[1100px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[110px]">성명</TableHead>
+                      <TableHead className="w-[130px]">생년월일</TableHead>
+                      <TableHead className="min-w-[340px]">참여기간</TableHead>
+                      <TableHead className="w-[120px]">전문분야</TableHead>
+                      <TableHead className="w-[110px]">직위</TableHead>
+                      <TableHead className="w-[110px]">책임정도</TableHead>
                       <TableHead className="w-[44px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {form.participants.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-4">파일 업로드 후 AI 자동추출 또는 + 버튼으로 추가</TableCell></TableRow>
-                    ) : form.participants.map((p, i) => (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-4">파일 업로드 후 AI 자동추출 또는 + 버튼으로 추가</TableCell></TableRow>
+                    ) : form.participants.map((p, i) => {
+                      const periods = getPeriods(p);
+                      return (
                       <TableRow key={i}>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.name || ""} onChange={(e) => updateParticipant(i, "name", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", e.target.value)} placeholder="YYYY-MM-DD" /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" type="date" value={p.period_start || ""} onChange={(e) => updateParticipant(i, "period_start", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" type="date" value={p.period_end || ""} onChange={(e) => updateParticipant(i, "period_end", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.duties || ""} onChange={(e) => updateParticipant(i, "duties", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Input className="h-8" value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} /></TableCell>
-                        <TableCell className="p-1.5"><Button size="icon" variant="ghost" onClick={() => removeParticipant(i)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="p-1.5 align-top"><Input className="h-8" value={p.name || ""} onChange={(e) => updateParticipant(i, "name", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5 align-top"><Input className="h-8" value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", formatBirth(e.target.value))} placeholder="YYYY.MM.DD" maxLength={10} /></TableCell>
+                        <TableCell className="p-1.5 align-top">
+                          <div className="space-y-1">
+                            {(periods.length === 0 ? [{ start: "", end: "" }] : periods).map((pd, pi) => (
+                              <div key={pi} className="flex items-center gap-1">
+                                <Input className="h-8" type="date" value={pd.start || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], start: e.target.value }; return a; })} />
+                                <span className="text-xs">~</span>
+                                <Input className="h-8" type="date" value={pd.end || ""} onChange={(e) => updatePeriods(i, (arr) => { const a = [...arr]; if (a.length === 0) a.push({}); a[pi] = { ...a[pi], end: e.target.value }; return a; })} />
+                                {periods.length > 1 && (
+                                  <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => updatePeriods(i, (arr) => arr.filter((_, x) => x !== pi))}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button type="button" size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => updatePeriods(i, (arr) => [...arr, { start: "", end: "" }])}>
+                              <Plus className="h-3 w-3 mr-1" />기간 추가
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-1.5 align-top"><Input className="h-8" value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5 align-top"><Input className="h-8" value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5 align-top"><Input className="h-8" value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5 align-top"><Button size="icon" variant="ghost" onClick={() => removeParticipant(i)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
