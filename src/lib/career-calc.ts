@@ -121,8 +121,8 @@ export const selectOptimal = (rows: RecognitionRow[]): OverlapItem[] => {
   if (n === 0) return [];
 
   // p[i] = 가장 큰 j < i 이면서 items[j].end < items[i].start
-  const p: number[] = items.map((it) => {
-    let lo = 0, hi = items.indexOf(it) - 1, ans = -1;
+  const p: number[] = items.map((it, idx) => {
+    let lo = 0, hi = idx - 1, ans = -1;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
       if (items[mid].end.getTime() < it.start.getTime()) {
