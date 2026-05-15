@@ -462,12 +462,36 @@ export default function Performances() {
           paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
         }
         let stamped = false;
+        const tech = selectedTech.trim();
         for (const { path, bucket } of paths) {
           const { data: blob, error } = await supabase.storage.from(bucket).download(path);
           if (error || !blob) continue;
           // 참여자명단이 PDF가 아닐 수도 있음 (DOCX) → PDF만 병합
           if (!path.toLowerCase().endsWith(".pdf")) continue;
           const bytes = await blob.arrayBuffer();
+          const isParticipantList = bucket === "participant-lists";
+          // 참여자명단이고 선택된 기술자가 있으면 이름 좌표 추출
+          let nameMarks: { pageIndex: number; x: number; y: number; height: number }[] = [];
+          if (isParticipantList && tech) {
+            try {
+              const loadingTask = (pdfjsLib as any).getDocument({ data: bytes.slice(0) });
+              const pdfDoc = await loadingTask.promise;
+              for (let pi = 1; pi <= pdfDoc.numPages; pi++) {
+                const page = await pdfDoc.getPage(pi);
+                const tc = await page.getTextContent();
+                for (const it of tc.items as any[]) {
+                  const s = String(it.str ?? "");
+                  if (s && s.includes(tech)) {
+                    const tr = it.transform as number[];
+                    const x = tr[4];
+                    const y = tr[5];
+                    const h = it.height || Math.abs(tr[3]) || 10;
+                    nameMarks.push({ pageIndex: pi - 1, x, y, height: h });
+                  }
+                }
+              }
+            } catch { /* pdfjs 로드 실패 시 체크 표시 생략 */ }
+          }
           try {
             const src = await PDFDocument.load(bytes);
             const pages = await merged.copyPages(src, src.getPageIndices());
@@ -483,6 +507,23 @@ export default function Performances() {
                   color: rgb(0, 0, 0),
                 });
                 stamped = true;
+              }
+              if (isParticipantList && tech) {
+                const marks = nameMarks.filter((m) => m.pageIndex === idx);
+                for (const m of marks) {
+                  const size = Math.max(10, m.height);
+                  // 이름 왼쪽에 ✔ 표시 (벡터 패스)
+                  const cx = m.x - size * 1.4;
+                  const cy = m.y;
+                  const s = size / 12;
+                  pg.drawSvgPath(`M 0 6 L 4 0 L 12 10`, {
+                    x: cx,
+                    y: cy,
+                    scale: s,
+                    borderColor: rgb(0.85, 0.1, 0.1),
+                    borderWidth: 2,
+                  });
+                }
               }
             });
             added++;
