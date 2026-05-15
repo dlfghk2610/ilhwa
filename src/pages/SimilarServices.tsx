@@ -643,23 +643,60 @@ export default function SimilarServices() {
         if (typeof v === "number") return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
         return String(v).slice(0, 10);
       };
-      const records = data.map((r) => ({
-        created_by: user.id,
-        project_name: r["사업명"] ?? "",
-        client: r["발주처"] ?? null,
-        service_type: r["사업종류"] ?? null,
-        evaluation_type: r["평가종류"] ?? null,
-        service_overview: r["용역개요"] ?? null,
-        contract_amount: r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null,
-        contract_date: toDate(r["계약일"]),
-        start_date: toDate(r["착수일"]),
-        completion_date: toDate(r["준공일"]),
-        is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
-        participation_rate: r["참여지분율(%)"] != null && r["참여지분율(%)"] !== "" ? Number(r["참여지분율(%)"]) : null,
-        company_share_rate: r["각사지분율"] != null && r["각사지분율"] !== "" ? String(r["각사지분율"]) : null,
-        share_amount: r["지분금액"] != null && r["지분금액"] !== "" ? Number(r["지분금액"]) : null,
-        notes: r["비고"] ?? null,
-      })).filter((r) => r.project_name);
+      const parseRow = (r: Record<string, any>) => {
+        const rawName = String(r["사업명"] ?? "").trim();
+        // 사업명 끝의 "(○차)" 또는 "(○○)" 접미사를 차수 라벨로 추출
+        const m = rawName.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+        const baseName = m ? m[1].trim() : rawName;
+        const phaseLabel = m ? m[2].trim() : "";
+        return { rawName, baseName, phaseLabel, r };
+      };
+      const parsed = data.map(parseRow).filter((p) => p.rawName);
+      // 같은 사업명(접미사 제외) + 발주처로 그룹핑
+      const groups = new Map<string, typeof parsed>();
+      for (const p of parsed) {
+        const key = `${p.baseName}__${String(p.r["발주처"] ?? "")}`;
+        const arr = groups.get(key) ?? [];
+        arr.push(p);
+        groups.set(key, arr);
+      }
+      const records = Array.from(groups.values()).map((items) => {
+        const head = items[0];
+        const r = head.r;
+        const hasPhases = items.length > 1 || items.some((it) => it.phaseLabel);
+        const phases = hasPhases ? items.map((it) => ({
+          label: it.phaseLabel || "",
+          amount: it.r["지분금액"] != null && it.r["지분금액"] !== "" ? Number(it.r["지분금액"]) : null,
+          contract_amount: it.r["계약금액"] != null && it.r["계약금액"] !== "" ? Number(it.r["계약금액"]) : null,
+          share_rate: null,
+          contract_date: toDate(it.r["계약일"]),
+          start_date: toDate(it.r["착수일"]),
+          end_date: toDate(it.r["준공일"]),
+          pdf_path: null,
+        })) : null;
+        // 대표 값: 차수가 있을 경우 합계/최초~최종으로 집계
+        const sum = (k: string) => items.reduce((s, it) => s + (Number(it.r[k]) || 0), 0);
+        const firstDate = (k: string) => items.map((it) => toDate(it.r[k])).filter(Boolean).sort()[0] ?? null;
+        const lastDate = (k: string) => items.map((it) => toDate(it.r[k])).filter(Boolean).sort().slice(-1)[0] ?? null;
+        return {
+          created_by: user.id,
+          project_name: head.baseName,
+          client: r["발주처"] ?? null,
+          service_type: r["사업종류"] ?? null,
+          evaluation_type: r["평가종류"] ?? null,
+          service_overview: r["용역개요"] ?? null,
+          contract_amount: hasPhases ? Math.round(sum("계약금액")) || null : (r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null),
+          contract_date: toDate(r["계약일"]),
+          start_date: hasPhases ? firstDate("착수일") : toDate(r["착수일"]),
+          completion_date: hasPhases ? lastDate("준공일") : toDate(r["준공일"]),
+          is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
+          participation_rate: r["참여지분율(%)"] != null && r["참여지분율(%)"] !== "" ? Number(r["참여지분율(%)"]) : null,
+          company_share_rate: r["각사지분율"] != null && r["각사지분율"] !== "" ? String(r["각사지분율"]) : null,
+          share_amount: hasPhases ? Math.round(sum("지분금액")) || null : (r["지분금액"] != null && r["지분금액"] !== "" ? Number(r["지분금액"]) : null),
+          notes: r["비고"] ?? null,
+          phases,
+        };
+      });
       if (records.length === 0) { toast.error("가져올 데이터가 없습니다"); return; }
       const { error } = await supabase.from("similar_services").insert(records);
       if (error) toast.error(error.message);
