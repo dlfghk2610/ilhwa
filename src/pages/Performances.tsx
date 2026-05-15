@@ -801,6 +801,13 @@ export default function Performances() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={techAllChecked}
+                        disabled={techAllSelectableIds.length === 0}
+                        onCheckedChange={(c) => toggleTechAll(!!c)}
+                      />
+                    </TableHead>
                     <TableHead>사업명</TableHead>
                     <TableHead>평가종류</TableHead>
                     <TableHead>사업종류</TableHead>
@@ -815,10 +822,22 @@ export default function Performances() {
                 </TableHeader>
                 <TableBody>
                   {techRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{t.row.project_name}</TableCell>
+                    <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={!t.expired && techSelectedRowIds.has(t.row.id)}
+                          disabled={t.expired}
+                          onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {t.row.project_name}
+                        {t.expired && (
+                          <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {t.row.evaluation_types.map((x) => <Badge key={x} variant="secondary">{x}</Badge>)}
@@ -839,7 +858,6 @@ export default function Performances() {
                           <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
                         ))}
                       </TableCell>
-                      
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
@@ -849,7 +867,7 @@ export default function Performances() {
                   ))}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
-                      <TableCell colSpan={7} className="text-right">합계</TableCell>
+                      <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right">{techTotals.period.toFixed(2)}</TableCell>
