@@ -17,7 +17,7 @@ import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } 
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
+type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
 
 type Row = {
   id: string;
@@ -62,7 +62,7 @@ const emptyForm = {
   is_under_90days: false,
   is_lh_completion: false,
   notes: "",
-  phases: [] as { label: string; amount: string; contract_amount: string; share_rate: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null; amount_touched: boolean }[],
+  phases: [] as { label: string; amount: string; contract_amount: string; share_rate: string; contract_date: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null; amount_touched: boolean }[],
   cert_pdf_path: "",
   cert_pdf_file: null as File | null,
 };
@@ -251,7 +251,7 @@ export default function SimilarServices() {
       is_under_90days: (row as any).is_under_90days ?? false,
       is_lh_completion: (row as any).is_lh_completion ?? false,
       notes: row.notes ?? "",
-      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", contract_amount: (p as any).contract_amount != null ? String((p as any).contract_amount) : "", share_rate: (p as any).share_rate != null ? String((p as any).share_rate) : "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null, amount_touched: true })),
+      phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", contract_amount: (p as any).contract_amount != null ? String((p as any).contract_amount) : "", share_rate: (p as any).share_rate != null ? String((p as any).share_rate) : "", contract_date: (p as any).contract_date ?? "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null, amount_touched: true })),
       cert_pdf_path: (row as any).cert_pdf_path ?? "",
       cert_pdf_file: null,
     });
@@ -320,12 +320,13 @@ export default function SimilarServices() {
       }));
 
       const phasesPayload = phasesUploaded
-        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.contract_amount !== "" || p.share_rate !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
+        .filter(({ p }) => p.label.trim() !== "" || p.amount !== "" || p.contract_amount !== "" || p.share_rate !== "" || p.contract_date !== "" || p.start_date !== "" || p.end_date !== "" || p.pdf_path || p.pdf_file)
         .map(({ p, pdf_path }) => ({
           label: p.label.trim(),
           amount: p.amount === "" ? null : Number(p.amount),
           contract_amount: p.contract_amount === "" ? null : Number(p.contract_amount),
           share_rate: p.share_rate === "" ? null : Number(p.share_rate),
+          contract_date: p.contract_date || null,
           start_date: p.start_date || null,
           end_date: p.end_date || null,
           pdf_path,
@@ -657,9 +658,9 @@ export default function SimilarServices() {
 
   const addPhase = () => {
     const next = form.phases.length + 1;
-    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", contract_amount: "", share_rate: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null, amount_touched: false }] });
+    setForm({ ...form, phases: [...form.phases, { label: `${next}차`, amount: "", contract_amount: "", share_rate: "", contract_date: "", start_date: "", end_date: "", pdf_path: "", pdf_file: null, amount_touched: false }] });
   };
-  const updatePhase = (i: number, key: "label" | "amount" | "contract_amount" | "share_rate" | "start_date" | "end_date" | "pdf_path", v: string) => {
+  const updatePhase = (i: number, key: "label" | "amount" | "contract_amount" | "share_rate" | "contract_date" | "start_date" | "end_date" | "pdf_path", v: string) => {
     const ps = [...form.phases];
     const cur = { ...ps[i], [key]: v };
     if (key === "amount") {
@@ -981,7 +982,15 @@ export default function SimilarServices() {
                                     value={p.end_date}
                                     onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
                                   />
-                                  <div className="col-span-3" />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    placeholder="계약일자"
+                                    value={p.contract_date}
+                                    onChange={(e) => updatePhase(i, "contract_date", clampDate(e.target.value))}
+                                  />
                                   <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                     <X className="h-4 w-4" />
                                   </Button>
@@ -1053,7 +1062,7 @@ export default function SimilarServices() {
                               <div className="col-span-2">차수명</div>
                               <div className="col-span-3">착수일</div>
                               <div className="col-span-3">준공일</div>
-                              <div className="col-span-3 text-right">지분금액 합계</div>
+                              <div className="col-span-3">계약일자</div>
                             </div>
                             <div className="text-xs text-right text-muted-foreground">
                               차수 합계: {phasesTotal.toLocaleString()} 원
@@ -1136,7 +1145,6 @@ export default function SimilarServices() {
                   </TableHead>
                   <TableHead className="min-w-[160px] max-w-[220px]">사업명</TableHead>
                   <TableHead className="min-w-[140px] max-w-[200px]">발주처</TableHead>
-                  <TableHead className="whitespace-nowrap">계약일</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공일</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
@@ -1144,8 +1152,6 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-right">지분금액</TableHead>
                   <TableHead className="whitespace-nowrap">평가종류</TableHead>
                   <TableHead className="whitespace-nowrap">사업종류</TableHead>
-                  <TableHead className="min-w-[140px] max-w-[200px]">각사지분율</TableHead>
-                  <TableHead className="whitespace-nowrap text-center">2종</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
@@ -1171,7 +1177,6 @@ export default function SimilarServices() {
                     </TableCell>
                     <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.contract_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.contract_amount)}</TableCell>
@@ -1179,8 +1184,6 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.evaluation_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.service_type ?? "-"}</TableCell>
-                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-pre-wrap break-words align-middle">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
-                    <TableCell className="whitespace-nowrap text-center align-middle">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{appliedCount(r).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
