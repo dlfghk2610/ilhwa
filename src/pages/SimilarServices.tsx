@@ -640,8 +640,27 @@ export default function SimilarServices() {
       const data = await importFromExcel<Record<string, any>>(file);
       const toDate = (v: any) => {
         if (v === "" || v == null) return null;
-        if (typeof v === "number") return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
-        return String(v).slice(0, 10);
+        if (typeof v === "number") {
+          if (!isFinite(v)) return null;
+          return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+        }
+        const s = String(v).trim();
+        if (!s) return null;
+        const m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+        if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        return null;
+      };
+      const toNum = (v: any) => {
+        if (v === "" || v == null) return null;
+        const n = Number(String(v).replace(/[, ]/g, ""));
+        return isFinite(n) ? n : null;
+      };
+      const toStr = (v: any) => {
+        if (v == null) return null;
+        const s = String(v).trim();
+        return s === "" ? null : s;
       };
       const parseRow = (r: Record<string, any>) => {
         const rawName = String(r["사업명"] ?? "").trim();
@@ -666,8 +685,8 @@ export default function SimilarServices() {
         const hasPhases = items.length > 1 || items.some((it) => it.phaseLabel);
         const phases = hasPhases ? items.map((it) => ({
           label: it.phaseLabel || "",
-          amount: it.r["지분금액"] != null && it.r["지분금액"] !== "" ? Number(it.r["지분금액"]) : null,
-          contract_amount: it.r["계약금액"] != null && it.r["계약금액"] !== "" ? Number(it.r["계약금액"]) : null,
+          amount: toNum(it.r["지분금액"]),
+          contract_amount: toNum(it.r["계약금액"]),
           share_rate: null,
           contract_date: toDate(it.r["계약일"]),
           start_date: toDate(it.r["착수일"]),
@@ -675,25 +694,25 @@ export default function SimilarServices() {
           pdf_path: null,
         })) : null;
         // 대표 값: 차수가 있을 경우 합계/최초~최종으로 집계
-        const sum = (k: string) => items.reduce((s, it) => s + (Number(it.r[k]) || 0), 0);
+        const sum = (k: string) => items.reduce((s, it) => s + (toNum(it.r[k]) ?? 0), 0);
         const firstDate = (k: string) => items.map((it) => toDate(it.r[k])).filter(Boolean).sort()[0] ?? null;
         const lastDate = (k: string) => items.map((it) => toDate(it.r[k])).filter(Boolean).sort().slice(-1)[0] ?? null;
         return {
           created_by: user.id,
           project_name: head.baseName,
-          client: r["발주처"] ?? null,
-          service_type: r["사업종류"] ?? null,
-          evaluation_type: r["평가종류"] ?? null,
-          service_overview: r["용역개요"] ?? null,
-          contract_amount: hasPhases ? Math.round(sum("계약금액")) || null : (r["계약금액"] != null && r["계약금액"] !== "" ? Number(r["계약금액"]) : null),
+          client: toStr(r["발주처"]),
+          service_type: toStr(r["사업종류"]),
+          evaluation_type: toStr(r["평가종류"]),
+          service_overview: toStr(r["용역개요"]),
+          contract_amount: hasPhases ? (Math.round(sum("계약금액")) || null) : toNum(r["계약금액"]),
           contract_date: toDate(r["계약일"]),
           start_date: hasPhases ? firstDate("착수일") : toDate(r["착수일"]),
           completion_date: hasPhases ? lastDate("준공일") : toDate(r["준공일"]),
           is_dual_participation: String(r["2종 분담참여"] ?? "").toUpperCase() === "Y",
-          participation_rate: r["참여지분율(%)"] != null && r["참여지분율(%)"] !== "" ? Number(r["참여지분율(%)"]) : null,
-          company_share_rate: r["각사지분율"] != null && r["각사지분율"] !== "" ? String(r["각사지분율"]) : null,
-          share_amount: hasPhases ? Math.round(sum("지분금액")) || null : (r["지분금액"] != null && r["지분금액"] !== "" ? Number(r["지분금액"]) : null),
-          notes: r["비고"] ?? null,
+          participation_rate: toNum(r["참여지분율(%)"]),
+          company_share_rate: toStr(r["각사지분율"]),
+          share_amount: hasPhases ? (Math.round(sum("지분금액")) || null) : toNum(r["지분금액"]),
+          notes: toStr(r["비고"]),
           phases,
         };
       });
