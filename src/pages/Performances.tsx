@@ -18,6 +18,10 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Download, Loader2, X, Upload, Sparkles, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import * as pdfjsLib from "pdfjs-dist";
+// @ts-ignore - vite worker url import
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 type Period = { start?: string; end?: string };
 type Participant = {
