@@ -180,6 +180,8 @@ export default function Performances() {
   const [noticeDate, setNoticeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
+  const [includeUnder90, setIncludeUnder90] = useState(false);
+  const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev);
@@ -684,7 +686,8 @@ export default function Performances() {
     if (!selectedTech) return [];
     const refDateStr = noticeDate || new Date().toISOString().slice(0, 10);
     const refTime = new Date(refDateStr).getTime();
-    return rows
+
+    const base = rows
       .map((r) => {
         const part = r.participants?.find((p) => p.name === selectedTech);
         if (!part) return null;
@@ -701,6 +704,7 @@ export default function Performances() {
         const cps = getContractPeriods(r);
         const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
         const periods = getPeriods(part);
+        const partDays = periods.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
         const ovSum = cps.reduce((s, cp) =>
           s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
         const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start.localeCompare(b.start));
@@ -713,7 +717,6 @@ export default function Performances() {
         const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
         const periodCount = ratio * evalW * svcW;
 
-        // 10년 경과 판정: 마지막 계약 종료일 기준
         const lastEnd = validCps.length > 0 ? validCps[validCps.length - 1].end : null;
         let expired = false;
         if (lastEnd && !isNaN(refTime)) {
@@ -722,24 +725,62 @@ export default function Performances() {
           expired = refTime - endTime > tenYearsMs;
         }
 
-        return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired };
+        // 사후 + (N차) 차수 인식
+        const isPostEval = evalSet.has("사후");
+        const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
+        const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
+        const baseName = phaseMatch
+          ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim()
+          : r.project_name;
+        const under90 = partDays > 0 && partDays < 90;
+
+        return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
       })
-      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean }>;
+      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
+
+    // 같은 사후 baseName 그룹 중 최대 차수 = 마지막 차
+    const lastPhaseByBase = new Map<string, number>();
+    base.forEach((t) => {
+      if (t.isPostEval && t.phaseNum != null) {
+        const cur = lastPhaseByBase.get(t.baseName) ?? -1;
+        if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
+      }
+    });
+
+    return base.map((t) => {
+      const isPhase = t.isPostEval && t.phaseNum != null;
+      const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
+      return { ...t, isPhase, isLastPhase };
+    });
   }, [rows, selectedTech, techEvalFilter, techServiceFilter, noticeDate]);
 
-  // techRows 변경 시 기본 선택 = 미경과 전체 (사용자가 직접 토글한 적 없으면)
+  // 기본 선택 = 미경과 + 90일 미만 제외(옵션) + 사후차수는 마지막 차만(LH차수제외 옵션 시 모두 제외)
+  const isDefaultSelected = (t: typeof techRows[number]) => {
+    if (t.expired) return false;
+    if (!includeUnder90 && t.under90) return false;
+    if (t.isPhase) {
+      if (excludeLhPhases) return false;
+      if (!t.isLastPhase) return false;
+    }
+    return true;
+  };
+
   useEffect(() => {
     if (techSelectionTouched) {
-      // 만료된 항목은 항상 선택 해제
       setTechSelectedRowIds((prev) => {
         const next = new Set(prev);
-        techRows.forEach((t) => { if (t.expired) next.delete(t.row.id); });
+        techRows.forEach((t) => {
+          if (t.expired) next.delete(t.row.id);
+          if (!includeUnder90 && t.under90) next.delete(t.row.id);
+          if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
+        });
         return next;
       });
       return;
     }
-    setTechSelectedRowIds(new Set(techRows.filter((t) => !t.expired).map((t) => t.row.id)));
-  }, [techRows, techSelectionTouched]);
+    setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases]);
 
   const techTotals = useMemo(() => {
     const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
@@ -748,7 +789,11 @@ export default function Performances() {
     return { simple, period };
   }, [techRows, techSelectedRowIds]);
 
-  const techAllSelectableIds = useMemo(() => techRows.filter((t) => !t.expired).map((t) => t.row.id), [techRows]);
+  const techAllSelectableIds = useMemo(
+    () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [techRows, includeUnder90, excludeLhPhases]
+  );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
   function toggleTechRow(id: string, checked: boolean) {
@@ -969,6 +1014,22 @@ export default function Performances() {
                 </div>
               </div>
             </div>
+            <div className="flex flex-wrap gap-3 pt-2 border-t">
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={includeUnder90}
+                  onCheckedChange={(c) => { setIncludeUnder90(!!c); setTechSelectionTouched(false); }}
+                />
+                참여일수 90일 미만 포함
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={excludeLhPhases}
+                  onCheckedChange={(c) => { setExcludeLhPhases(!!c); setTechSelectionTouched(false); }}
+                />
+                LH사업의 경우 차수분 제외
+              </label>
+            </div>
           </Card>
 
           <div className="flex flex-wrap gap-2 items-center">
@@ -1031,6 +1092,15 @@ export default function Performances() {
                         {t.row.project_name}
                         {t.expired && (
                           <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
+                        )}
+                        {!t.expired && t.under90 && !includeUnder90 && (
+                          <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>
+                        )}
+                        {!t.expired && t.isPhase && !t.isLastPhase && (
+                          <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정되어 집계 제외</div>
+                        )}
+                        {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
+                          <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1103,6 +1173,15 @@ export default function Performances() {
                         <div className="font-medium text-sm break-words">{t.row.project_name}</div>
                         {t.expired && (
                           <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
+                        )}
+                        {!t.expired && t.under90 && !includeUnder90 && (
+                          <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>
+                        )}
+                        {!t.expired && t.isPhase && !t.isLastPhase && (
+                          <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정</div>
+                        )}
+                        {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
+                          <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
                         )}
                       </button>
                       <button
