@@ -339,14 +339,21 @@ export default function SimilarServices() {
         cert_pdf_path: certPath,
       };
 
+      const scrollY = window.scrollY;
+      const restoreScroll = () => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
+          requestAnimationFrame(() => window.scrollTo({ top: scrollY, left: 0, behavior: "auto" }));
+        });
+      };
       if (editing) {
         const { error } = await supabase.from("similar_services").update(payload).eq("id", editing.id);
         if (error) throw error;
-        toast.success("수정 완료"); setOpen(false); load();
+        toast.success("수정 완료"); setOpen(false); await load(); restoreScroll();
       } else {
         const { error } = await supabase.from("similar_services").insert({ ...payload, id: rowFolder, created_by: user.id });
         if (error) throw error;
-        toast.success("등록 완료"); setOpen(false); load();
+        toast.success("등록 완료"); setOpen(false); await load(); restoreScroll();
       }
     } catch (err: any) {
       toast.error(err?.message ?? "저장 실패");
