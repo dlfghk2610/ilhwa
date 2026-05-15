@@ -296,6 +296,7 @@ export type Database = {
           is_dual_participation: boolean
           is_lh_completion: boolean
           is_private: boolean
+          is_progress: boolean
           is_under_90days: boolean
           notes: string | null
           participation_rate: number | null
@@ -322,6 +323,7 @@ export type Database = {
           is_dual_participation?: boolean
           is_lh_completion?: boolean
           is_private?: boolean
+          is_progress?: boolean
           is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
@@ -348,6 +350,7 @@ export type Database = {
           is_dual_participation?: boolean
           is_lh_completion?: boolean
           is_private?: boolean
+          is_progress?: boolean
           is_under_90days?: boolean
           notes?: string | null
           participation_rate?: number | null
