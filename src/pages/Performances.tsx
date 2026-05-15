@@ -575,25 +575,7 @@ export default function Performances() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
-            <div className="ml-auto flex gap-2 items-center flex-wrap">
-              <span className="text-xs text-muted-foreground">
-                {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 대상"}
-              </span>
-              <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
-                <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
-                <span className="text-xs">연번 기입 (착수일 오름차순)</span>
-              </label>
-              <Button variant="outline" onClick={exportExcel}>
-                <Download className="h-4 w-4 mr-1" /> 엑셀
-              </Button>
-              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
-                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
-                실적증명서 PDF
-              </Button>
-              <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
-                {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
-                실적+참여자명단 PDF
-              </Button>
+            <div className="ml-auto">
               <Button onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-1" /> 사업 등록
               </Button>
@@ -604,15 +586,6 @@ export default function Performances() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-8">
-                    <Checkbox
-                      checked={filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))}
-                      onCheckedChange={(c) => {
-                        if (c) setSelectedIds(new Set(filtered.map((r) => r.id)));
-                        else setSelectedIds(new Set());
-                      }}
-                    />
-                  </TableHead>
                   <TableHead>사업명</TableHead>
                   <TableHead>발주처</TableHead>
                   <TableHead>계약기간</TableHead>
