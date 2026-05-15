@@ -24,7 +24,7 @@ type Participant = {
   position?: string;
   responsibility?: string;
 };
-type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null };
+type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; share_amount?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null; participants?: Participant[] };
 
 type Row = {
   id: string;
@@ -330,13 +330,37 @@ export default function PerformanceDatabase() {
   }
 
   function addPhase() {
-    setForm((f) => ({ ...f, phases: [...f.phases, { label: `${f.phases.length + 1}단계`, amount: null, contract_amount: null, share_rate: null, contract_date: null, start_date: null, end_date: null, pdf_path: null }] }));
+    setForm((f) => {
+      const isPost = f.evaluation_types.includes("사후");
+      const label = isPost ? `${f.phases.length + 1}차` : `${f.phases.length + 1}단계`;
+      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, participants: [] }] };
+    });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
     setForm((f) => ({ ...f, phases: f.phases.map((p, i) => i === idx ? { ...p, ...patch } : p) }));
   }
   function removePhase(idx: number) {
     setForm((f) => ({ ...f, phases: f.phases.filter((_, i) => i !== idx) }));
+  }
+  function updatePhaseParticipant(phIdx: number, partIdx: number, key: keyof Participant, val: string) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => j === partIdx ? { ...p, [key]: val } : p) }) }));
+  }
+  function addPhaseParticipant(phIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: [...(ph.participants || []), { name: "", periods: [{ start: "", end: "" }] }] }) }));
+  }
+  function removePhaseParticipant(phIdx: number, partIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).filter((_, j) => j !== partIdx) }) }));
+  }
+  function updatePhaseParticipantPeriod(phIdx: number, partIdx: number, prdIdx: number, key: "start" | "end", v: string) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => {
+      if (j !== partIdx) return p;
+      const periods = (p.periods && p.periods.length > 0) ? [...p.periods] : [{ start: "", end: "" }];
+      periods[prdIdx] = { ...periods[prdIdx], [key]: v };
+      return { ...p, periods };
+    }) }) }));
+  }
+  function addPhaseParticipantPeriod(phIdx: number, partIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => j !== partIdx ? p : { ...p, periods: [...(p.periods || []), { start: "", end: "" }] }) }) }));
   }
 
   function updateParticipant(idx: number, key: keyof Participant, val: string) {
@@ -581,23 +605,55 @@ export default function PerformanceDatabase() {
               ))}
             </div>
 
-            {/* 분담사업 단계 */}
-            {form.is_dual_participation && (
+            {/* 차수/분담사업 단계 */}
+            {(form.is_dual_participation || form.evaluation_types.includes("사후")) && (
               <div className="space-y-2 p-3 rounded-md bg-background border">
                 <div className="flex items-center justify-between">
-                  <Label>분담사업 단계</Label>
-                  <Button type="button" size="sm" variant="outline" onClick={addPhase}><Plus className="h-3 w-3 mr-1" />단계 추가</Button>
+                  <Label>{form.evaluation_types.includes("사후") ? "사후 차수별 정보" : "분담사업 단계"}</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addPhase}><Plus className="h-3 w-3 mr-1" />{form.evaluation_types.includes("사후") ? "차수 추가" : "단계 추가"}</Button>
                 </div>
                 {form.phases.map((p, i) => (
-                  <div key={i} className="grid grid-cols-2 md:grid-cols-4 gap-2 border rounded p-2">
-                    <Input placeholder="단계명" value={p.label} onChange={(e) => updatePhase(i, { label: e.target.value })} />
-                    <Input type="number" placeholder="계약금액" value={p.contract_amount ?? ""} onChange={(e) => updatePhase(i, { contract_amount: e.target.value ? Number(e.target.value) : null })} />
-                    <Input type="number" placeholder="지분율(%)" value={p.share_rate ?? ""} onChange={(e) => updatePhase(i, { share_rate: e.target.value ? Number(e.target.value) : null })} />
-                    <Input type="number" placeholder="금액" value={p.amount ?? ""} onChange={(e) => updatePhase(i, { amount: e.target.value ? Number(e.target.value) : null })} />
-                    <DateInput value={p.contract_date || ""} onChange={(v) => updatePhase(i, { contract_date: v || null })} placeholder="계약일" />
-                    <DateInput value={p.start_date || ""} onChange={(v) => updatePhase(i, { start_date: v || null })} placeholder="착수일" />
-                    <DateInput value={p.end_date || ""} onChange={(v) => updatePhase(i, { end_date: v || null })} placeholder="종료일" />
-                    <Button type="button" size="sm" variant="ghost" onClick={() => removePhase(i)}><X className="h-4 w-4 mr-1" />삭제</Button>
+                  <div key={i} className="border rounded p-2 space-y-2 bg-muted/20">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <Input placeholder="차수/단계명" value={p.label} onChange={(e) => updatePhase(i, { label: e.target.value })} />
+                      <Input type="number" placeholder="계약금액" value={p.contract_amount ?? ""} onChange={(e) => updatePhase(i, { contract_amount: e.target.value ? Number(e.target.value) : null })} />
+                      <Input type="number" placeholder="지분율(%)" value={p.share_rate ?? ""} onChange={(e) => updatePhase(i, { share_rate: e.target.value ? Number(e.target.value) : null })} />
+                      <Input type="number" placeholder="지분금액" value={p.share_amount ?? p.amount ?? ""} onChange={(e) => updatePhase(i, { share_amount: e.target.value ? Number(e.target.value) : null, amount: e.target.value ? Number(e.target.value) : null })} />
+                      <DateInput value={p.contract_date || ""} onChange={(v) => updatePhase(i, { contract_date: v || null })} placeholder="계약일" />
+                      <DateInput value={p.start_date || ""} onChange={(v) => updatePhase(i, { start_date: v || null })} placeholder="착수일" />
+                      <DateInput value={p.end_date || ""} onChange={(v) => updatePhase(i, { end_date: v || null })} placeholder="종료일" />
+                      <Button type="button" size="sm" variant="ghost" onClick={() => removePhase(i)}><X className="h-4 w-4 mr-1" />삭제</Button>
+                    </div>
+
+                    {/* 차수별 참여 기술자 */}
+                    <div className="border-t pt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">참여 기술자</span>
+                        <Button type="button" size="sm" variant="outline" onClick={() => addPhaseParticipant(i)}><Plus className="h-3 w-3 mr-1" />기술자 추가</Button>
+                      </div>
+                      {(p.participants || []).map((pt, j) => (
+                        <div key={j} className="border rounded p-2 space-y-2 bg-background">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input className="max-w-[140px]" placeholder="성명" value={pt.name} onChange={(e) => updatePhaseParticipant(i, j, "name", e.target.value)} />
+                            <Input className="max-w-[120px]" placeholder="생년월일" value={pt.birth_date || ""} onChange={(e) => updatePhaseParticipant(i, j, "birth_date", formatDate(e.target.value))} />
+                            <Input className="max-w-[120px]" placeholder="전문분야" value={pt.specialty || ""} onChange={(e) => updatePhaseParticipant(i, j, "specialty", e.target.value)} />
+                            <Input className="max-w-[100px]" placeholder="직위" value={pt.position || ""} onChange={(e) => updatePhaseParticipant(i, j, "position", e.target.value)} />
+                            <Input className="max-w-[100px]" placeholder="책임정도" value={pt.responsibility || ""} onChange={(e) => updatePhaseParticipant(i, j, "responsibility", e.target.value)} />
+                            <Button type="button" size="icon" variant="ghost" onClick={() => removePhaseParticipant(i, j)}><X className="h-4 w-4" /></Button>
+                          </div>
+                          <div className="space-y-1">
+                            {(pt.periods && pt.periods.length > 0 ? pt.periods : [{ start: "", end: "" }]).map((pd, k) => (
+                              <div key={k} className="flex items-center gap-2">
+                                <DateInput className="max-w-[140px]" value={pd.start || ""} onChange={(v) => updatePhaseParticipantPeriod(i, j, k, "start", v)} />
+                                <span>~</span>
+                                <DateInput className="max-w-[140px]" value={pd.end || ""} onChange={(v) => updatePhaseParticipantPeriod(i, j, k, "end", v)} />
+                              </div>
+                            ))}
+                            <Button type="button" size="sm" variant="ghost" onClick={() => addPhaseParticipantPeriod(i, j)}><Plus className="h-3 w-3 mr-1" />참여기간 추가</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
