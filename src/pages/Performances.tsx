@@ -901,18 +901,6 @@ export default function Performances() {
               <p className="text-xs text-muted-foreground">HWP는 직접 지원되지 않습니다. PDF 또는 DOCX로 변환 후 업로드하세요.</p>
 
               <div className="overflow-x-auto">
-                <Table className="min-w-[1200px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[110px]">성명</TableHead>
-                      <TableHead className="w-[140px]">생년월일</TableHead>
-                      <TableHead className="w-[150px]">참여시작</TableHead>
-                      <TableHead className="w-[150px]">참여종료</TableHead>
-                      <TableHead className="w-[120px]">전문분야</TableHead>
-                      <TableHead className="min-w-[160px]">담당업무</TableHead>
-                      <TableHead className="w-[110px]">직위</TableHead>
-                      <TableHead className="w-[110px]">책임정도</TableHead>
-              <div className="overflow-x-auto">
                 <Table className="min-w-[1100px]">
                   <TableHeader>
                     <TableRow>
