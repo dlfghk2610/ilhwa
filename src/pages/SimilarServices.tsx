@@ -95,6 +95,7 @@ export default function SimilarServices() {
   const [includeUnder90, setIncludeUnder90] = useUserStorage<boolean>("similar_services.include_under90.v1", false, uid);
   const [includeLh, setIncludeLh] = useUserStorage<boolean>("similar_services.include_lh.v1", false, uid);
   const [includeProgress, setIncludeProgress] = useUserStorage<boolean>("similar_services.include_progress.v1", false, uid);
+  const [includeDual, setIncludeDual] = useUserStorage<boolean>("similar_services.include_dual.v1", true, uid);
 
   // 공고일 (계정별): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const [filterAnnouncementDate, setFilterAnnouncementDate] = useUserStorage<string>("similar_services.announcement_date.v1", "", uid);
