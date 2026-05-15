@@ -640,8 +640,27 @@ export default function SimilarServices() {
       const data = await importFromExcel<Record<string, any>>(file);
       const toDate = (v: any) => {
         if (v === "" || v == null) return null;
-        if (typeof v === "number") return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
-        return String(v).slice(0, 10);
+        if (typeof v === "number") {
+          if (!isFinite(v)) return null;
+          return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+        }
+        const s = String(v).trim();
+        if (!s) return null;
+        const m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+        if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        return null;
+      };
+      const toNum = (v: any) => {
+        if (v === "" || v == null) return null;
+        const n = Number(String(v).replace(/[, ]/g, ""));
+        return isFinite(n) ? n : null;
+      };
+      const toStr = (v: any) => {
+        if (v == null) return null;
+        const s = String(v).trim();
+        return s === "" ? null : s;
       };
       const parseRow = (r: Record<string, any>) => {
         const rawName = String(r["사업명"] ?? "").trim();
