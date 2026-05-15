@@ -822,6 +822,11 @@ export default function Performances() {
                       {form.cert_pdf_file?.name ?? "기존 파일 등록됨"}
                     </Badge>
                   )}
+                  {form.cert_pdf_path && !form.cert_pdf_file && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path, `${form.project_name || "cert"}.pdf`)}>
+                      <Download className="h-4 w-4 mr-1" />다운로드
+                    </Button>
+                  )}
                   {(form.cert_pdf_path || form.cert_pdf_file) && (
                     <Button
                       type="button"
