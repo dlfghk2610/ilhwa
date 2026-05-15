@@ -709,7 +709,7 @@ export default function Performances() {
 
       {/* ====== 등록/수정 다이얼로그 ====== */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "사업 수정" : "사업 등록"}</DialogTitle>
           </DialogHeader>
