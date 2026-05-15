@@ -872,18 +872,18 @@ export default function Performances() {
               <p className="text-xs text-muted-foreground">HWP는 직접 지원되지 않습니다. PDF 또는 DOCX로 변환 후 업로드하세요.</p>
 
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>성명</TableHead>
-                      <TableHead>생년월일</TableHead>
-                      <TableHead>참여시작</TableHead>
-                      <TableHead>참여종료</TableHead>
-                      <TableHead>전문분야</TableHead>
-                      <TableHead>담당업무</TableHead>
-                      <TableHead>직위</TableHead>
-                      <TableHead>책임정도</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="w-[110px]">성명</TableHead>
+                      <TableHead className="w-[140px]">생년월일</TableHead>
+                      <TableHead className="w-[150px]">참여시작</TableHead>
+                      <TableHead className="w-[150px]">참여종료</TableHead>
+                      <TableHead className="w-[120px]">전문분야</TableHead>
+                      <TableHead className="min-w-[160px]">담당업무</TableHead>
+                      <TableHead className="w-[110px]">직위</TableHead>
+                      <TableHead className="w-[110px]">책임정도</TableHead>
+                      <TableHead className="w-[44px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -891,15 +891,15 @@ export default function Performances() {
                       <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-4">파일 업로드 후 AI 자동추출 또는 + 버튼으로 추가</TableCell></TableRow>
                     ) : form.participants.map((p, i) => (
                       <TableRow key={i}>
-                        <TableCell><Input value={p.name || ""} onChange={(e) => updateParticipant(i, "name", e.target.value)} /></TableCell>
-                        <TableCell><Input value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", e.target.value)} placeholder="YYYY-MM-DD" /></TableCell>
-                        <TableCell><Input type="date" value={p.period_start || ""} onChange={(e) => updateParticipant(i, "period_start", e.target.value)} /></TableCell>
-                        <TableCell><Input type="date" value={p.period_end || ""} onChange={(e) => updateParticipant(i, "period_end", e.target.value)} /></TableCell>
-                        <TableCell><Input value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} /></TableCell>
-                        <TableCell><Input value={p.duties || ""} onChange={(e) => updateParticipant(i, "duties", e.target.value)} /></TableCell>
-                        <TableCell><Input value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} /></TableCell>
-                        <TableCell><Input value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} /></TableCell>
-                        <TableCell><Button size="icon" variant="ghost" onClick={() => removeParticipant(i)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.name || ""} onChange={(e) => updateParticipant(i, "name", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", e.target.value)} placeholder="YYYY-MM-DD" /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" type="date" value={p.period_start || ""} onChange={(e) => updateParticipant(i, "period_start", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" type="date" value={p.period_end || ""} onChange={(e) => updateParticipant(i, "period_end", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.duties || ""} onChange={(e) => updateParticipant(i, "duties", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Input className="h-8" value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} /></TableCell>
+                        <TableCell className="p-1.5"><Button size="icon" variant="ghost" onClick={() => removeParticipant(i)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
