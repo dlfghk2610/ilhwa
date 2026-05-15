@@ -982,7 +982,15 @@ export default function SimilarServices() {
                                     value={p.end_date}
                                     onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
                                   />
-                                  <div className="col-span-3" />
+                                  <Input
+                                    className="col-span-3"
+                                    type="date"
+                                    min="1900-01-01"
+                                    max="9999-12-31"
+                                    placeholder="계약일자"
+                                    value={p.contract_date}
+                                    onChange={(e) => updatePhase(i, "contract_date", clampDate(e.target.value))}
+                                  />
                                   <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
                                     <X className="h-4 w-4" />
                                   </Button>
