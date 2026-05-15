@@ -1177,7 +1177,6 @@ export default function SimilarServices() {
                     </TableCell>
                     <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">{r.project_name}{phaseSuffix(r)}</TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.contract_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.completion_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.contract_amount)}</TableCell>
@@ -1185,8 +1184,6 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap text-right align-middle">{fmtNum(r.share_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.evaluation_type ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{r.service_type ?? "-"}</TableCell>
-                    <TableCell className="min-w-[140px] max-w-[200px] whitespace-pre-wrap break-words align-middle">{r.is_dual_participation ? "-" : (r.company_share_rate ?? "-")}</TableCell>
-                    <TableCell className="whitespace-nowrap text-center align-middle">{r.is_dual_participation ? "✓" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{appliedCount(r).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
