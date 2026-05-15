@@ -586,27 +586,27 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
 }
 
 // ─────────────────────────────────────────────────────────
-// ② 중복일수 계산 (시간순 시프트)
+// ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
 function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.recognizedDays > 0);
+    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
-    const result: { specialty: string; items: ReturnType<typeof computeShifted> }[] = [];
+    const result: { specialty: string; chosen: ReturnType<typeof selectOptimal> }[] = [];
     for (const [specialty, arr] of map) {
-      result.push({ specialty, items: computeShifted(arr) });
+      result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
   }, [entries, tech.specialty]);
 
-  const grandConv = +groups.reduce((s, g) => s + g.items.reduce((a, b) => a + b.convertedDays, 0), 0).toFixed(2);
-  const grandPart = groups.reduce((s, g) => s + g.items.reduce((a, b) => a + b.participationDays, 0), 0);
-  const grandCount = groups.reduce((s, g) => s + g.items.length, 0);
+  const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
+  const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
+  const grandCount = groups.reduce((s, g) => s + g.chosen.length, 0);
 
   if (!entries.length) {
     return <div className="text-center py-8 text-muted-foreground">엑셀을 업로드하면 결과가 표시됩니다</div>;
@@ -618,23 +618,24 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
   return (
     <div className="space-y-3">
       <Card className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div><div className="text-muted-foreground">총 건수</div><div className="font-bold text-lg">{grandCount}건</div></div>
+        <div><div className="text-muted-foreground">선택된 건수</div><div className="font-bold text-lg">{grandCount}건</div></div>
         <div><div className="text-muted-foreground">총 참여일수</div><div className="font-bold text-lg">{grandPart.toLocaleString()}일</div></div>
         <div><div className="text-muted-foreground">총 환산일수</div><div className="font-bold text-lg">{grandConv.toLocaleString()}일</div></div>
         <div><div className="text-muted-foreground">환산 (년/월)</div><div className="font-bold text-lg">{daysToYearMonth(grandConv)}</div></div>
       </Card>
       <div className="text-xs text-muted-foreground">
-        같은 전문분야 안에서 시간순으로 정렬한 뒤, 직전 사업의 종료일과 겹치는 구간은 잘라내고 (중복제외 시작일 = 직전 종료일 + 1일) 이후 일수만 인정합니다.
+        같은 전문분야 안에서 기간이 겹치지 않는 조합 중 환산일수 합이 최대가 되도록 선택된 항목만 표시합니다.
       </div>
       {groups.map((g) => {
-        if (!g.items.length) return null;
-        const sumConv = +g.items.reduce((a, b) => a + b.convertedDays, 0).toFixed(2);
-        const sumPart = g.items.reduce((a, b) => a + b.participationDays, 0);
+        if (!g.chosen.length) return null;
+        const itemsConv = g.chosen.map((it) => ({ it, conv: +(it.participationDays * it.row.weight).toFixed(2) }));
+        const sumConv = +itemsConv.reduce((a, b) => a + b.conv, 0).toFixed(2);
+        const sumPart = g.chosen.reduce((a, b) => a + b.participationDays, 0);
         return (
           <Card key={g.specialty} className="p-3">
             <div className="font-semibold mb-2">전문분야: {g.specialty}</div>
             <div className="overflow-auto">
-              <Table className="min-w-[1200px] text-xs">
+              <Table className="min-w-[1100px] text-xs">
                 <TableHeader>
                   <TableRow>
                     <TableHead>사업명</TableHead>
@@ -654,20 +655,20 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {g.items.map((it, i) => (
-                    <TableRow key={it.row.entry.id || i} className={it.participationDays === 0 ? "opacity-60" : ""}>
+                  {itemsConv.map(({ it, conv }, i) => (
+                    <TableRow key={it.row.entry.id || i}>
                       <TableCell className="max-w-[200px] truncate">{it.row.entry.project_name}</TableCell>
                       <TableCell>{it.row.entry.client}</TableCell>
                       <TableCell>{it.row.entry.specialty}</TableCell>
                       <TableCell>{it.row.entry.duties}</TableCell>
                       <TableCell><Badge variant={it.row.evalGroup === "환경" ? "default" : "secondary"}>{it.row.evalGroup}</Badge></TableCell>
-                      <TableCell>{fmtDate(it.origStart)}</TableCell>
-                      <TableCell>{fmtDate(it.origEnd)}</TableCell>
-                      <TableCell>{fmtDate(it.adjStart)}</TableCell>
-                      <TableCell>{fmtDate(it.adjEnd)}</TableCell>
+                      <TableCell>{formatIso(it.row.entry.period_start)}</TableCell>
+                      <TableCell>{it.row.entry.period_end_text}</TableCell>
+                      <TableCell>{formatIso(it.row.entry.period_start)}</TableCell>
+                      <TableCell>{it.row.entry.period_end_text}</TableCell>
                       <TableCell className="text-right">{it.participationDays}</TableCell>
                       <TableCell className="text-right">{it.row.weight.toFixed(1)}</TableCell>
-                      <TableCell className="text-right font-medium">{it.convertedDays}</TableCell>
+                      <TableCell className="text-right font-medium">{conv}</TableCell>
                       <TableCell>{it.row.entry.participation_company}</TableCell>
                       <TableCell>{it.row.entry.participation_position}</TableCell>
                     </TableRow>
