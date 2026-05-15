@@ -247,6 +247,7 @@ export default function Performances() {
       participant_file_path: r.participant_file_path || "",
       cert_pdf_file: null,
       cert_pdf_path: r.cert_pdf_path || "",
+      is_private: (r as any).is_private ?? false,
     });
     setShareAmountTouched(true);
     setOpen(true);
