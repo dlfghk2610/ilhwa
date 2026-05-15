@@ -62,6 +62,7 @@ const emptyForm = {
   is_private: false,
   is_under_90days: false,
   is_lh_completion: false,
+  is_progress: false,
   notes: "",
   phases: [] as { label: string; amount: string; contract_amount: string; share_rate: string; contract_date: string; start_date: string; end_date: string; pdf_path: string; pdf_file: File | null; amount_touched: boolean }[],
   cert_pdf_path: "",
