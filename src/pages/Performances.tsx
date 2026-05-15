@@ -1183,6 +1183,7 @@ export default function Performances() {
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
                           <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
                         )}
+                      </button>
                       <button
                         type="button"
                         onClick={() => toggleExpandedTechRow(t.row.id)}
