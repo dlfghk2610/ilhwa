@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -117,7 +117,9 @@ export function ThemeSettings() {
   const uid = user?.id;
   const [color, setColor] = useState<string>(DEFAULT_PRIMARY);
   const [sidebarColor, setSidebarColor] = useState<string>(DEFAULT_SIDEBAR);
-  const [hydrated, setHydrated] = useState(false);
+  // Track which uid the current state was loaded for; persist effects must
+  // not run with values from a previous user against a new user's keys.
+  const loadedUidRef = useRef<string | null | undefined>(undefined);
 
   // Load when user (scope) changes
   useEffect(() => {
@@ -127,21 +129,21 @@ export function ThemeSettings() {
     setSidebarColor(s);
     applyPrimary(c);
     applySidebar(s);
-    setHydrated(true);
+    loadedUidRef.current = uid ?? null;
   }, [uid]);
 
-  // Persist + apply on change (only after hydration so we don't overwrite stored value with default)
+  // Persist + apply on change — only after load for THIS uid completed.
   useEffect(() => {
-    if (!hydrated) return;
+    if (loadedUidRef.current !== (uid ?? null)) return;
     applyPrimary(color);
     try { localStorage.setItem(primaryKey(uid), color); } catch {}
-  }, [color, uid, hydrated]);
+  }, [color, uid]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (loadedUidRef.current !== (uid ?? null)) return;
     applySidebar(sidebarColor);
     try { localStorage.setItem(sidebarKey(uid), sidebarColor); } catch {}
-  }, [sidebarColor, uid, hydrated]);
+  }, [sidebarColor, uid]);
 
   return (
     <Popover>
