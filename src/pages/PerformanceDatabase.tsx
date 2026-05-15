@@ -330,13 +330,37 @@ export default function PerformanceDatabase() {
   }
 
   function addPhase() {
-    setForm((f) => ({ ...f, phases: [...f.phases, { label: `${f.phases.length + 1}단계`, amount: null, contract_amount: null, share_rate: null, contract_date: null, start_date: null, end_date: null, pdf_path: null }] }));
+    setForm((f) => {
+      const isPost = f.evaluation_types.includes("사후");
+      const label = isPost ? `${f.phases.length + 1}차` : `${f.phases.length + 1}단계`;
+      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, participants: [] }] };
+    });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
     setForm((f) => ({ ...f, phases: f.phases.map((p, i) => i === idx ? { ...p, ...patch } : p) }));
   }
   function removePhase(idx: number) {
     setForm((f) => ({ ...f, phases: f.phases.filter((_, i) => i !== idx) }));
+  }
+  function updatePhaseParticipant(phIdx: number, partIdx: number, key: keyof Participant, val: string) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => j === partIdx ? { ...p, [key]: val } : p) }) }));
+  }
+  function addPhaseParticipant(phIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: [...(ph.participants || []), { name: "", periods: [{ start: "", end: "" }] }] }) }));
+  }
+  function removePhaseParticipant(phIdx: number, partIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).filter((_, j) => j !== partIdx) }) }));
+  }
+  function updatePhaseParticipantPeriod(phIdx: number, partIdx: number, prdIdx: number, key: "start" | "end", v: string) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => {
+      if (j !== partIdx) return p;
+      const periods = (p.periods && p.periods.length > 0) ? [...p.periods] : [{ start: "", end: "" }];
+      periods[prdIdx] = { ...periods[prdIdx], [key]: v };
+      return { ...p, periods };
+    }) }) }));
+  }
+  function addPhaseParticipantPeriod(phIdx: number, partIdx: number) {
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => j !== partIdx ? p : { ...p, periods: [...(p.periods || []), { start: "", end: "" }] }) }) }));
   }
 
   function updateParticipant(idx: number, key: keyof Participant, val: string) {
