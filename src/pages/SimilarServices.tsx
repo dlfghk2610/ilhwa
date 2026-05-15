@@ -1062,7 +1062,7 @@ export default function SimilarServices() {
                               <div className="col-span-2">차수명</div>
                               <div className="col-span-3">착수일</div>
                               <div className="col-span-3">준공일</div>
-                              <div className="col-span-3 text-right">지분금액 합계</div>
+                              <div className="col-span-3">계약일자</div>
                             </div>
                             <div className="text-xs text-right text-muted-foreground">
                               차수 합계: {phasesTotal.toLocaleString()} 원
