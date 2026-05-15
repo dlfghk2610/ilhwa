@@ -206,6 +206,23 @@ export default function Performances() {
     }
   }
 
+  async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string, filename?: string) {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || path.split("/").pop() || "download";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message ?? "다운로드 실패");
+    }
+  }
+
   async function handleSubmit() {
     if (!user) return;
     if (!form.project_name.trim()) { toast.error("사업명을 입력하세요"); return; }
@@ -805,6 +822,11 @@ export default function Performances() {
                       {form.cert_pdf_file?.name ?? "기존 파일 등록됨"}
                     </Badge>
                   )}
+                  {form.cert_pdf_path && !form.cert_pdf_file && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path, `${form.project_name || "cert"}.pdf`)}>
+                      <Download className="h-4 w-4 mr-1" />다운로드
+                    </Button>
+                  )}
                   {(form.cert_pdf_path || form.cert_pdf_file) && (
                     <Button
                       type="button"
@@ -823,13 +845,21 @@ export default function Performances() {
             <div className="border-t pt-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">참여자명단</h3>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-wrap">
                   <Input
                     type="file"
                     accept=".pdf,.docx,.doc,application/pdf"
                     className="max-w-xs"
                     onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] ?? null })}
                   />
+                  {form.participant_file_path && !form.participant_file && (
+                    <>
+                      <Badge variant="secondary">기존 파일 등록됨</Badge>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path, `${form.project_name || "participants"}-참여자명단.${form.participant_file_path.split(".").pop() || "pdf"}`)}>
+                        <Download className="h-4 w-4 mr-1" />다운로드
+                      </Button>
+                    </>
+                  )}
                   <Button type="button" variant="outline" disabled={!form.participant_file || extracting} onClick={handleExtractParticipants}>
                     {extracting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
                     AI 자동추출

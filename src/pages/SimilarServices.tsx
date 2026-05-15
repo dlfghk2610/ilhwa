@@ -259,6 +259,23 @@ export default function SimilarServices() {
     return path;
   };
 
+  const downloadPdf = async (path: string, filename?: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("performance-certs").download(path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || path.split("/").pop() || "download.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message ?? "다운로드 실패");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -980,6 +997,13 @@ export default function SimilarServices() {
                                   {p.pdf_path && !p.pdf_file && (
                                     <span className="text-primary">기존 파일 등록됨</span>
                                   )}
+                                  {p.pdf_path && !p.pdf_file && (
+                                    <button
+                                      type="button"
+                                      className="text-primary hover:underline inline-flex items-center gap-0.5"
+                                      onClick={() => downloadPdf(p.pdf_path!, `${form.project_name || "phase"}-${p.label || (i + 1) + "차"}.pdf`)}
+                                    ><Download className="h-3 w-3" />다운로드</button>
+                                  )}
                                   {(p.pdf_path || p.pdf_file) && (
                                     <button
                                       type="button"
@@ -1020,7 +1044,14 @@ export default function SimilarServices() {
                             className="text-sm"
                           />
                           {form.cert_pdf_path && !form.cert_pdf_file && (
-                            <div className="text-xs text-primary">기존 파일이 등록되어 있습니다.</div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-primary">기존 파일이 등록되어 있습니다.</span>
+                              <button
+                                type="button"
+                                className="text-primary hover:underline inline-flex items-center gap-0.5"
+                                onClick={() => downloadPdf(form.cert_pdf_path, `${form.project_name || "cert"}.pdf`)}
+                              ><Download className="h-3 w-3" />다운로드</button>
+                            </div>
                           )}
                           {(form.cert_pdf_path || form.cert_pdf_file) && (
                             <button
