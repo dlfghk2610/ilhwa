@@ -1174,7 +1174,15 @@ export default function Performances() {
                         {t.expired && (
                           <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>
                         )}
-                      </button>
+                        {!t.expired && t.under90 && !includeUnder90 && (
+                          <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>
+                        )}
+                        {!t.expired && t.isPhase && !t.isLastPhase && (
+                          <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정</div>
+                        )}
+                        {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && (
+                          <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>
+                        )}
                       <button
                         type="button"
                         onClick={() => toggleExpandedTechRow(t.row.id)}
