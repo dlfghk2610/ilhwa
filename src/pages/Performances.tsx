@@ -377,26 +377,41 @@ export default function Performances() {
 
   function exportExcel() {
     const sorted = getTargets();
+    const tech = selectedTech.trim();
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
-      return {
+      const row: Record<string, any> = {
         ...base,
         사업명: r.project_name,
         사업개요: r.service_overview ?? "",
         발주처: r.client ?? "",
         계약시작일: r.contract_start_date ?? "",
         계약종료일: r.contract_end_date ?? "",
+        "계약기간일수": r.contract_start_date && r.contract_end_date ? daysBetween(r.contract_start_date, r.contract_end_date) : "",
         계약금액: r.contract_amount ?? "",
         "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
         지분금액: r.share_amount ?? "",
         평가종류: r.evaluation_types.join(", "),
         사업종류: r.service_types.join(", "),
         각사지분율: r.company_share_rate ?? "",
-        참여자수: r.participants.length,
-        비고: r.notes ?? "",
       };
+      if (tech) {
+        const part = r.participants?.find((p) => p.name === tech);
+        const periods = part ? getPeriods(part) : [];
+        const partDays = (r.contract_start_date && r.contract_end_date)
+          ? periods.reduce((s, pd) => s + (pd.start && pd.end ? overlapDays(r.contract_start_date!, r.contract_end_date!, pd.start, pd.end) : 0), 0)
+          : 0;
+        row["참여기간"] = periods.map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ");
+        row["참여기간일수"] = part ? partDays : "";
+        row["전문분야"] = part?.specialty ?? "";
+        row["직위"] = part?.position ?? "";
+        row["책임정도"] = part?.responsibility ?? "";
+      }
+      row["비고"] = r.notes ?? "";
+      return row;
     });
-    exportToExcel(data, "PQ개인별실적");
+    const filename = tech ? `PQ개인별실적 - ${tech}` : "PQ개인별실적";
+    exportToExcel(data, filename);
   }
 
   async function exportMergedPdf(includeParticipants: boolean) {
