@@ -184,6 +184,7 @@ export default function Performances() {
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
   const [includeUnder90, setIncludeUnder90] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
+  const [excludePrivate, setExcludePrivate] = useState(false);
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev);
