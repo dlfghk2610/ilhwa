@@ -17,7 +17,7 @@ import { exportToExcel, importFromExcel } from "@/lib/excel";
 import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
-  dateDiffDaysInclusive, evalWeight, selectOptimal,
+  dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
 } from "@/lib/career-calc";
 
 type Technician = {
