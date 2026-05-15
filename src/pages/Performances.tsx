@@ -1014,6 +1014,22 @@ export default function Performances() {
                 </div>
               </div>
             </div>
+            <div className="flex flex-wrap gap-3 pt-2 border-t">
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={includeUnder90}
+                  onCheckedChange={(c) => { setIncludeUnder90(!!c); setTechSelectionTouched(false); }}
+                />
+                참여일수 90일 미만 포함
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={excludeLhPhases}
+                  onCheckedChange={(c) => { setExcludeLhPhases(!!c); setTechSelectionTouched(false); }}
+                />
+                LH사업의 경우 차수분 제외
+              </label>
+            </div>
           </Card>
 
           <div className="flex flex-wrap gap-2 items-center">
