@@ -635,7 +635,9 @@ export default function Performances() {
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {isoToDisplay(r.contract_start_date)} ~ {isoToDisplay(r.contract_end_date)}
+                      {getContractPeriods(r).map((pd, pi) => (
+                        <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                      ))}
                     </TableCell>
                     <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
                     <TableCell className="text-right">{r.share_rate != null ? `${r.share_rate}%` : ""}</TableCell>
