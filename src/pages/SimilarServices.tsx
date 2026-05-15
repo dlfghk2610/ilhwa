@@ -406,6 +406,15 @@ export default function SimilarServices() {
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 모바일에서 행 펼치기
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
   // 연번 기입 옵션
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const toggleSelect = (id: string) => {
@@ -1143,7 +1152,8 @@ export default function SimilarServices() {
         </Card>
 
         <Card className="shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* 데스크톱 테이블 */}
+          <div className="overflow-x-auto hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -1206,7 +1216,57 @@ export default function SimilarServices() {
               </TableBody>
             </Table>
           </div>
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t flex justify-between">
+
+          {/* 모바일 카드 리스트 */}
+          <div className="md:hidden divide-y">
+            {loading ? (
+              <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm px-4">데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.</div>
+            ) : filtered.map((r) => {
+              const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
+              const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
+              const expanded = expandedIds.has(r.id);
+              return (
+                <div key={r.id} className="px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(r.id)}
+                      className="flex-1 text-left text-sm font-medium break-words"
+                    >
+                      {r.project_name}{phaseSuffix(r)}
+                    </button>
+                    <span className="text-xs text-muted-foreground shrink-0">{expanded ? "접기" : "펼치기"}</span>
+                  </div>
+                  {expanded && (
+                    <div className="mt-2 ml-6 space-y-1.5 text-xs">
+                      <div className="grid grid-cols-[88px_1fr] gap-y-1">
+                        <span className="text-muted-foreground">발주처</span><span className="break-words">{r.client ?? "-"}</span>
+                        <span className="text-muted-foreground">평가종류</span><span>{r.evaluation_type ?? "-"}</span>
+                        <span className="text-muted-foreground">사업종류</span><span>{r.service_type ?? "-"}</span>
+                        <span className="text-muted-foreground">착수일</span><span>{fmtDate(r.start_date)}</span>
+                        <span className="text-muted-foreground">준공일</span><span>{fmtDate(r.completion_date)}</span>
+                        <span className="text-muted-foreground">계약금액</span><span>{fmtNum(r.contract_amount)}</span>
+                        <span className="text-muted-foreground">참여(%)</span><span>{r.is_dual_participation ? "-" : (r.participation_rate == null ? "-" : `${fmtNum(r.participation_rate)}%`)}</span>
+                        <span className="text-muted-foreground">지분금액</span><span>{fmtNum(r.share_amount)}</span>
+                        <span className="text-muted-foreground">적용건수</span><span className="font-medium">{appliedCount(r).toFixed(2)}</span>
+                        <span className="text-muted-foreground">적용금액</span><span className="font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</span>
+                        <span className="text-muted-foreground">PDF</span><span>{hasPdf ? <FileText className="h-3.5 w-3.5 text-primary inline" /> : "-"}</span>
+                      </div>
+                      <div className="flex justify-end gap-1 pt-1">
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 mr-1" />수정</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 mr-1 text-destructive" />삭제</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t flex flex-col sm:flex-row gap-1 sm:justify-between">
             <span>총 {filtered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
