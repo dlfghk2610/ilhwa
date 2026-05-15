@@ -776,7 +776,16 @@ export default function Performances() {
                           {t.row.service_types.map((x) => <Badge key={x} variant="outline">{x}</Badge>)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{isoToDisplay(t.row.contract_start_date)} ~ {isoToDisplay(t.row.contract_end_date)}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {getContractPeriods(t.row).map((pd, pi) => (
+                          <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                        ))}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {getPeriods(t.part).map((pd, pi) => (
+                          <div key={pi}>{isoToDisplay(pd.start)} ~ {isoToDisplay(pd.end)}</div>
+                        ))}
+                      </TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{getPeriods(t.part).map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join(", ")}</TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
