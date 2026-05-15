@@ -252,6 +252,7 @@ export default function SimilarServices() {
       is_private: (row as any).is_private ?? false,
       is_under_90days: (row as any).is_under_90days ?? false,
       is_lh_completion: (row as any).is_lh_completion ?? false,
+      is_progress: (row as any).is_progress ?? false,
       notes: row.notes ?? "",
       phases: phases.map((p) => ({ label: p.label ?? "", amount: p.amount != null ? String(p.amount) : "", contract_amount: (p as any).contract_amount != null ? String((p as any).contract_amount) : "", share_rate: (p as any).share_rate != null ? String((p as any).share_rate) : "", contract_date: (p as any).contract_date ?? "", start_date: p.start_date ?? "", end_date: p.end_date ?? "", pdf_path: (p as any).pdf_path ?? "", pdf_file: null, amount_touched: true })),
       cert_pdf_path: (row as any).cert_pdf_path ?? "",
