@@ -24,6 +24,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  // displayName 입력값은 회사명으로 사용됩니다
   const [autoLogin, setAutoLogin] = useState<boolean>(() => localStorage.getItem("pq-auto-login") !== "0");
 
   const applyAutoLoginPref = (checked: boolean) => {
@@ -56,11 +57,12 @@ export default function Auth() {
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) { toast.error(parsed.error.errors[0].message); return; }
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
+    const companyName = displayName || email.split("@")[0];
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email, password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { display_name: displayName || email.split("@")[0] },
+        data: { display_name: companyName, company: companyName },
       },
     });
     setSubmitting(false);
@@ -74,6 +76,10 @@ export default function Auth() {
         toast.error(error.message);
       }
       return;
+    }
+    // profiles.company 동기화 (트리거는 display_name만 채우므로 company 별도 업데이트)
+    if (signUpData?.user) {
+      await supabase.from("profiles").update({ company: companyName }).eq("id", signUpData.user.id);
     }
     applyAutoLoginPref(autoLogin); toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
   };
@@ -114,8 +120,8 @@ export default function Auth() {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="su-name">이름</Label>
-                  <Input id="su-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="홍길동" />
+                  <Label htmlFor="su-name">회사명</Label>
+                  <Input id="su-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="(주)○○엔지니어링" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-email">이메일</Label>
