@@ -251,12 +251,6 @@ function TechnicianDetail({
     setSpecialtyEdit(false);
   };
 
-  // 엑셀 양식 다운로드
-  const downloadTemplate = () => {
-    const sample = [Object.fromEntries(EXCEL_HEADERS.map((h) => [h, ""]))];
-    exportToExcel(sample, `경력_업로드양식_${tech.name}`);
-  };
-
   // 엑셀 내보내기 — 활성 탭에 따라 다른 데이터 추출
   const exportEntries = () => {
     if (activeTab === "recognition") {
