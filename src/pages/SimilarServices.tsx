@@ -1015,6 +1015,11 @@ export default function SimilarServices() {
                             onCheckedChange={(v) => setForm({ ...form, is_lh_completion: !!v })} />
                           <span className="text-sm">LH기성실적</span>
                         </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.is_progress}
+                            onCheckedChange={(v) => setForm({ ...form, is_progress: !!v })} />
+                          <span className="text-sm">기성실적</span>
+                        </label>
                       </div>
 
                       <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-md border bg-muted/30">
