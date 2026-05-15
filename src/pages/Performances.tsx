@@ -606,22 +606,10 @@ export default function Performances() {
                   <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">데이터 없음</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.has(r.id)}
-                        onCheckedChange={(c) => {
-                          setSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            if (c) next.add(r.id); else next.delete(r.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    </TableCell>
                     <TableCell className="font-medium">{r.project_name}</TableCell>
                     <TableCell>{r.client}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {r.contract_start_date} ~ {r.contract_end_date}
+                      {isoToDisplay(r.contract_start_date)} ~ {isoToDisplay(r.contract_end_date)}
                     </TableCell>
                     <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
                     <TableCell className="text-right">{r.share_rate != null ? `${r.share_rate}%` : ""}</TableCell>
