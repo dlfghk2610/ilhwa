@@ -696,16 +696,37 @@ export default function Performances() {
             </div>
           </Card>
 
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground">전체 대상</span>
+            <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
+              <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
+              <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+            </label>
+            <Button variant="outline" onClick={exportExcel}>
+              <Download className="h-4 w-4 mr-1" /> 엑셀
+            </Button>
+            <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              실적증명서 PDF
+            </Button>
+            <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              실적+참여자명단 PDF
+            </Button>
+          </div>
+
           {selectedTech && (
             <Card className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>사업명</TableHead>
+                    <TableHead>평가종류</TableHead>
+                    <TableHead>사업종류</TableHead>
                     <TableHead>계약기간</TableHead>
                     <TableHead>참여기간</TableHead>
-                    <TableHead className="text-right">평가W</TableHead>
-                    <TableHead className="text-right">사업W</TableHead>
+                    <TableHead className="text-right">평가건수</TableHead>
+                    <TableHead className="text-right">사업건수</TableHead>
                     <TableHead className="text-right">단순건수</TableHead>
                     <TableHead className="text-right">기간비율</TableHead>
                     <TableHead className="text-right">기간대비건수</TableHead>
@@ -713,25 +734,35 @@ export default function Performances() {
                 </TableHeader>
                 <TableBody>
                   {techRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-medium">{t.row.project_name}</TableCell>
-                      <TableCell className="text-xs">{t.row.contract_start_date} ~ {t.row.contract_end_date}</TableCell>
-                      <TableCell className="text-xs">{getPeriods(t.part).map((pd) => `${pd.start ?? ""} ~ ${pd.end ?? ""}`).join(", ")}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {t.row.evaluation_types.map((x) => <Badge key={x} variant="secondary">{x}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {t.row.service_types.map((x) => <Badge key={x} variant="outline">{x}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{isoToDisplay(t.row.contract_start_date)} ~ {isoToDisplay(t.row.contract_end_date)}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{getPeriods(t.part).map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join(", ")}</TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{(t.ratio * 100).toFixed(1)}%</TableCell>
-                      <TableCell className="text-right">{t.periodCount.toFixed(3)}</TableCell>
+                      <TableCell className="text-right">{t.periodCount.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
-                      <TableCell colSpan={5} className="text-right">합계</TableCell>
+                      <TableCell colSpan={7} className="text-right">합계</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
                       <TableCell></TableCell>
-                      <TableCell className="text-right">{techTotals.period.toFixed(3)}</TableCell>
+                      <TableCell className="text-right">{techTotals.period.toFixed(2)}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
