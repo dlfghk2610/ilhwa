@@ -401,6 +401,7 @@ export default function SimilarServices() {
     if ((r as any).is_private && !includePrivate) return false;
     if ((r as any).is_under_90days && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
+    if ((r as any).is_progress && !includeProgress) return false;
     if (!search) return true;
     return [r.project_name, r.client, r.service_type, r.evaluation_type]
       .some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()));
