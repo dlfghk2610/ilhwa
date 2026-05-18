@@ -426,9 +426,18 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   }, [rows, search]);
 
   const bulkDeletableIds = useMemo(
-    () => filtered.filter((r) => !r.completion_date && selectedIds.has(r.id)).map((r) => r.id),
+    () => filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id),
     [filtered, selectedIds]
   );
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  function toggleSelectAll(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) filtered.forEach((r) => next.add(r.id));
+      else filtered.forEach((r) => next.delete(r.id));
+      return next;
+    });
+  }
 
   async function handleBulkDelete() {
     if (bulkDeletableIds.length === 0) return;
