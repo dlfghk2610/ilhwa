@@ -410,7 +410,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.project_name, r.client, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
+      [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
         .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
     );
   }, [rows, search]);
