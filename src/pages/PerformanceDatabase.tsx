@@ -378,6 +378,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         is_lh_completion: form.is_lh_completion,
         is_progress: form.is_progress,
         is_dual_participation: form.is_dual_participation,
+        is_external_company: external,
+        external_company_name: external ? (form.external_company_name || null) : null,
         notes: form.notes || null,
       };
 
