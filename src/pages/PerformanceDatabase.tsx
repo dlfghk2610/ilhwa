@@ -258,6 +258,39 @@ export default function PerformanceDatabase() {
     setExtracting(true);
     try {
       const file = form.participant_file;
+      const name = file.name.toLowerCase();
+      // 엑셀 양식이면 로컬에서 즉시 파싱
+      if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+        const participants: Participant[] = rows
+          .map((r) => {
+            const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+            if (!nm) return null;
+            const birthRaw = r["생년월일"];
+            const birth = typeof birthRaw === "number"
+              ? new Date(Math.round((birthRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+              : normalizeIsoFromText(String(birthRaw ?? ""));
+            const periodText = String(r["참여기간"] ?? "").trim();
+            const period = parsePeriodText(periodText);
+            return {
+              name: nm,
+              birth_date: birth || undefined,
+              specialty: String(r["전문분야"] ?? "").trim() || undefined,
+              position: String(r["직위"] ?? "").trim() || undefined,
+              responsibility: String(r["책임정도"] ?? "").trim() || undefined,
+              periods: [{ start: period.start, end: period.end }],
+            } as Participant;
+          })
+          .filter(Boolean) as Participant[];
+        if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
+        setForm((f) => ({ ...f, participants }));
+        toast.success(`${participants.length}명 추출 완료`);
+        return;
+      }
+      // PDF/DOCX는 AI 추출
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = "";
