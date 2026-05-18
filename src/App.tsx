@@ -32,6 +32,7 @@ const App = () => (
           <Route path="/overlaps" element={<ProtectedRoute><Overlaps /></ProtectedRoute>} />
           <Route path="/similar-services" element={<ProtectedRoute><SimilarServices /></ProtectedRoute>} />
           <Route path="/performance-database" element={<ProtectedRoute><PerformanceDatabase /></ProtectedRoute>} />
+          <Route path="/external-performance-database" element={<ProtectedRoute><ExternalPerformanceDatabase /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
