@@ -677,11 +677,13 @@ export default function PerformanceDatabase() {
                   </div>
                   <div className="space-y-1">
                     {(p.periods && p.periods.length > 0 ? p.periods : [{ start: "", end: "" }]).map((pd, j) => (
-                      <div key={j} className="flex items-center gap-2">
-                        <DateInput className="max-w-[140px]" value={pd.start || ""} onChange={(v) => updateParticipantPeriod(i, j, "start", v)} />
-                        <span>~</span>
-                        <DateInput className="max-w-[140px]" value={pd.end || ""} onChange={(v) => updateParticipantPeriod(i, j, "end", v)} />
-                      </div>
+                      <PeriodTextInput
+                        key={j}
+                        className="max-w-[280px]"
+                        start={pd.start}
+                        end={pd.end}
+                        onChange={(s, e) => { updateParticipantPeriod(i, j, "start", s); updateParticipantPeriod(i, j, "end", e); }}
+                      />
                     ))}
                     <Button type="button" size="sm" variant="ghost" onClick={() => addParticipantPeriod(i)}><Plus className="h-3 w-3 mr-1" />참여기간 추가</Button>
                   </div>
