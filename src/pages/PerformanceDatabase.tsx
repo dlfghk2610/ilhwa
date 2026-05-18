@@ -431,7 +431,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           service_overview: payload.service_overview,
           service_type: (form.service_types || []).join(", ") || null,
           evaluation_type: (form.evaluation_types || []).join(", ") || null,
-          participation_rate: payload.participation_rate,
+          participation_rate: payload.share_rate,
           share_amount: payload.share_amount,
           company_share_rate: payload.company_share_rate,
           phases: payload.phases,
