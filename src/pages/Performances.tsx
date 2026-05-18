@@ -504,6 +504,19 @@ export default function Performances() {
           </div>
         </Card>
 
+        {selectedTech && (
+          <Card className="p-4 grid grid-cols-2 gap-3">
+            <div className="rounded-md border bg-muted/40 p-3 text-center">
+              <div className="text-xs text-muted-foreground">단순건수 (선택 합계)</div>
+              <div className="text-2xl font-bold text-primary mt-1">{techTotals.simple.toFixed(2)}</div>
+            </div>
+            <div className="rounded-md border bg-muted/40 p-3 text-center">
+              <div className="text-xs text-muted-foreground">기간대비건수 (선택 합계)</div>
+              <div className="text-2xl font-bold text-primary mt-1">{techTotals.period.toFixed(2)}</div>
+            </div>
+          </Card>
+        )}
+
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-muted-foreground">선택 항목 내보내기</span>
           <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
@@ -549,11 +562,16 @@ export default function Performances() {
                 <TableBody>
                   {techRows.length === 0 ? (
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
-                  ) : techRows.map((t, i) => (
+                  ) : techRows.map((t, i) => {
+                    const blockUnder90 = !includeUnder90 && t.under90;
+                    const zeroOut = blockUnder90;
+                    const dispSimple = zeroOut ? 0 : t.simple;
+                    const dispRatio = zeroOut ? 0 : t.ratio;
+                    const dispPeriod = zeroOut ? 0 : t.periodCount;
+                    return (
                     <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
                       <TableCell>
                         {(() => {
-                          const blockUnder90 = !includeUnder90 && t.under90;
                           const disabled = t.expired || blockUnder90;
                           return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
                         })()}
@@ -576,11 +594,12 @@ export default function Performances() {
                       </TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{(t.ratio * 100).toFixed(1)}%</TableCell>
-                      <TableCell className="text-right">{t.periodCount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{dispSimple.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{(dispRatio * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-right">{dispPeriod.toFixed(2)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
                       <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
@@ -602,10 +621,14 @@ export default function Performances() {
                 <Card className="p-4 text-center text-sm text-muted-foreground">참여 사업이 없습니다</Card>
               ) : techRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
+                const blockUnder90 = !includeUnder90 && t.under90;
+                const dispSimple = blockUnder90 ? 0 : t.simple;
+                const dispRatio = blockUnder90 ? 0 : t.ratio;
+                const dispPeriod = blockUnder90 ? 0 : t.periodCount;
                 return (
                   <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""}`}>
                     <div className="flex items-start gap-2">
-                      <Checkbox className="mt-1" checked={!t.expired && techSelectedRowIds.has(t.row.id)} disabled={t.expired} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">{t.row.project_name}</div>
                       </button>
@@ -622,9 +645,9 @@ export default function Performances() {
                         <div className="grid grid-cols-2 gap-2 pt-1">
                           <div>평가 {t.evalW.toFixed(2)}</div>
                           <div>사업 {t.svcW.toFixed(2)}</div>
-                          <div>단순 {t.simple.toFixed(2)}</div>
-                          <div>비율 {(t.ratio * 100).toFixed(1)}%</div>
-                          <div className="col-span-2">기간대비 {t.periodCount.toFixed(2)}</div>
+                          <div>단순 {dispSimple.toFixed(2)}</div>
+                          <div>비율 {(dispRatio * 100).toFixed(1)}%</div>
+                          <div className="col-span-2">기간대비 {dispPeriod.toFixed(2)}</div>
                         </div>
                       </div>
                     )}
