@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ShieldCheck, X } from "lucide-react";
+import { Loader2, ShieldCheck, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 
@@ -16,6 +16,7 @@ type Row = {
   company: string | null;
   approved: boolean;
   created_at: string;
+  is_admin?: boolean;
 };
 
 export default function AdminUsers() {
@@ -34,12 +35,15 @@ export default function AdminUsers() {
 
   async function load() {
     setBusy(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, company, approved, created_at")
-      .order("created_at", { ascending: false });
+    const [{ data: profiles, error }, { data: roles }] = await Promise.all([
+      supabase.from("profiles").select("id, display_name, company, approved, created_at").order("created_at", { ascending: false }),
+      supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+    ]);
     if (error) toast.error(error.message);
-    else setRows((data as any) || []);
+    else {
+      const adminIds = new Set((roles || []).map((r: any) => r.user_id));
+      setRows(((profiles as any) || []).map((p: any) => ({ ...p, is_admin: adminIds.has(p.id) })));
+    }
     setBusy(false);
   }
 
@@ -49,6 +53,14 @@ export default function AdminUsers() {
     const { error } = await supabase.from("profiles").update({ approved }).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success(approved ? "승인 처리되었습니다" : "승인이 취소되었습니다");
+    load();
+  }
+
+  async function rejectUser(id: string, name: string) {
+    if (!confirm(`${name} 회원을 거절하고 계정을 삭제하시겠습니까?`)) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", { body: { target_user_id: id } });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "삭제 실패"); return; }
+    toast.success("거절되어 계정이 삭제되었습니다");
     load();
   }
 
@@ -84,20 +96,30 @@ export default function AdminUsers() {
                   <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
                 ) : rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.display_name || r.company || "-"}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.display_name || r.company || "-"}
+                      {r.is_admin && <Badge variant="outline" className="ml-2 border-primary/40 text-primary">관리자</Badge>}
+                    </TableCell>
                     <TableCell>{r.created_at?.slice(0, 10)}</TableCell>
                     <TableCell>
                       {r.approved ? <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">승인됨</Badge> : <Badge variant="destructive">승인 대기</Badge>}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {r.approved ? (
+                    <TableCell className="text-right space-x-2">
+                      {r.is_admin ? (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      ) : r.approved ? (
                         <Button size="sm" variant="outline" onClick={() => setApproved(r.id, false)}>
                           <X className="h-4 w-4 mr-1" />승인 취소
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => setApproved(r.id, true)}>
-                          <ShieldCheck className="h-4 w-4 mr-1" />승인
-                        </Button>
+                        <>
+                          <Button size="sm" onClick={() => setApproved(r.id, true)}>
+                            <ShieldCheck className="h-4 w-4 mr-1" />승인
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => rejectUser(r.id, r.display_name || r.company || "이 사용자")}>
+                            <Trash2 className="h-4 w-4 mr-1" />거절
+                          </Button>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
