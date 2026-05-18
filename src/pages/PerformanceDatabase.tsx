@@ -275,6 +275,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         const wb = XLSX.read(buf, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+        let completionFromExcel: string | null = null;
+        const allPeriods: Period[] = [];
         const participants: Participant[] = rows
           .map((r) => {
             const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
@@ -283,20 +285,53 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             const birth = typeof birthRaw === "number"
               ? new Date(Math.round((birthRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
               : normalizeIsoFromText(String(birthRaw ?? ""));
-            const periodText = String(r["참여기간"] ?? "").trim();
-            const period = parsePeriodText(periodText);
+            // 참여기간: 셀 내 줄바꿈/세미콜론/콤마 등으로 여러 구간 분리
+            const periodRaw = r["참여기간"];
+            const periodText = typeof periodRaw === "number"
+              ? new Date(Math.round((periodRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+              : String(periodRaw ?? "").trim();
+            const periodLines = periodText.split(/[\n\r;]+/).map((s) => s.trim()).filter(Boolean);
+            const periods: Period[] = periodLines
+              .map((line) => {
+                const p = parsePeriodText(line);
+                return { start: p.start, end: p.end };
+              })
+              .filter((p) => p.start || p.end);
+            const finalPeriods = periods.length > 0 ? periods : [{ start: "", end: "" }];
+            finalPeriods.forEach((p) => { if (p.start || p.end) allPeriods.push(p); });
+            // 준공일 열 인식 (있을 경우 프로젝트 준공일에 반영)
+            const compRaw = r["준공일"] ?? r["완료일"];
+            const compIso = typeof compRaw === "number"
+              ? new Date(Math.round((compRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+              : normalizeIsoFromText(String(compRaw ?? ""));
+            if (compIso && (!completionFromExcel || compIso > completionFromExcel)) completionFromExcel = compIso;
             return {
               name: nm,
               birth_date: birth || undefined,
               specialty: String(r["전문분야"] ?? "").trim() || undefined,
               position: String(r["직위"] ?? "").trim() || undefined,
               responsibility: String(r["책임정도"] ?? "").trim() || undefined,
-              periods: [{ start: period.start, end: period.end }],
+              periods: finalPeriods,
             } as Participant;
           })
           .filter(Boolean) as Participant[];
         if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
-        setForm((f) => ({ ...f, participants }));
+        // 계약기간 자동 보강: 비어있거나 비교 후 합치기 (중복 제거)
+        setForm((f) => {
+          const existing = (f.contract_periods || []).filter((p) => p.start || p.end);
+          const merged: Period[] = [...existing];
+          const keyOf = (p: Period) => `${p.start || ""}~${p.end || ""}`;
+          const seen = new Set(merged.map(keyOf));
+          allPeriods.forEach((p) => { const k = keyOf(p); if (!seen.has(k)) { merged.push(p); seen.add(k); } });
+          const finalContract = merged.length > 0 ? merged : f.contract_periods;
+          const latestEnd = finalContract.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || "";
+          return {
+            ...f,
+            participants,
+            contract_periods: finalContract,
+            completion_date: completionFromExcel || latestEnd || f.completion_date,
+          };
+        });
         toast.success(`${participants.length}명 추출 완료`);
         return;
       }
