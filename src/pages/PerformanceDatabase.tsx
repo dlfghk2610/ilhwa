@@ -82,6 +82,62 @@ function DateInput({ value, onChange, className, placeholder = "YYYY.MM.DD" }: {
 
 const fmt = (n: number | null | undefined) => n == null || isNaN(Number(n)) ? "" : Number(n).toLocaleString();
 
+// 숫자 입력 시 천단위 콤마 자동 적용
+function NumberInput({ value, onChange, className, placeholder }: { value: string; onChange: (raw: string) => void; className?: string; placeholder?: string }) {
+  const display = value === "" || value == null ? "" : Number(String(value).replace(/[^\d.-]/g, "")).toLocaleString();
+  return (
+    <Input
+      className={className}
+      inputMode="numeric"
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d]/g, "");
+        onChange(raw);
+      }}
+    />
+  );
+}
+
+// "25.01.15" / "2025.01.15" / "250115" / "20250115" 등을 ISO로 변환
+const normalizeIsoFromText = (s: string): string => {
+  const digits = (s || "").replace(/\D/g, "");
+  if (digits.length === 8) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+  if (digits.length === 6) return `20${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 6)}`;
+  return "";
+};
+// "YY.MM.DD~YY.MM.DD" 또는 "YYYY.MM.DD" 등의 텍스트를 시작/종료 ISO로 파싱
+const parsePeriodText = (s: string): { start: string; end: string } => {
+  if (!s) return { start: "", end: "" };
+  const parts = String(s).split(/[~–—]/).map((x) => x.trim()).filter(Boolean);
+  return { start: normalizeIsoFromText(parts[0] || ""), end: normalizeIsoFromText(parts[1] || "") };
+};
+const formatPeriodDisplay = (start?: string, end?: string) => {
+  const s = isoToDisplay(start);
+  const e = isoToDisplay(end);
+  if (s && e) return `${s}~${e}`;
+  return s || e || "";
+};
+
+// 참여기간 단일 텍스트 입력 (자유 형식 → ISO 자동 반영)
+function PeriodTextInput({ start, end, onChange, className }: { start?: string; end?: string; onChange: (start: string, end: string) => void; className?: string }) {
+  const [text, setText] = useState<string>(formatPeriodDisplay(start, end));
+  useEffect(() => { setText(formatPeriodDisplay(start, end)); }, [start, end]);
+  return (
+    <Input
+      className={className}
+      value={text}
+      placeholder="예: 25.01.15~25.06.30"
+      onChange={(e) => {
+        const v = e.target.value;
+        setText(v);
+        const p = parsePeriodText(v);
+        onChange(p.start, p.end);
+      }}
+    />
+  );
+}
+
 const emptyForm = {
   project_name: "",
   service_overview: "",
