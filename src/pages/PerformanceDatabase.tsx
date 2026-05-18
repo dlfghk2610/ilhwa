@@ -655,7 +655,7 @@ export default function PerformanceDatabase() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label>참여 기술자</Label>
                 <div className="flex gap-2 items-center flex-wrap">
-                  <Input type="file" accept=".pdf,.docx" className="max-w-xs" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                  <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="max-w-xs" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
                   <Button type="button" size="sm" variant="outline" disabled={!form.participant_file || extracting} onClick={handleExtractParticipants}>
                     {extracting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}자동추출
                   </Button>
