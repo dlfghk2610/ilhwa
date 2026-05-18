@@ -1,0 +1,1 @@
+ALTER TABLE public.performance_records ADD COLUMN IF NOT EXISTS contract_date date;
