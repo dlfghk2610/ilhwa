@@ -827,12 +827,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
             {/* 파일/비고 */}
             <div className="space-y-3 p-3 rounded-md bg-background border">
-              <div>
-                <Label>실적증명 PDF</Label>
-                <div className="flex items-center gap-2">
-                  <Input type="file" accept="application/pdf" onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] || null })} />
-                  {form.cert_pdf_path && !form.cert_pdf_file && (
-                    <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>실적증명 PDF</Label>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept="application/pdf" onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] || null })} />
+                    {form.cert_pdf_path && !form.cert_pdf_file && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label>참여자명단 PDF</Label>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                    {form.participant_file_path && !form.participant_file && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                    )}
+                  </div>
+                  {form.participant_file_path && !form.participant_file && (
+                    <div className="text-xs text-muted-foreground mt-1">기존 파일: {form.participant_file_path.split("/").pop()}</div>
                   )}
                 </div>
               </div>
