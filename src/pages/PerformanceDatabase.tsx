@@ -868,8 +868,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{bulkDeletableIds.length}건을 일괄 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>공고일이 미입력된 선택 항목이 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
+            <AlertDialogTitle>{bulkDeletableIds.length}건을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>선택한 항목이 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
