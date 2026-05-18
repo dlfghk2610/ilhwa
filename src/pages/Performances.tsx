@@ -10,7 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Loader2, X, FileText } from "lucide-react";
+import { Download, Loader2, X, FileText, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { exportToExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
@@ -408,6 +412,24 @@ export default function Performances() {
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
+  const bulkDeletableRows = useMemo(
+    () => techRows.filter((t) => !((t.row as any).completion_date) && techSelectedRowIds.has(t.row.id)),
+    [techRows, techSelectedRowIds]
+  );
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  async function handleBulkDelete() {
+    const ids = bulkDeletableRows.map((t) => t.row.id);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("performance_records").delete().in("id", ids);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`${ids.length}건 삭제 완료`);
+      setTechSelectedRowIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
+      fetchRows();
+    }
+    setBulkDeleteOpen(false);
+  }
+
   function toggleTechRow(id: string, checked: boolean) {
     setTechSelectionTouched(true);
     setTechSelectedRowIds((prev) => {
@@ -513,6 +535,14 @@ export default function Performances() {
           <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(true)}>
             {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
             실적+참여자명단 PDF
+          </Button>
+          <Button
+            variant="destructive"
+            className="ml-auto"
+            disabled={bulkDeletableRows.length === 0}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />공고일 미입력 일괄 삭제 ({bulkDeletableRows.length}건)
           </Button>
         </div>
 
@@ -632,6 +662,18 @@ export default function Performances() {
           </>
         )}
       </div>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{bulkDeletableRows.length}건을 일괄 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>공고일(준공일)이 미입력된 선택 항목이 마스터 데이터베이스에서 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
