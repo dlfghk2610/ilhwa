@@ -570,6 +570,122 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     }));
   }
 
+  function downloadImportTemplate() {
+    const headers = external
+      ? ["타회사명", "사업명", "사업개요", "발주처", "계약일자", "계약기간", "계약금액", "지분율", "지분금액", "각사지분율", "평가종류", "사업종류", "참여율", "비고"]
+      : ["사업명", "사업개요", "발주처", "계약일자", "계약기간", "계약금액", "지분율", "지분금액", "각사지분율", "평가종류", "사업종류", "참여율", "비고"];
+    const sample = external
+      ? ["○○건축사사무소", "예시사업명", "사업개요 요약", "○○공사", "2025.01.15", "25.01.15~25.06.30 | 25.07.01~25.12.31", "1000000000", "30", "300000000", "A사 50, B사 30, C사 20", "평가, 사후", "건축설계, 감리", "100", ""]
+      : ["예시사업명", "사업개요 요약", "○○공사", "2025.01.15", "25.01.15~25.06.30 | 25.07.01~25.12.31", "1000000000", "30", "300000000", "A사 50, B사 30, C사 20", "평가, 사후", "건축설계, 감리", "100", ""];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "실적");
+    XLSX.writeFile(wb, external ? "타회사실적_가져오기양식.xlsx" : "실적_가져오기양식.xlsx");
+  }
+
+  async function handleExcelImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+      if (rows.length === 0) { toast.error("가져올 데이터가 없습니다"); return; }
+      const dateExcelToIso = (v: any): string | null => {
+        if (v == null || v === "") return null;
+        if (typeof v === "number") return new Date(Math.round((v - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+        return normalizeIsoFromText(String(v)) || null;
+      };
+      const num = (v: any): number | null => {
+        if (v == null || v === "") return null;
+        const n = Number(String(v).replace(/[^\d.-]/g, ""));
+        return isNaN(n) ? null : n;
+      };
+      const splitList = (v: any): string[] => String(v ?? "").split(/[,;|\/]/).map((s) => s.trim()).filter(Boolean);
+      const records: any[] = [];
+      for (const r of rows) {
+        const project_name = String(r["사업명"] ?? "").trim();
+        if (!project_name) continue;
+        const periodsRaw = String(r["계약기간"] ?? "").trim();
+        const periods = periodsRaw
+          ? periodsRaw.split(/[|\n]/).map((s) => s.trim()).filter(Boolean).map((s) => {
+              const p = parsePeriodText(s);
+              return { start: p.start, end: p.end };
+            }).filter((p) => p.start || p.end)
+          : [];
+        const earliestStart = periods.map((p) => p.start).filter(Boolean).sort()[0] || null;
+        const latestEnd = periods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+        const contract_amount = num(r["계약금액"]);
+        const share_rate = num(r["지분율"]);
+        let share_amount = num(r["지분금액"]);
+        if (share_amount == null && contract_amount != null && share_rate != null) {
+          share_amount = Math.round(contract_amount * share_rate / 100);
+        }
+        records.push({
+          created_by: user.id,
+          project_name,
+          service_overview: String(r["사업개요"] ?? "").trim() || null,
+          client: String(r["발주처"] ?? "").trim() || null,
+          contract_periods: periods,
+          contract_start_date: earliestStart,
+          contract_end_date: latestEnd,
+          contract_date: dateExcelToIso(r["계약일자"]),
+          completion_date: latestEnd,
+          contract_amount,
+          share_rate,
+          share_amount,
+          company_share_rate: String(r["각사지분율"] ?? "").trim() || null,
+          evaluation_types: splitList(r["평가종류"]),
+          service_types: splitList(r["사업종류"]),
+          participation_rate: num(r["참여율"]),
+          participants: [],
+          phases: [],
+          is_private: false,
+          is_under_90days: false,
+          is_lh_completion: false,
+          is_progress: false,
+          is_dual_participation: false,
+          is_external_company: external,
+          external_company_name: external ? (String(r["타회사명"] ?? "").trim() || null) : null,
+          notes: String(r["비고"] ?? "").trim() || null,
+        });
+      }
+      if (records.length === 0) { toast.error("유효한 행이 없습니다 (사업명 필수)"); return; }
+      const { error } = await supabase.from("performance_records").insert(records);
+      if (error) throw error;
+      if (!external) {
+        const simRecords = records.map((p) => ({
+          created_by: user.id,
+          project_name: p.project_name,
+          client: p.client,
+          contract_amount: p.contract_amount,
+          contract_date: p.contract_date,
+          completion_date: p.completion_date,
+          start_date: p.contract_start_date,
+          service_overview: p.service_overview,
+          service_type: (p.service_types || []).join(", ") || null,
+          evaluation_type: (p.evaluation_types || []).join(", ") || null,
+          participation_rate: p.participation_rate,
+          share_amount: p.share_amount,
+          company_share_rate: p.company_share_rate,
+          notes: p.notes,
+        }));
+        const names = simRecords.map((s) => s.project_name);
+        const { data: existing } = await supabase.from("similar_services").select("project_name").eq("created_by", user.id).in("project_name", names);
+        const existingNames = new Set((existing || []).map((x: any) => x.project_name));
+        const toInsert = simRecords.filter((s) => !existingNames.has(s.project_name));
+        if (toInsert.length > 0) await supabase.from("similar_services").insert(toInsert);
+      }
+      toast.success(`${records.length}건 가져오기 완료`);
+      fetchRows();
+    } catch (err: any) {
+      toast.error("엑셀 처리 오류: " + (err?.message ?? ""));
+    } finally {
+      e.target.value = "";
+    }
+  }
+
   return (
     <AppLayout title={external ? "타회사 실적 데이터베이스 관리" : "실적 데이터베이스 관리"}>
       <div className="space-y-4">
@@ -582,7 +698,16 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           >
             <Trash2 className="h-4 w-4 mr-1" />삭제 ({bulkDeletableIds.length}건)
           </Button>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={downloadImportTemplate}>
+              <Download className="h-4 w-4 mr-1" />가져오기 양식
+            </Button>
+            <label>
+              <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelImport} />
+              <Button type="button" variant="outline" asChild>
+                <span className="cursor-pointer"><Upload className="h-4 w-4 mr-1" />엑셀 가져오기</span>
+              </Button>
+            </label>
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
           </div>
         </div>
