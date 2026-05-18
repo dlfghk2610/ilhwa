@@ -136,8 +136,10 @@ export type Database = {
           created_at: string
           created_by: string
           evaluation_types: string[]
+          external_company_name: string | null
           id: string
           is_dual_participation: boolean
+          is_external_company: boolean
           is_lh_completion: boolean
           is_private: boolean
           is_progress: boolean
@@ -168,8 +170,10 @@ export type Database = {
           created_at?: string
           created_by: string
           evaluation_types?: string[]
+          external_company_name?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_external_company?: boolean
           is_lh_completion?: boolean
           is_private?: boolean
           is_progress?: boolean
@@ -200,8 +204,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           evaluation_types?: string[]
+          external_company_name?: string | null
           id?: string
           is_dual_participation?: boolean
+          is_external_company?: boolean
           is_lh_completion?: boolean
           is_private?: boolean
           is_progress?: boolean

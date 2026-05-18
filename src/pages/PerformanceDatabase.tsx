@@ -53,6 +53,8 @@ type Row = {
   is_lh_completion: boolean;
   is_progress: boolean;
   is_dual_participation: boolean;
+  is_external_company?: boolean;
+  external_company_name?: string | null;
   notes: string | null;
 };
 
@@ -164,11 +166,12 @@ const emptyForm = {
   is_lh_completion: false,
   is_progress: false,
   is_dual_participation: false,
+  external_company_name: "",
   notes: "",
 };
 type FormState = typeof emptyForm;
 
-export default function PerformanceDatabase() {
+export default function PerformanceDatabase({ external = false }: { external?: boolean } = {}) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +188,11 @@ export default function PerformanceDatabase() {
 
   async function fetchRows() {
     setLoading(true);
-    const { data, error } = await supabase.from("performance_records").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("performance_records")
+      .select("*")
+      .eq("is_external_company", external)
+      .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as any[]).map(normalize));
     setLoading(false);
@@ -237,6 +244,7 @@ export default function PerformanceDatabase() {
       is_lh_completion: r.is_lh_completion,
       is_progress: r.is_progress,
       is_dual_participation: r.is_dual_participation,
+      external_company_name: (r as any).external_company_name || "",
       notes: r.notes || "",
     });
     setShareAmountTouched(true);
@@ -370,6 +378,8 @@ export default function PerformanceDatabase() {
         is_lh_completion: form.is_lh_completion,
         is_progress: form.is_progress,
         is_dual_participation: form.is_dual_participation,
+        is_external_company: external,
+        external_company_name: external ? (form.external_company_name || null) : null,
         notes: form.notes || null,
       };
 
@@ -400,7 +410,7 @@ export default function PerformanceDatabase() {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.project_name, r.client, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
+      [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
         .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
     );
   }, [rows, search]);
@@ -477,7 +487,7 @@ export default function PerformanceDatabase() {
   }
 
   return (
-    <AppLayout title="실적 데이터베이스 관리">
+    <AppLayout title={external ? "타회사 실적 데이터베이스 관리" : "실적 데이터베이스 관리"}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
@@ -490,6 +500,7 @@ export default function PerformanceDatabase() {
           <Table>
             <TableHeader>
               <TableRow>
+                {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
                 <TableHead>계약기간</TableHead>
@@ -504,11 +515,12 @@ export default function PerformanceDatabase() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
               ) : filtered.map((r) => (
                 <TableRow key={r.id}>
+                  {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
                   <TableCell className="font-medium">
                     {r.project_name}
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
@@ -544,6 +556,12 @@ export default function PerformanceDatabase() {
           <div className="space-y-4">
             {/* 기본 정보 */}
             <div className="space-y-3 p-3 rounded-md bg-background border">
+              {external && (
+                <div>
+                  <Label>타회사명 *</Label>
+                  <Input value={form.external_company_name} onChange={(e) => setForm({ ...form, external_company_name: e.target.value })} placeholder="예: ○○건축사사무소" />
+                </div>
+              )}
               <div>
                 <Label>사업명 *</Label>
                 <Input value={form.project_name} onChange={(e) => setForm({ ...form, project_name: e.target.value })} />

@@ -12,6 +12,7 @@ import Careers from "./pages/Careers.tsx";
 import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
+import ExternalPerformanceDatabase from "./pages/ExternalPerformanceDatabase.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/overlaps" element={<ProtectedRoute><Overlaps /></ProtectedRoute>} />
           <Route path="/similar-services" element={<ProtectedRoute><SimilarServices /></ProtectedRoute>} />
           <Route path="/performance-database" element={<ProtectedRoute><PerformanceDatabase /></ProtectedRoute>} />
+          <Route path="/external-performance-database" element={<ProtectedRoute><ExternalPerformanceDatabase /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
