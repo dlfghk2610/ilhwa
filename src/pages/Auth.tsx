@@ -46,10 +46,21 @@ export default function Auth() {
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) { toast.error(parsed.error.errors[0].message); return; }
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setSubmitting(false); toast.error(error.message); return; }
+    // 관리자 승인 여부 확인
+    const uid = signInData.user?.id;
+    if (uid) {
+      const { data: prof } = await supabase.from("profiles").select("approved").eq("id", uid).maybeSingle();
+      if (!prof?.approved) {
+        await supabase.auth.signOut();
+        setSubmitting(false);
+        toast.error("관리자 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.");
+        return;
+      }
+    }
     setSubmitting(false);
-    if (error) toast.error(error.message);
-    else { applyAutoLoginPref(autoLogin); toast.success("로그인 성공"); navigate("/"); }
+    applyAutoLoginPref(autoLogin); toast.success("로그인 성공"); navigate("/");
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -65,8 +76,8 @@ export default function Auth() {
         data: { display_name: companyName, company: companyName },
       },
     });
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       const code = (error as any).code;
       if (code === "weak_password") {
         toast.error("비밀번호가 너무 약하거나 유출된 적이 있습니다. 대문자/숫자/특수문자를 조합한 더 복잡한 비밀번호를 사용해주세요.");
@@ -77,9 +88,21 @@ export default function Auth() {
       }
       return;
     }
-    // profiles.company 동기화 (트리거는 display_name만 채우므로 company 별도 업데이트)
+    // profiles.company 동기화
     if (signUpData?.user) {
       await supabase.from("profiles").update({ company: companyName }).eq("id", signUpData.user.id);
+    }
+    // 승인 여부 확인 (관리자/첫 가입자는 자동 승인)
+    let approved = false;
+    if (signUpData?.user) {
+      const { data: prof } = await supabase.from("profiles").select("approved").eq("id", signUpData.user.id).maybeSingle();
+      approved = !!prof?.approved;
+    }
+    setSubmitting(false);
+    if (!approved) {
+      await supabase.auth.signOut();
+      toast.success("회원가입이 접수되었습니다. 관리자의 승인 후 로그인할 수 있습니다.");
+      return;
     }
     applyAutoLoginPref(autoLogin); toast.success("회원가입 완료. 로그인되었습니다."); navigate("/");
   };
