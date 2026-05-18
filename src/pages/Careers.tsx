@@ -309,6 +309,9 @@ function TechnicianDetail({
           발주처: it.row.entry.client || "",
           전문분야: it.row.entry.specialty || "",
           평가구분: it.row.evalGroup,
+          참여회사: it.row.entry.participation_company || "",
+          참여직위: it.row.entry.participation_position || "",
+          담당업무: it.row.entry.duties || "",
           참여시작일: formatIso(it.row.entry.period_start),
           참여종료일: it.row.entry.period_end_text || "",
           "중복제외 시작일": formatIso(it.row.entry.period_start),
@@ -320,6 +323,7 @@ function TechnicianDetail({
       }
       out.push({
         사업명: `[${specialty}] 소계`, 발주처: "", 전문분야: "", 평가구분: "",
+        참여회사: "", 참여직위: "", 담당업무: "",
         참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
         참여일수: sumPart, 가중치: "" as any, 환산일수: +sumConv.toFixed(2),
       });
@@ -327,11 +331,13 @@ function TechnicianDetail({
     }
     out.push({
       사업명: "합계", 발주처: "", 전문분야: "", 평가구분: "",
+      참여회사: "", 참여직위: "", 담당업무: "",
       참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
       참여일수: grandPart, 가중치: "" as any, 환산일수: +grandConv.toFixed(2),
     });
     out.push({
       사업명: `환산 (년/월): ${daysToYearMonth(grandConv)}`, 발주처: "", 전문분야: "", 평가구분: "",
+      참여회사: "", 참여직위: "", 담당업무: "",
       참여시작일: "", 참여종료일: "", "중복제외 시작일": "", "중복제외 종료일": "",
       참여일수: "" as any, 가중치: "" as any, 환산일수: "" as any,
     });
