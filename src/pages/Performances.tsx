@@ -504,6 +504,19 @@ export default function Performances() {
           </div>
         </Card>
 
+        {selectedTech && (
+          <Card className="p-4 grid grid-cols-2 gap-3">
+            <div className="rounded-md border bg-muted/40 p-3 text-center">
+              <div className="text-xs text-muted-foreground">단순건수 (선택 합계)</div>
+              <div className="text-2xl font-bold text-primary mt-1">{techTotals.simple.toFixed(2)}</div>
+            </div>
+            <div className="rounded-md border bg-muted/40 p-3 text-center">
+              <div className="text-xs text-muted-foreground">기간대비건수 (선택 합계)</div>
+              <div className="text-2xl font-bold text-primary mt-1">{techTotals.period.toFixed(2)}</div>
+            </div>
+          </Card>
+        )}
+
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-muted-foreground">선택 항목 내보내기</span>
           <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
