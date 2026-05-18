@@ -53,6 +53,8 @@ type Row = {
   is_lh_completion: boolean;
   is_progress: boolean;
   is_dual_participation: boolean;
+  is_external_company?: boolean;
+  external_company_name?: string | null;
   notes: string | null;
 };
 
