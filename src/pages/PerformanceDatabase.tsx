@@ -468,8 +468,8 @@ export default function PerformanceDatabase() {
                   <Input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
                 </div>
                 <div>
-                  <Label>공고일</Label>
-                  <DateInput value={form.announcement_date} onChange={(v) => setForm({ ...form, announcement_date: v })} />
+                  <Label>계약일자</Label>
+                  <DateInput value={form.contract_date} onChange={(v) => setForm({ ...form, contract_date: v })} />
                 </div>
               </div>
             </div>
