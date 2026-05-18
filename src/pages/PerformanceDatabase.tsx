@@ -590,7 +590,6 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <TableCell className="font-medium">
                     {r.project_name}
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
-                    {noCompletion && <Badge variant="destructive" className="ml-2">공고일 미입력</Badge>}
                   </TableCell>
                   <TableCell>{r.client ?? "-"}</TableCell>
                   <TableCell className="whitespace-pre">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</TableCell>
