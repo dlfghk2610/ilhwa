@@ -581,11 +581,12 @@ export default function Performances() {
                       </TableCell>
                       <TableCell className="text-right">{t.evalW.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{t.svcW.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{t.simple.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{(t.ratio * 100).toFixed(1)}%</TableCell>
-                      <TableCell className="text-right">{t.periodCount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{dispSimple.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{(dispRatio * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-right">{dispPeriod.toFixed(2)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {techRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
                       <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
