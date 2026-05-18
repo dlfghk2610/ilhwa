@@ -919,9 +919,6 @@ export default function SimilarServices() {
               </label>
               <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
               <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
