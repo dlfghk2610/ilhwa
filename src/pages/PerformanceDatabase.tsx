@@ -447,13 +447,15 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   async function handleBulkDelete() {
     if (bulkDeletableIds.length === 0) return;
+    const targetNames = rows.filter((r) => bulkDeletableIds.includes(r.id)).map((r) => r.project_name).filter(Boolean);
     const { error } = await supabase.from("performance_records").delete().in("id", bulkDeletableIds);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
-      setSelectedIds(new Set());
-      fetchRows();
+    if (error) { toast.error(error.message); setBulkDeleteOpen(false); return; }
+    if (targetNames.length > 0) {
+      await supabase.from("similar_services").delete().in("project_name", targetNames);
     }
+    toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
+    setSelectedIds(new Set());
+    fetchRows();
     setBulkDeleteOpen(false);
   }
 
