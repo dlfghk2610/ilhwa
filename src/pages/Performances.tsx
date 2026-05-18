@@ -536,6 +536,14 @@ export default function Performances() {
             {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
             실적+참여자명단 PDF
           </Button>
+          <Button
+            variant="destructive"
+            className="ml-auto"
+            disabled={bulkDeletableRows.length === 0}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />공고일 미입력 일괄 삭제 ({bulkDeletableRows.length}건)
+          </Button>
         </div>
 
         {loading ? (
