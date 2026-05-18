@@ -188,7 +188,11 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   async function fetchRows() {
     setLoading(true);
-    const { data, error } = await supabase.from("performance_records").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("performance_records")
+      .select("*")
+      .eq("is_external_company", external)
+      .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as any[]).map(normalize));
     setLoading(false);
