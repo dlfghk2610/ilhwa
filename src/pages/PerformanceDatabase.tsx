@@ -34,7 +34,7 @@ type Row = {
   contract_periods: Period[];
   contract_start_date: string | null;
   contract_end_date: string | null;
-  announcement_date: string | null;
+  contract_date: string | null;
   completion_date: string | null;
   contract_amount: number | null;
   share_rate: number | null;
