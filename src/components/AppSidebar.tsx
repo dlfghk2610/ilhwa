@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut, ShieldCheck } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   { title: "대시보드", url: "/", icon: LayoutDashboard },
@@ -22,6 +24,13 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   return (
     <Sidebar collapsible="icon">
@@ -53,6 +62,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/admin/users"}>
+                    <NavLink to="/admin/users" end>
+                      <ShieldCheck className="h-4 w-4" />
+                      {!collapsed && <span>회원 승인 관리</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -360,6 +360,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approved: boolean
           company: string | null
           created_at: string
           display_name: string | null
@@ -368,6 +369,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approved?: boolean
           company?: string | null
           created_at?: string
           display_name?: string | null
@@ -376,6 +378,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approved?: boolean
           company?: string | null
           created_at?: string
           display_name?: string | null
