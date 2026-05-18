@@ -532,7 +532,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             disabled={bulkDeletableIds.length === 0}
             onClick={() => setBulkDeleteOpen(true)}
           >
-            <Trash2 className="h-4 w-4 mr-1" />공고일 미입력 일괄 삭제 ({bulkDeletableIds.length}건)
+            <Trash2 className="h-4 w-4 mr-1" />삭제 ({bulkDeletableIds.length}건)
           </Button>
           <div className="ml-auto">
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
