@@ -166,11 +166,12 @@ const emptyForm = {
   is_lh_completion: false,
   is_progress: false,
   is_dual_participation: false,
+  external_company_name: "",
   notes: "",
 };
 type FormState = typeof emptyForm;
 
-export default function PerformanceDatabase() {
+export default function PerformanceDatabase({ external = false }: { external?: boolean } = {}) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
