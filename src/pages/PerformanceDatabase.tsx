@@ -159,7 +159,7 @@ export default function PerformanceDatabase() {
       service_overview: r.service_overview || "",
       client: r.client || "",
       contract_periods: r.contract_periods.length > 0 ? r.contract_periods : [{ start: "", end: "" }],
-      announcement_date: r.announcement_date || "",
+      contract_date: (r as any).contract_date || "",
       completion_date: r.completion_date || "",
       contract_amount: r.contract_amount?.toString() ?? "",
       share_rate: r.share_rate?.toString() ?? "",
