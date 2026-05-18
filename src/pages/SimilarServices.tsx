@@ -403,7 +403,10 @@ export default function SimilarServices() {
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const isOver5y = (r: Row) => {
     const ann = filterAnnouncementDate;
-    const comp = r.completion_date;
+    // 준공일 우선, 없으면 계약일/착수일/마지막 phase 종료일로 폴백
+    const phases = Array.isArray((r as any).phases) ? (r as any).phases : [];
+    const lastPhaseEnd = phases.length ? (phases[phases.length - 1]?.end_date || phases[phases.length - 1]?.["준공일"] || null) : null;
+    const comp = r.completion_date || (r as any).contract_date || (r as any).start_date || lastPhaseEnd;
     if (!ann || !comp) return false;
     const a = new Date(ann).getTime();
     const c = new Date(comp).getTime();
