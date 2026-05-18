@@ -262,7 +262,7 @@ export default function PerformanceDatabase() {
         contract_periods: cleanedPeriods,
         contract_start_date: earliestStart,
         contract_end_date: latestEnd,
-        announcement_date: form.announcement_date || null,
+        contract_date: form.contract_date || null,
         completion_date: form.completion_date || null,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
