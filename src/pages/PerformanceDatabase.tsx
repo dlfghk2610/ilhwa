@@ -500,6 +500,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           <Table>
             <TableHeader>
               <TableRow>
+                {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
                 <TableHead>계약기간</TableHead>
@@ -514,11 +515,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
               ) : filtered.map((r) => (
                 <TableRow key={r.id}>
+                  {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
                   <TableCell className="font-medium">
                     {r.project_name}
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
