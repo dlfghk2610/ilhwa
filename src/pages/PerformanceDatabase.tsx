@@ -186,15 +186,15 @@ export default function PerformanceDatabase() {
     setOpen(true);
   }
 
-  // 지분금액 자동계산
+  // 지분금액 자동계산 (계약금액·지분율 변경 시 항상 갱신)
   useEffect(() => {
-    if (shareAmountTouched) return;
     const amt = Number(form.contract_amount);
     const rate = Number(form.share_rate);
-    if (!isNaN(amt) && !isNaN(rate) && form.contract_amount && form.share_rate) {
-      setForm((f) => ({ ...f, share_amount: Math.round(amt * rate / 100).toString() }));
+    if (!isNaN(amt) && !isNaN(rate) && form.contract_amount !== "" && form.share_rate !== "") {
+      const computed = Math.round(amt * rate / 100).toString();
+      setForm((f) => (f.share_amount === computed ? f : { ...f, share_amount: computed }));
     }
-  }, [form.contract_amount, form.share_rate, shareAmountTouched]);
+  }, [form.contract_amount, form.share_rate]);
 
   async function handleExtractParticipants() {
     if (!form.participant_file) { toast.error("먼저 파일을 선택하세요"); return; }
