@@ -68,8 +68,7 @@ export default function Index() {
                   <m.icon className="h-5 w-5 text-accent" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-foreground">{counts[m.table] ?? "-"}<span className="text-sm font-normal text-muted-foreground ml-1">건</span></div>
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">{m.desc}</p>
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                   </div>
