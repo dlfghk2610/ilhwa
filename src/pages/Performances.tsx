@@ -549,11 +549,16 @@ export default function Performances() {
                 <TableBody>
                   {techRows.length === 0 ? (
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
-                  ) : techRows.map((t, i) => (
+                  ) : techRows.map((t, i) => {
+                    const blockUnder90 = !includeUnder90 && t.under90;
+                    const zeroOut = blockUnder90;
+                    const dispSimple = zeroOut ? 0 : t.simple;
+                    const dispRatio = zeroOut ? 0 : t.ratio;
+                    const dispPeriod = zeroOut ? 0 : t.periodCount;
+                    return (
                     <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
                       <TableCell>
                         {(() => {
-                          const blockUnder90 = !includeUnder90 && t.under90;
                           const disabled = t.expired || blockUnder90;
                           return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
                         })()}
