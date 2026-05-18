@@ -412,23 +412,6 @@ export default function Performances() {
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
-  const bulkDeletableRows = useMemo(
-    () => techRows.filter((t) => !((t.row as any).completion_date) && techSelectedRowIds.has(t.row.id)),
-    [techRows, techSelectedRowIds]
-  );
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  async function handleBulkDelete() {
-    const ids = bulkDeletableRows.map((t) => t.row.id);
-    if (ids.length === 0) return;
-    const { error } = await supabase.from("performance_records").delete().in("id", ids);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${ids.length}건 삭제 완료`);
-      setTechSelectedRowIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
-      fetchRows();
-    }
-    setBulkDeleteOpen(false);
-  }
 
   function toggleTechRow(id: string, checked: boolean) {
     setTechSelectionTouched(true);
