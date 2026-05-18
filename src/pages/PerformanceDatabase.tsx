@@ -426,9 +426,18 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   }, [rows, search]);
 
   const bulkDeletableIds = useMemo(
-    () => filtered.filter((r) => !r.completion_date && selectedIds.has(r.id)).map((r) => r.id),
+    () => filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id),
     [filtered, selectedIds]
   );
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  function toggleSelectAll(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) filtered.forEach((r) => next.add(r.id));
+      else filtered.forEach((r) => next.delete(r.id));
+      return next;
+    });
+  }
 
   async function handleBulkDelete() {
     if (bulkDeletableIds.length === 0) return;
@@ -523,7 +532,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             disabled={bulkDeletableIds.length === 0}
             onClick={() => setBulkDeleteOpen(true)}
           >
-            <Trash2 className="h-4 w-4 mr-1" />공고일 미입력 일괄 삭제 ({bulkDeletableIds.length}건)
+            <Trash2 className="h-4 w-4 mr-1" />삭제 ({bulkDeletableIds.length}건)
           </Button>
           <div className="ml-auto">
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
@@ -534,7 +543,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={(c) => toggleSelectAll(!!c)}
+                    aria-label="전체선택"
+                  />
+                </TableHead>
                 {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
@@ -560,9 +575,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.has(r.id)}
-                      disabled={!noCompletion}
                       onCheckedChange={(c) => toggleRowSelection(r.id, !!c)}
-                      title={noCompletion ? "공고일 미입력 - 일괄 삭제 대상" : "공고일이 입력된 항목은 일괄 삭제 불가"}
                     />
                   </TableCell>
                   {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
@@ -814,12 +827,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
             {/* 파일/비고 */}
             <div className="space-y-3 p-3 rounded-md bg-background border">
-              <div>
-                <Label>실적증명 PDF</Label>
-                <div className="flex items-center gap-2">
-                  <Input type="file" accept="application/pdf" onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] || null })} />
-                  {form.cert_pdf_path && !form.cert_pdf_file && (
-                    <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>실적증명 PDF</Label>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept="application/pdf" onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] || null })} />
+                    {form.cert_pdf_path && !form.cert_pdf_file && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label>참여자명단 PDF</Label>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                    {form.participant_file_path && !form.participant_file && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                    )}
+                  </div>
+                  {form.participant_file_path && !form.participant_file && (
+                    <div className="text-xs text-muted-foreground mt-1">기존 파일: {form.participant_file_path.split("/").pop()}</div>
                   )}
                 </div>
               </div>
@@ -855,8 +882,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{bulkDeletableIds.length}건을 일괄 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>공고일이 미입력된 선택 항목이 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
+            <AlertDialogTitle>{bulkDeletableIds.length}건을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>선택한 항목이 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
