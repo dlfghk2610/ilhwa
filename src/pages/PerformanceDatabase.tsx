@@ -408,23 +408,6 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setDeleteId(null);
   }
 
-  const bulkDeletableIds = useMemo(
-    () => filtered.filter((r) => !r.completion_date && selectedIds.has(r.id)).map((r) => r.id),
-    [filtered, selectedIds]
-  );
-
-  async function handleBulkDelete() {
-    if (bulkDeletableIds.length === 0) return;
-    const { error } = await supabase.from("performance_records").delete().in("id", bulkDeletableIds);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
-      setSelectedIds(new Set());
-      fetchRows();
-    }
-    setBulkDeleteOpen(false);
-  }
-
   function toggleRowSelection(id: string, checked: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -441,6 +424,23 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
     );
   }, [rows, search]);
+
+  const bulkDeletableIds = useMemo(
+    () => filtered.filter((r) => !r.completion_date && selectedIds.has(r.id)).map((r) => r.id),
+    [filtered, selectedIds]
+  );
+
+  async function handleBulkDelete() {
+    if (bulkDeletableIds.length === 0) return;
+    const { error } = await supabase.from("performance_records").delete().in("id", bulkDeletableIds);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
+      setSelectedIds(new Set());
+      fetchRows();
+    }
+    setBulkDeleteOpen(false);
+  }
 
   function addServiceType() {
     const v = form.service_type_input.trim();
