@@ -487,7 +487,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   }
 
   return (
-    <AppLayout title="실적 데이터베이스 관리">
+    <AppLayout title={external ? "타회사 실적 데이터베이스 관리" : "실적 데이터베이스 관리"}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
