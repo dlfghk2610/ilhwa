@@ -402,9 +402,15 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   async function handleDelete() {
     if (!deleteId) return;
+    const target = rows.find((r) => r.id === deleteId);
     const { error } = await supabase.from("performance_records").delete().eq("id", deleteId);
-    if (error) toast.error(error.message);
-    else { toast.success("삭제 완료"); fetchRows(); }
+    if (error) { toast.error(error.message); setDeleteId(null); return; }
+    // PQ유사용역(similar_services) 동기 삭제: 사업명 일치
+    if (target?.project_name) {
+      await supabase.from("similar_services").delete().eq("project_name", target.project_name);
+    }
+    toast.success("삭제 완료");
+    fetchRows();
     setDeleteId(null);
   }
 
@@ -441,13 +447,15 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   async function handleBulkDelete() {
     if (bulkDeletableIds.length === 0) return;
+    const targetNames = rows.filter((r) => bulkDeletableIds.includes(r.id)).map((r) => r.project_name).filter(Boolean);
     const { error } = await supabase.from("performance_records").delete().in("id", bulkDeletableIds);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
-      setSelectedIds(new Set());
-      fetchRows();
+    if (error) { toast.error(error.message); setBulkDeleteOpen(false); return; }
+    if (targetNames.length > 0) {
+      await supabase.from("similar_services").delete().in("project_name", targetNames);
     }
+    toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
+    setSelectedIds(new Set());
+    fetchRows();
     setBulkDeleteOpen(false);
   }
 
