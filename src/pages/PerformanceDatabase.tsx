@@ -690,7 +690,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           service_overview: p.service_overview,
           service_type: (p.service_types || []).join(", ") || null,
           evaluation_type: (p.evaluation_types || []).join(", ") || null,
-          participation_rate: p.participation_rate,
+          participation_rate: p.share_rate,
           share_amount: p.share_amount,
           company_share_rate: p.company_share_rate,
           notes: p.notes,
