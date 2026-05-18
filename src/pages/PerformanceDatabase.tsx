@@ -575,9 +575,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.has(r.id)}
-                      disabled={!noCompletion}
                       onCheckedChange={(c) => toggleRowSelection(r.id, !!c)}
-                      title={noCompletion ? "공고일 미입력 - 일괄 삭제 대상" : "공고일이 입력된 항목은 일괄 삭제 불가"}
                     />
                   </TableCell>
                   {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
