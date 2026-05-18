@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut, ShieldCheck } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   { title: "대시보드", url: "/", icon: LayoutDashboard },
