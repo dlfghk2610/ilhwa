@@ -518,6 +518,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+          <Button
+            variant="destructive"
+            disabled={bulkDeletableIds.length === 0}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />공고일 미입력 일괄 삭제 ({bulkDeletableIds.length}건)
+          </Button>
           <div className="ml-auto">
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
           </div>
@@ -527,6 +534,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
@@ -542,15 +550,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 12 : 11} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={external ? 11 : 10} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
-              ) : filtered.map((r) => (
+                <TableRow><TableCell colSpan={external ? 12 : 11} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+              ) : filtered.map((r) => {
+                const noCompletion = !r.completion_date;
+                return (
                 <TableRow key={r.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(r.id)}
+                      disabled={!noCompletion}
+                      onCheckedChange={(c) => toggleRowSelection(r.id, !!c)}
+                      title={noCompletion ? "공고일 미입력 - 일괄 삭제 대상" : "공고일이 입력된 항목은 일괄 삭제 불가"}
+                    />
+                  </TableCell>
                   {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
                   <TableCell className="font-medium">
                     {r.project_name}
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
+                    {noCompletion && <Badge variant="destructive" className="ml-2">공고일 미입력</Badge>}
                   </TableCell>
                   <TableCell>{r.client ?? "-"}</TableCell>
                   <TableCell className="whitespace-pre">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</TableCell>
@@ -570,10 +589,11 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건 · 공고일 미입력 {filtered.filter((r) => !r.completion_date).length}건</div>
         </Card>
       </div>
 
