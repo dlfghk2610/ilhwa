@@ -399,11 +399,11 @@ export default function Performances() {
   }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
 
   const techTotals = useMemo(() => {
-    const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
+    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && techSelectedRowIds.has(t.row.id));
     const simple = active.reduce((a, b) => a + b.simple, 0);
     const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
-  }, [techRows, techSelectedRowIds]);
+  }, [techRows, techSelectedRowIds, includeUnder90]);
 
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
@@ -552,7 +552,11 @@ export default function Performances() {
                   ) : techRows.map((t, i) => (
                     <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
                       <TableCell>
-                        <Checkbox checked={!t.expired && techSelectedRowIds.has(t.row.id)} disabled={t.expired} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                        {(() => {
+                          const blockUnder90 = !includeUnder90 && t.under90;
+                          const disabled = t.expired || blockUnder90;
+                          return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
+                        })()}
                       </TableCell>
                       <TableCell className="font-medium">
                         {t.row.project_name}
