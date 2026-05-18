@@ -608,10 +608,14 @@ export default function Performances() {
                 <Card className="p-4 text-center text-sm text-muted-foreground">참여 사업이 없습니다</Card>
               ) : techRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
+                const blockUnder90 = !includeUnder90 && t.under90;
+                const dispSimple = blockUnder90 ? 0 : t.simple;
+                const dispRatio = blockUnder90 ? 0 : t.ratio;
+                const dispPeriod = blockUnder90 ? 0 : t.periodCount;
                 return (
                   <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""}`}>
                     <div className="flex items-start gap-2">
-                      <Checkbox className="mt-1" checked={!t.expired && techSelectedRowIds.has(t.row.id)} disabled={t.expired} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">{t.row.project_name}</div>
                       </button>
@@ -628,9 +632,9 @@ export default function Performances() {
                         <div className="grid grid-cols-2 gap-2 pt-1">
                           <div>평가 {t.evalW.toFixed(2)}</div>
                           <div>사업 {t.svcW.toFixed(2)}</div>
-                          <div>단순 {t.simple.toFixed(2)}</div>
-                          <div>비율 {(t.ratio * 100).toFixed(1)}%</div>
-                          <div className="col-span-2">기간대비 {t.periodCount.toFixed(2)}</div>
+                          <div>단순 {dispSimple.toFixed(2)}</div>
+                          <div>비율 {(dispRatio * 100).toFixed(1)}%</div>
+                          <div className="col-span-2">기간대비 {dispPeriod.toFixed(2)}</div>
                         </div>
                       </div>
                     )}
