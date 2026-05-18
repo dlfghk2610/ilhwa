@@ -331,7 +331,9 @@ export default function Performances() {
         const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
         const periodCount = ratio * evalW * svcW;
 
-        const lastEnd = validCps.length > 0 ? validCps[validCps.length - 1].end : null;
+        // 10년 경과 판정: 준공일(completion_date) 우선, 없으면 마지막 계약 종료일
+        const completion = (r as any).completion_date as string | null;
+        const lastEnd = completion || (validCps.length > 0 ? validCps[validCps.length - 1].end : null);
         let expired = false;
         if (lastEnd && !isNaN(refTime)) {
           const endTime = new Date(lastEnd).getTime();
