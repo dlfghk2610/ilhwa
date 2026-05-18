@@ -638,7 +638,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           company_share_rate: String(r["각사지분율"] ?? "").trim() || null,
           evaluation_types: splitList(r["평가종류"]),
           service_types: splitList(r["사업종류"]),
-          participation_rate: num(r["참여율"]),
+          participation_rate: null,
           participants: [],
           phases: [],
           is_private: false,
