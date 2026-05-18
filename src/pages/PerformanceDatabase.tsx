@@ -556,6 +556,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           <div className="space-y-4">
             {/* 기본 정보 */}
             <div className="space-y-3 p-3 rounded-md bg-background border">
+              {external && (
+                <div>
+                  <Label>타회사명 *</Label>
+                  <Input value={form.external_company_name} onChange={(e) => setForm({ ...form, external_company_name: e.target.value })} placeholder="예: ○○건축사사무소" />
+                </div>
+              )}
               <div>
                 <Label>사업명 *</Label>
                 <Input value={form.project_name} onChange={(e) => setForm({ ...form, project_name: e.target.value })} />
