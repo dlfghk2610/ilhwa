@@ -13,6 +13,7 @@ import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
 import ExternalPerformanceDatabase from "./pages/ExternalPerformanceDatabase.tsx";
+import AdminUsers from "./pages/AdminUsers.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
