@@ -398,7 +398,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         contract_start_date: earliestStart,
         contract_end_date: latestEnd,
         contract_date: form.contract_date || null,
-        completion_date: latestEnd,
+        completion_date: form.completion_date || latestEnd,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
         share_amount: form.share_amount ? Number(form.share_amount) : null,
