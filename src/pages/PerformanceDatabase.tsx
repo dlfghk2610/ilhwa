@@ -543,7 +543,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={(c) => toggleSelectAll(!!c)}
+                    aria-label="전체선택"
+                  />
+                </TableHead>
                 {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
