@@ -9,12 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 const items = [
   { title: "대시보드", url: "/", icon: LayoutDashboard },
-  { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
   { title: "입찰참가관리", url: "/bids", icon: FileText },
   { title: "PQ 개인별 실적관리", url: "/performances", icon: Award },
   { title: "PQ 개인별 경력관리", url: "/careers", icon: Briefcase },
   { title: "PQ 기술자별 업무중첩도", url: "/overlaps", icon: Layers },
   { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2 },
+  { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
+  { title: "타회사 실적 데이터베이스 관리", url: "/external-performance-database", icon: Building },
 ];
 
 export function AppSidebar() {
