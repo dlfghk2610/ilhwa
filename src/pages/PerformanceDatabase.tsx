@@ -394,6 +394,46 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         if (error) throw error;
         toast.success("등록 완료");
       }
+
+      // PQ유사용역(similar_services) 동기화: 자사 실적만 반영
+      if (!external) {
+        const simPayload: any = {
+          project_name: payload.project_name,
+          client: payload.client,
+          contract_amount: payload.contract_amount,
+          contract_date: payload.contract_date,
+          completion_date: payload.completion_date,
+          start_date: earliestStart,
+          service_overview: payload.service_overview,
+          service_type: (form.service_types || []).join(", ") || null,
+          evaluation_type: (form.evaluation_types || []).join(", ") || null,
+          participation_rate: payload.participation_rate,
+          share_amount: payload.share_amount,
+          company_share_rate: payload.company_share_rate,
+          phases: payload.phases,
+          cert_pdf_path,
+          is_private: payload.is_private,
+          is_under_90days: payload.is_under_90days,
+          is_lh_completion: payload.is_lh_completion,
+          is_progress: payload.is_progress,
+          is_dual_participation: payload.is_dual_participation,
+          notes: payload.notes,
+        };
+        const prevName = editing?.project_name;
+        const matchName = prevName || payload.project_name;
+        const { data: existing } = await supabase
+          .from("similar_services")
+          .select("id")
+          .eq("created_by", user.id)
+          .eq("project_name", matchName)
+          .maybeSingle();
+        if (existing?.id) {
+          await supabase.from("similar_services").update(simPayload).eq("id", existing.id);
+        } else {
+          await supabase.from("similar_services").insert({ ...simPayload, created_by: user.id });
+        }
+      }
+
       setOpen(false);
       fetchRows();
     } catch (e: any) { toast.error(e.message || "저장 실패"); }
@@ -590,7 +630,6 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <TableCell className="font-medium">
                     {r.project_name}
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
-                    {noCompletion && <Badge variant="destructive" className="ml-2">공고일 미입력</Badge>}
                   </TableCell>
                   <TableCell>{r.client ?? "-"}</TableCell>
                   <TableCell className="whitespace-pre">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</TableCell>
@@ -614,7 +653,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
               })}
             </TableBody>
           </Table>
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건 · 공고일 미입력 {filtered.filter((r) => !r.completion_date).length}건</div>
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
       </div>
 
