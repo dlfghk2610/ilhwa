@@ -917,12 +917,6 @@ export default function SimilarServices() {
                 <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
                 <span className="text-xs">연번 기입 (착수일 오름차순)</span>
               </label>
-              <label>
-                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <span className="cursor-pointer"><Upload className="mr-1 h-4 w-4" />엑셀 가져오기</span>
-                </Button>
-              </label>
               <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
