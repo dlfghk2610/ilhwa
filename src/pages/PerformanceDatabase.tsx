@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Period = { start?: string; end?: string };
 type Participant = {
