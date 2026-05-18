@@ -34,7 +34,7 @@ type Row = {
   contract_periods: Period[];
   contract_start_date: string | null;
   contract_end_date: string | null;
-  announcement_date: string | null;
+  contract_date: string | null;
   completion_date: string | null;
   contract_amount: number | null;
   share_rate: number | null;
@@ -86,7 +86,7 @@ const emptyForm = {
   service_overview: "",
   client: "",
   contract_periods: [{ start: "", end: "" }] as Period[],
-  announcement_date: "",
+  contract_date: "",
   completion_date: "",
   contract_amount: "",
   share_rate: "",
@@ -159,7 +159,7 @@ export default function PerformanceDatabase() {
       service_overview: r.service_overview || "",
       client: r.client || "",
       contract_periods: r.contract_periods.length > 0 ? r.contract_periods : [{ start: "", end: "" }],
-      announcement_date: r.announcement_date || "",
+      contract_date: (r as any).contract_date || "",
       completion_date: r.completion_date || "",
       contract_amount: r.contract_amount?.toString() ?? "",
       share_rate: r.share_rate?.toString() ?? "",
@@ -186,15 +186,15 @@ export default function PerformanceDatabase() {
     setOpen(true);
   }
 
-  // 지분금액 자동계산
+  // 지분금액 자동계산 (계약금액·지분율 변경 시 항상 갱신)
   useEffect(() => {
-    if (shareAmountTouched) return;
     const amt = Number(form.contract_amount);
     const rate = Number(form.share_rate);
-    if (!isNaN(amt) && !isNaN(rate) && form.contract_amount && form.share_rate) {
-      setForm((f) => ({ ...f, share_amount: Math.round(amt * rate / 100).toString() }));
+    if (!isNaN(amt) && !isNaN(rate) && form.contract_amount !== "" && form.share_rate !== "") {
+      const computed = Math.round(amt * rate / 100).toString();
+      setForm((f) => (f.share_amount === computed ? f : { ...f, share_amount: computed }));
     }
-  }, [form.contract_amount, form.share_rate, shareAmountTouched]);
+  }, [form.contract_amount, form.share_rate]);
 
   async function handleExtractParticipants() {
     if (!form.participant_file) { toast.error("먼저 파일을 선택하세요"); return; }
@@ -262,7 +262,7 @@ export default function PerformanceDatabase() {
         contract_periods: cleanedPeriods,
         contract_start_date: earliestStart,
         contract_end_date: latestEnd,
-        announcement_date: form.announcement_date || null,
+        contract_date: form.contract_date || null,
         completion_date: form.completion_date || null,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
@@ -468,8 +468,8 @@ export default function PerformanceDatabase() {
                   <Input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
                 </div>
                 <div>
-                  <Label>공고일</Label>
-                  <DateInput value={form.announcement_date} onChange={(v) => setForm({ ...form, announcement_date: v })} />
+                  <Label>계약일자</Label>
+                  <DateInput value={form.contract_date} onChange={(v) => setForm({ ...form, contract_date: v })} />
                 </div>
               </div>
             </div>
