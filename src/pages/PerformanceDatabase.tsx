@@ -316,22 +316,11 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           })
           .filter(Boolean) as Participant[];
         if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
-        // 계약기간 자동 보강: 비어있거나 비교 후 합치기 (중복 제거)
-        setForm((f) => {
-          const existing = (f.contract_periods || []).filter((p) => p.start || p.end);
-          const merged: Period[] = [...existing];
-          const keyOf = (p: Period) => `${p.start || ""}~${p.end || ""}`;
-          const seen = new Set(merged.map(keyOf));
-          allPeriods.forEach((p) => { const k = keyOf(p); if (!seen.has(k)) { merged.push(p); seen.add(k); } });
-          const finalContract = merged.length > 0 ? merged : f.contract_periods;
-          const latestEnd = finalContract.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || "";
-          return {
-            ...f,
-            participants,
-            contract_periods: finalContract,
-            completion_date: completionFromExcel || latestEnd || f.completion_date,
-          };
-        });
+        setForm((f) => ({
+          ...f,
+          participants,
+          completion_date: completionFromExcel || f.completion_date,
+        }));
         toast.success(`${participants.length}명 추출 완료`);
         return;
       }
