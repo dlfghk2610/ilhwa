@@ -363,7 +363,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         contract_start_date: earliestStart,
         contract_end_date: latestEnd,
         contract_date: form.contract_date || null,
-        completion_date: form.completion_date || null,
+        completion_date: latestEnd,
         contract_amount: form.contract_amount ? Number(form.contract_amount) : null,
         share_rate: form.share_rate ? Number(form.share_rate) : null,
         share_amount: form.share_amount ? Number(form.share_amount) : null,
@@ -703,10 +703,6 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeContractPeriod(i)}><X className="h-4 w-4" /></Button>
                 </div>
               ))}
-              <div className="mt-2">
-                <Label>준공일</Label>
-                <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
-              </div>
             </div>
 
             {/* 금액/지분 */}
