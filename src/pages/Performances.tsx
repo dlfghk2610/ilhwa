@@ -399,11 +399,11 @@ export default function Performances() {
   }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
 
   const techTotals = useMemo(() => {
-    const active = techRows.filter((t) => !t.expired && techSelectedRowIds.has(t.row.id));
+    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && techSelectedRowIds.has(t.row.id));
     const simple = active.reduce((a, b) => a + b.simple, 0);
     const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
-  }, [techRows, techSelectedRowIds]);
+  }, [techRows, techSelectedRowIds, includeUnder90]);
 
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
