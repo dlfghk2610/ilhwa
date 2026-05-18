@@ -613,7 +613,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
               })}
             </TableBody>
           </Table>
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건 · 공고일 미입력 {filtered.filter((r) => !r.completion_date).length}건</div>
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
       </div>
 
