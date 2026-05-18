@@ -240,6 +240,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       is_lh_completion: r.is_lh_completion,
       is_progress: r.is_progress,
       is_dual_participation: r.is_dual_participation,
+      external_company_name: (r as any).external_company_name || "",
       notes: r.notes || "",
     });
     setShareAmountTouched(true);
