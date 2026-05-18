@@ -578,15 +578,9 @@ export default function PerformanceDatabase() {
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeContractPeriod(i)}><X className="h-4 w-4" /></Button>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                <div>
-                  <Label>준공일</Label>
-                  <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
-                </div>
-                <div>
-                  <Label>적용건수</Label>
-                  <Input type="number" value={form.participation_rate} onChange={(e) => setForm({ ...form, participation_rate: e.target.value })} />
-                </div>
+              <div className="mt-2">
+                <Label>준공일</Label>
+                <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
               </div>
             </div>
 
@@ -594,7 +588,7 @@ export default function PerformanceDatabase() {
             <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-primary/10 border">
               <div>
                 <Label>계약금액</Label>
-                <Input type="number" value={form.contract_amount} onChange={(e) => setForm({ ...form, contract_amount: e.target.value })} />
+                <NumberInput value={form.contract_amount} onChange={(v) => setForm({ ...form, contract_amount: v })} />
               </div>
               <div>
                 <Label>지분율(%)</Label>
@@ -602,7 +596,7 @@ export default function PerformanceDatabase() {
               </div>
               <div>
                 <Label>지분금액 (자동)</Label>
-                <Input type="number" value={form.share_amount} onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value }); }} />
+                <NumberInput value={form.share_amount} onChange={(v) => { setShareAmountTouched(true); setForm({ ...form, share_amount: v }); }} />
               </div>
               <div>
                 <Label>각사지분율</Label>
