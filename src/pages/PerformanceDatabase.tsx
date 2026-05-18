@@ -86,7 +86,7 @@ const emptyForm = {
   service_overview: "",
   client: "",
   contract_periods: [{ start: "", end: "" }] as Period[],
-  announcement_date: "",
+  contract_date: "",
   completion_date: "",
   contract_amount: "",
   share_rate: "",
