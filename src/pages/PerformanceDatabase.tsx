@@ -703,10 +703,6 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeContractPeriod(i)}><X className="h-4 w-4" /></Button>
                 </div>
               ))}
-              <div className="mt-2">
-                <Label>준공일</Label>
-                <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
-              </div>
             </div>
 
             {/* 금액/지분 */}
