@@ -662,6 +662,18 @@ export default function Performances() {
           </>
         )}
       </div>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{bulkDeletableRows.length}건을 일괄 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>공고일(준공일)이 미입력된 선택 항목이 마스터 데이터베이스에서 영구 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
