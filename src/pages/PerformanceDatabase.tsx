@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Period = { start?: string; end?: string };
 type Participant = {
@@ -80,6 +81,62 @@ function DateInput({ value, onChange, className, placeholder = "YYYY.MM.DD" }: {
 }
 
 const fmt = (n: number | null | undefined) => n == null || isNaN(Number(n)) ? "" : Number(n).toLocaleString();
+
+// 숫자 입력 시 천단위 콤마 자동 적용
+function NumberInput({ value, onChange, className, placeholder }: { value: string; onChange: (raw: string) => void; className?: string; placeholder?: string }) {
+  const display = value === "" || value == null ? "" : Number(String(value).replace(/[^\d.-]/g, "")).toLocaleString();
+  return (
+    <Input
+      className={className}
+      inputMode="numeric"
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d]/g, "");
+        onChange(raw);
+      }}
+    />
+  );
+}
+
+// "25.01.15" / "2025.01.15" / "250115" / "20250115" 등을 ISO로 변환
+const normalizeIsoFromText = (s: string): string => {
+  const digits = (s || "").replace(/\D/g, "");
+  if (digits.length === 8) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+  if (digits.length === 6) return `20${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 6)}`;
+  return "";
+};
+// "YY.MM.DD~YY.MM.DD" 또는 "YYYY.MM.DD" 등의 텍스트를 시작/종료 ISO로 파싱
+const parsePeriodText = (s: string): { start: string; end: string } => {
+  if (!s) return { start: "", end: "" };
+  const parts = String(s).split(/[~–—]/).map((x) => x.trim()).filter(Boolean);
+  return { start: normalizeIsoFromText(parts[0] || ""), end: normalizeIsoFromText(parts[1] || "") };
+};
+const formatPeriodDisplay = (start?: string, end?: string) => {
+  const s = isoToDisplay(start);
+  const e = isoToDisplay(end);
+  if (s && e) return `${s}~${e}`;
+  return s || e || "";
+};
+
+// 참여기간 단일 텍스트 입력 (자유 형식 → ISO 자동 반영)
+function PeriodTextInput({ start, end, onChange, className }: { start?: string; end?: string; onChange: (start: string, end: string) => void; className?: string }) {
+  const [text, setText] = useState<string>(formatPeriodDisplay(start, end));
+  useEffect(() => { setText(formatPeriodDisplay(start, end)); }, [start, end]);
+  return (
+    <Input
+      className={className}
+      value={text}
+      placeholder="예: 25.01.15~25.06.30"
+      onChange={(e) => {
+        const v = e.target.value;
+        setText(v);
+        const p = parsePeriodText(v);
+        onChange(p.start, p.end);
+      }}
+    />
+  );
+}
 
 const emptyForm = {
   project_name: "",
@@ -201,6 +258,39 @@ export default function PerformanceDatabase() {
     setExtracting(true);
     try {
       const file = form.participant_file;
+      const name = file.name.toLowerCase();
+      // 엑셀 양식이면 로컬에서 즉시 파싱
+      if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+        const participants: Participant[] = rows
+          .map((r) => {
+            const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+            if (!nm) return null;
+            const birthRaw = r["생년월일"];
+            const birth = typeof birthRaw === "number"
+              ? new Date(Math.round((birthRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+              : normalizeIsoFromText(String(birthRaw ?? ""));
+            const periodText = String(r["참여기간"] ?? "").trim();
+            const period = parsePeriodText(periodText);
+            return {
+              name: nm,
+              birth_date: birth || undefined,
+              specialty: String(r["전문분야"] ?? "").trim() || undefined,
+              position: String(r["직위"] ?? "").trim() || undefined,
+              responsibility: String(r["책임정도"] ?? "").trim() || undefined,
+              periods: [{ start: period.start, end: period.end }],
+            } as Participant;
+          })
+          .filter(Boolean) as Participant[];
+        if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
+        setForm((f) => ({ ...f, participants }));
+        toast.success(`${participants.length}명 추출 완료`);
+        return;
+      }
+      // PDF/DOCX는 AI 추출
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = "";
@@ -488,15 +578,9 @@ export default function PerformanceDatabase() {
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeContractPeriod(i)}><X className="h-4 w-4" /></Button>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                <div>
-                  <Label>준공일</Label>
-                  <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
-                </div>
-                <div>
-                  <Label>적용건수</Label>
-                  <Input type="number" value={form.participation_rate} onChange={(e) => setForm({ ...form, participation_rate: e.target.value })} />
-                </div>
+              <div className="mt-2">
+                <Label>준공일</Label>
+                <DateInput value={form.completion_date} onChange={(v) => setForm({ ...form, completion_date: v })} />
               </div>
             </div>
 
@@ -504,7 +588,7 @@ export default function PerformanceDatabase() {
             <div className="grid grid-cols-2 gap-3 p-3 rounded-md bg-primary/10 border">
               <div>
                 <Label>계약금액</Label>
-                <Input type="number" value={form.contract_amount} onChange={(e) => setForm({ ...form, contract_amount: e.target.value })} />
+                <NumberInput value={form.contract_amount} onChange={(v) => setForm({ ...form, contract_amount: v })} />
               </div>
               <div>
                 <Label>지분율(%)</Label>
@@ -512,7 +596,7 @@ export default function PerformanceDatabase() {
               </div>
               <div>
                 <Label>지분금액 (자동)</Label>
-                <Input type="number" value={form.share_amount} onChange={(e) => { setShareAmountTouched(true); setForm({ ...form, share_amount: e.target.value }); }} />
+                <NumberInput value={form.share_amount} onChange={(v) => { setShareAmountTouched(true); setForm({ ...form, share_amount: v }); }} />
               </div>
               <div>
                 <Label>각사지분율</Label>
@@ -571,7 +655,7 @@ export default function PerformanceDatabase() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label>참여 기술자</Label>
                 <div className="flex gap-2 items-center flex-wrap">
-                  <Input type="file" accept=".pdf,.docx" className="max-w-xs" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                  <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="max-w-xs" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
                   <Button type="button" size="sm" variant="outline" disabled={!form.participant_file || extracting} onClick={handleExtractParticipants}>
                     {extracting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}자동추출
                   </Button>
@@ -593,11 +677,13 @@ export default function PerformanceDatabase() {
                   </div>
                   <div className="space-y-1">
                     {(p.periods && p.periods.length > 0 ? p.periods : [{ start: "", end: "" }]).map((pd, j) => (
-                      <div key={j} className="flex items-center gap-2">
-                        <DateInput className="max-w-[140px]" value={pd.start || ""} onChange={(v) => updateParticipantPeriod(i, j, "start", v)} />
-                        <span>~</span>
-                        <DateInput className="max-w-[140px]" value={pd.end || ""} onChange={(v) => updateParticipantPeriod(i, j, "end", v)} />
-                      </div>
+                      <PeriodTextInput
+                        key={j}
+                        className="max-w-[280px]"
+                        start={pd.start}
+                        end={pd.end}
+                        onChange={(s, e) => { updateParticipantPeriod(i, j, "start", s); updateParticipantPeriod(i, j, "end", e); }}
+                      />
                     ))}
                     <Button type="button" size="sm" variant="ghost" onClick={() => addParticipantPeriod(i)}><Plus className="h-3 w-3 mr-1" />참여기간 추가</Button>
                   </div>
@@ -643,11 +729,13 @@ export default function PerformanceDatabase() {
                           </div>
                           <div className="space-y-1">
                             {(pt.periods && pt.periods.length > 0 ? pt.periods : [{ start: "", end: "" }]).map((pd, k) => (
-                              <div key={k} className="flex items-center gap-2">
-                                <DateInput className="max-w-[140px]" value={pd.start || ""} onChange={(v) => updatePhaseParticipantPeriod(i, j, k, "start", v)} />
-                                <span>~</span>
-                                <DateInput className="max-w-[140px]" value={pd.end || ""} onChange={(v) => updatePhaseParticipantPeriod(i, j, k, "end", v)} />
-                              </div>
+                              <PeriodTextInput
+                                key={k}
+                                className="max-w-[280px]"
+                                start={pd.start}
+                                end={pd.end}
+                                onChange={(s, e) => { updatePhaseParticipantPeriod(i, j, k, "start", s); updatePhaseParticipantPeriod(i, j, k, "end", e); }}
+                              />
                             ))}
                             <Button type="button" size="sm" variant="ghost" onClick={() => addPhaseParticipantPeriod(i, j)}><Plus className="h-3 w-3 mr-1" />참여기간 추가</Button>
                           </div>
