@@ -192,7 +192,7 @@ export default function Performances() {
         계약기간: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
         계약기간일수: contractDays || "",
         계약금액: r.contract_amount ?? "",
-        "지분율(%)": r.share_rate != null ? `${r.share_rate}%` : "",
+        "지분율": r.share_rate != null ? r.share_rate / 100 : "",
         지분금액: r.share_amount ?? "",
         평가종류: r.evaluation_types.join(", "),
         사업종류: r.service_types.join(", "),
