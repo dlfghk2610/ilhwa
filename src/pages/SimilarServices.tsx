@@ -526,7 +526,7 @@ export default function SimilarServices() {
           "착수일": r.start_date,
           "준공일": r.completion_date,
           "계약금액": r.contract_amount,
-          "참여(%)": r.is_dual_participation || r.participation_rate == null ? null : `${r.participation_rate}%`,
+          "참여지분율": r.is_dual_participation || r.participation_rate == null ? null : r.participation_rate / 100,
           "지분금액": r.share_amount,
           "평가종류": r.evaluation_type,
           "사업종류": r.service_type,
