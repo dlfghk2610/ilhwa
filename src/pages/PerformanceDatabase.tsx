@@ -641,7 +641,10 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         const earliestStart = periods.map((p) => p.start).filter(Boolean).sort()[0] || null;
         const latestEnd = periods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
         const contract_amount = num(r["계약금액"]);
-        const share_rate = num(r["지분율"]);
+        let share_rate = num(r["지분율"]);
+        if (share_rate != null && share_rate > 0 && share_rate <= 1) {
+          share_rate = share_rate * 100;
+        }
         let share_amount = num(r["지분금액"]);
         if (share_amount == null && contract_amount != null && share_rate != null) {
           share_amount = Math.round(contract_amount * share_rate / 100);
