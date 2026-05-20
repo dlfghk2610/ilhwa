@@ -545,7 +545,22 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
-    setForm((f) => ({ ...f, phases: f.phases.map((p, i) => i === idx ? { ...p, ...patch } : p) }));
+    setForm((f) => ({ ...f, phases: f.phases.map((p, i) => {
+      if (i !== idx) return p;
+      const next: Phase = { ...p, ...patch };
+      // 지분금액을 직접 수정하지 않은 경우, 계약금액×지분율로 자동 계산
+      const amountTouched = "share_amount" in patch || "amount" in patch;
+      if (!amountTouched && ("contract_amount" in patch || "share_rate" in patch)) {
+        const ca = Number(next.contract_amount);
+        const sr = Number(next.share_rate);
+        if (next.contract_amount != null && next.share_rate != null && !isNaN(ca) && !isNaN(sr)) {
+          const calc = Math.round(ca * sr / 100);
+          next.share_amount = calc;
+          next.amount = calc;
+        }
+      }
+      return next;
+    }) }));
   }
   function removePhase(idx: number) {
     setForm((f) => ({ ...f, phases: f.phases.filter((_, i) => i !== idx) }));
