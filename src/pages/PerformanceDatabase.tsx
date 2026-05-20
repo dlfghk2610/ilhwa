@@ -375,13 +375,17 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         cert_pdf_path = path;
       }
 
-      const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
+      let cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
       // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일/금액 합산을 대표값으로
       let phaseContractTotal: number | null = null;
       let phaseShareTotal: number | null = null;
       if (form.phases.length > 0) {
+        const phasePeriods = form.phases
+          .filter((p) => p.start_date || p.end_date)
+          .map((p) => ({ start: p.start_date || "", end: p.end_date || "" }));
+        if (phasePeriods.length > 0) cleanedPeriods = phasePeriods;
         const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
         const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
         if (firstPhaseStart) earliestStart = firstPhaseStart;
