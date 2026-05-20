@@ -845,7 +845,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         </Card>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { requestAnimationFrame(() => window.scrollTo({ top: scrollPosRef.current })); } }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "사업 수정" : "사업 등록"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
