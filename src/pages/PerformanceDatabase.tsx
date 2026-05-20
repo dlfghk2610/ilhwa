@@ -376,8 +376,15 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       }
 
       const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
-      const earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
-      const latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+      let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
+      let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+      // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일을 대표값으로
+      if (form.phases.length > 0) {
+        const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
+        const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
+        if (firstPhaseStart) earliestStart = firstPhaseStart;
+        if (lastPhaseEnd) latestEnd = lastPhaseEnd;
+      }
 
       const payload: any = {
         project_name: form.project_name.trim(),
@@ -545,7 +552,22 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
-    setForm((f) => ({ ...f, phases: f.phases.map((p, i) => i === idx ? { ...p, ...patch } : p) }));
+    setForm((f) => ({ ...f, phases: f.phases.map((p, i) => {
+      if (i !== idx) return p;
+      const next: Phase = { ...p, ...patch };
+      // 지분금액을 직접 수정하지 않은 경우, 계약금액×지분율로 자동 계산
+      const amountTouched = "share_amount" in patch || "amount" in patch;
+      if (!amountTouched && ("contract_amount" in patch || "share_rate" in patch)) {
+        const ca = Number(next.contract_amount);
+        const sr = Number(next.share_rate);
+        if (next.contract_amount != null && next.share_rate != null && !isNaN(ca) && !isNaN(sr)) {
+          const calc = Math.round(ca * sr / 100);
+          next.share_amount = calc;
+          next.amount = calc;
+        }
+      }
+      return next;
+    }) }));
   }
   function removePhase(idx: number) {
     setForm((f) => ({ ...f, phases: f.phases.filter((_, i) => i !== idx) }));
