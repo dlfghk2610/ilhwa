@@ -308,7 +308,7 @@ export default function SimilarServices() {
 
       let derivedStart = txt(form.start_date);
       let derivedCompletion = txt(form.completion_date);
-      if (form.evaluation_type === "사후" && phasesPayload.length > 0) {
+      if (phasesPayload.length > 0) {
         const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
         const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
         if (firstStart) derivedStart = firstStart;
