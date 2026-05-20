@@ -222,6 +222,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   }
 
   function openEdit(r: Row) {
+    scrollPosRef.current = window.scrollY;
     setEditing(r);
     setForm({
       project_name: r.project_name || "",
