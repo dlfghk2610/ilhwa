@@ -211,7 +211,10 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     };
   }
 
+  const scrollPosRef = useRef(0);
+
   function openCreate() {
+    scrollPosRef.current = window.scrollY;
     setEditing(null);
     setForm(emptyForm);
     setShareAmountTouched(false);
