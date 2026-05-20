@@ -378,12 +378,18 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
-      // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일을 대표값으로
+      // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일/금액 합산을 대표값으로
+      let phaseContractTotal: number | null = null;
+      let phaseShareTotal: number | null = null;
       if (form.phases.length > 0) {
         const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
         const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
         if (firstPhaseStart) earliestStart = firstPhaseStart;
         if (lastPhaseEnd) latestEnd = lastPhaseEnd;
+        const cSum = form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
+        const sSum = form.phases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
+        if (cSum > 0) phaseContractTotal = cSum;
+        if (sSum > 0) phaseShareTotal = sSum;
       }
 
       const payload: any = {
