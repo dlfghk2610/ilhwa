@@ -376,8 +376,15 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       }
 
       const cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
-      const earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
-      const latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+      let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
+      let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
+      // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일을 대표값으로
+      if (form.phases.length > 0) {
+        const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
+        const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
+        if (firstPhaseStart) earliestStart = firstPhaseStart;
+        if (lastPhaseEnd) latestEnd = lastPhaseEnd;
+      }
 
       const payload: any = {
         project_name: form.project_name.trim(),
