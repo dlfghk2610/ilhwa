@@ -444,15 +444,12 @@ export default function Performances() {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <div>
-                <Label>기술자 선택</Label>
-                <Select value={selectedTech} onValueChange={(v) => { setSelectedTech(v); setTechSelectionTouched(false); }}>
-                  <SelectTrigger><SelectValue placeholder="기술자명을 선택" /></SelectTrigger>
-                  <SelectContent>
-                    {allTechnicians.length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">등록된 기술자가 없습니다</div>
-                    ) : allTechnicians.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>기술자명 입력</Label>
+                <TechNameInput
+                  value={selectedTech}
+                  options={allTechnicians}
+                  onChange={(v) => { setSelectedTech(v); setTechSelectionTouched(false); }}
+                />
               </div>
               <div>
                 <Label>공고일 (10년 경과 판정 기준)</Label>
