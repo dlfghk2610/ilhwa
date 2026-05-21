@@ -163,7 +163,12 @@ export default function Performances() {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
   });
 
-  useEffect(() => { fetchRows(); }, []);
+  // 전체보기 탭 상태
+  const [tab, setTab] = useState<string>("single");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
+  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { company: string; status: "active" | "retired" }>>(new Map());
+
+  useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
 
   async function fetchRows() {
     setLoading(true);
@@ -175,6 +180,30 @@ export default function Performances() {
     else setRows((data as any[]).map(normalize));
     setLoading(false);
   }
+
+  async function fetchTechMeta() {
+    const [techRes, careerRes] = await Promise.all([
+      supabase.from("technicians").select("name, company"),
+      supabase.from("personal_careers").select("technician_name, company, resign_date"),
+    ]);
+    const map = new Map<string, { company: string; status: "active" | "retired" }>();
+    (techRes.data as any[] | null)?.forEach((t) => {
+      map.set(t.name, { company: t.company ?? "", status: "active" });
+    });
+    // personal_careers 기준으로 상태 갱신: resign_date가 없는 항목이 하나라도 있으면 재직중
+    const byName = new Map<string, any[]>();
+    (careerRes.data as any[] | null)?.forEach((c) => {
+      const arr = byName.get(c.technician_name) ?? [];
+      arr.push(c); byName.set(c.technician_name, arr);
+    });
+    byName.forEach((arr, name) => {
+      const anyActive = arr.some((c) => !c.resign_date);
+      const company = arr[0]?.company ?? map.get(name)?.company ?? "";
+      map.set(name, { company, status: anyActive ? "active" : "retired" });
+    });
+    setTechCompanyMap(map);
+  }
+
 
   function normalize(r: any): Row {
     return {
