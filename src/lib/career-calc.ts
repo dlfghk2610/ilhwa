@@ -9,6 +9,7 @@ export const ENV_CATEGORIES = [
 ];
 
 export type EvalGroup = "환경" | "기타";
+export type CalcStandard = "건설기술인협회" | "환경영향평가"; // 계산 기준 타입 추가
 
 export const classifyEval = (raw?: string | null): EvalGroup => {
   const v = (raw || "").trim();
@@ -47,6 +48,23 @@ export const daysToYearMonth = (days: number): string => {
   return `${y}년 ${m}개월`;
 };
 
+// [신규] 발주처명 기반 민간 여부 판독 로직 (AI 휴리스틱)
+export const isPrivateClient = (clientName?: string | null): boolean => {
+  if (!clientName) return false;
+  const name = clientName.replace(/\s/g, "");
+
+  // 1. 명시적 민간/학교 키워드
+  if (/주식회사|\(주\)|대학교|대학|학원|병원|조합|아파트|엔지니어링|건축사/.test(name)) return true;
+
+  // 2. 명시적 공공기관 키워드 (공공이면 무조건 false)
+  if (/시청|도청|군청|구청|공사|공단|본부|지방|국토|환경|관리소|위원회|정부|부|청$/.test(name)) return false;
+
+  // 3. 개인 이름 추정 (2~4글자의 한글이고 공공 키워드가 없는 경우)
+  if (/^[가-힣]{2,4}$/.test(name)) return true;
+
+  return false;
+};
+
 export type CareerEntry = {
   id: string;
   technician_id: string;
@@ -68,13 +86,16 @@ export type RecognitionRow = {
   entry: CareerEntry;
   evalGroup: EvalGroup;
   weight: number;
-  recognizedDays: number; // 적용된 인정일 (전문분야/근무중 룰 반영)
-  convertedDays: number; // 환산일수
+  recognizedDays: number; 
+  convertedDays: number; 
+  isPrivate: boolean; // 화면에 표시하기 위해 추가
 };
 
+// [수정됨] 파라미터에 excludePrivate (민간제외 여부) 추가
 export const computeRecognition = (
   entry: CareerEntry,
   techSpecialty?: string | null,
+  excludePrivate: boolean = false
 ): RecognitionRow => {
   const evalGroup = classifyEval(entry.evaluation_category);
   const weight = evalWeight(evalGroup);
@@ -83,6 +104,21 @@ export const computeRecognition = (
     !!techSpecialty &&
     !!entry.specialty &&
     entry.specialty.trim() === techSpecialty.trim();
+  
+  const isPrivate = isPrivateClient(entry.client);
+
+  // 민간 제외가 체크되어 있고, 해당 발주처가 민간이면 인정일을 0으로 처리
+  if (excludePrivate && isPrivate) {
+    return {
+      entry,
+      evalGroup,
+      weight,
+      recognizedDays: 0,
+      convertedDays: 0,
+      isPrivate
+    };
+  }
+
   const base = working || !specialtyMatch ? 0 : Number(entry.recognized_days || 0);
   return {
     entry,
@@ -90,10 +126,10 @@ export const computeRecognition = (
     weight,
     recognizedDays: base,
     convertedDays: +(base * weight).toFixed(2),
+    isPrivate
   };
 };
 
-// 가중 구간 스케줄링: 같은 전문분야 내 겹치지 않는 부분집합 중 환산일수 합 최대
 export type OverlapItem = {
   row: RecognitionRow;
   start: Date;
@@ -101,15 +137,13 @@ export type OverlapItem = {
   participationDays: number;
 };
 
-// 시간순 시프트 방식: 시작일 오름차순 정렬 후, 직전 행의 원본 종료일과 겹치면
-// 중복제외 시작일을 (직전 종료일 + 1일)로 밀어준다. (엑셀 IF(E<=F_prev, F_prev+1, E))
 export type ShiftItem = {
   row: RecognitionRow;
   origStart: Date;
   origEnd: Date;
   adjStart: Date;
   adjEnd: Date;
-  participationDays: number; // adjEnd - adjStart + 1, clamp 0
+  participationDays: number;
   convertedDays: number;
 };
 
@@ -139,7 +173,8 @@ export const computeShifted = (rows: RecognitionRow[]): ShiftItem[] => {
       adjStart,
       adjEnd: e,
       participationDays: days,
-      convertedDays: +(days * r.weight).toFixed(2),
+      // convertedDays가 0으로 세팅된 민간 프로젝트는 계산에서도 0으로 유지
+      convertedDays: r.convertedDays > 0 ? +(days * r.weight).toFixed(2) : 0,
     });
     prevEnd = e;
   }
@@ -156,6 +191,7 @@ export const selectOptimal = (rows: RecognitionRow[]): OverlapItem[] => {
     .map((r) => {
       const s = parseDate(r.entry.period_start);
       const e = parseDate(r.entry.period_end_text);
+      // 민간 제외 등으로 convertedDays가 0이 된 항목은 자동 탈락
       if (!s || !e || r.convertedDays <= 0) return null;
       return {
         row: r,
@@ -170,7 +206,6 @@ export const selectOptimal = (rows: RecognitionRow[]): OverlapItem[] => {
   const n = items.length;
   if (n === 0) return [];
 
-  // p[i] = 가장 큰 j < i 이면서 items[j].end < items[i].start
   const p: number[] = items.map((it, idx) => {
     let lo = 0, hi = idx - 1, ans = -1;
     while (lo <= hi) {
