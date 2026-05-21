@@ -338,72 +338,76 @@ export default function Performances() {
     return Array.from(s).sort();
   }, [rows]);
 
-  const techRows = useMemo(() => {
-    if (!selectedTech) return [];
+  const computeForTech = useMemo(() => {
     const refDateStr = noticeDate || new Date().toISOString().slice(0, 10);
     const refTime = new Date(refDateStr).getTime();
+    return (techName: string) => {
+      const base = rows
+        .map((r) => {
+          const part = r.participants?.find((p) => p.name === techName);
+          if (!part) return null;
+          const evalSet = new Set(r.evaluation_types);
+          let evalW = 0.6;
+          if (evalSet.has("평가")) evalW = 1.0;
+          else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
 
-    const base = rows
-      .map((r) => {
-        const part = r.participants?.find((p) => p.name === selectedTech);
-        if (!part) return null;
-        const evalSet = new Set(r.evaluation_types);
-        let evalW = 0.6;
-        if (evalSet.has("평가")) evalW = 1.0;
-        else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
+          let svcW = 0.6;
+          if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
 
-        let svcW = 0.6;
-        if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
+          const simple = evalW * svcW;
+          const cps = getContractPeriods(r);
+          const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
+          const periods = getPeriods(part);
+          const partDays = periods.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
+          const ovSum = cps.reduce((s, cp) =>
+            s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+          const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start!.localeCompare(b.start!));
+          const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start!.localeCompare(b.start!));
+          const fullCover =
+            validPeriods.length > 0 && validCps.length > 0 &&
+            validPeriods[0].start === validCps[0].start &&
+            validPeriods[validPeriods.length - 1].end === validCps[validCps.length - 1].end;
+          const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
+          const periodCount = ratio * evalW * svcW;
 
-        const simple = evalW * svcW;
-        const cps = getContractPeriods(r);
-        const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
-        const periods = getPeriods(part);
-        const partDays = periods.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
-        const ovSum = cps.reduce((s, cp) =>
-          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
-        const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start!.localeCompare(b.start!));
-        const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start!.localeCompare(b.start!));
-        const fullCover =
-          validPeriods.length > 0 && validCps.length > 0 &&
-          validPeriods[0].start === validCps[0].start &&
-          validPeriods[validPeriods.length - 1].end === validCps[validCps.length - 1].end;
-        const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
-        const periodCount = ratio * evalW * svcW;
+          const completion = (r as any).completion_date as string | null;
+          const lastEnd = completion || (validCps.length > 0 ? validCps[validCps.length - 1].end : null);
+          let expired = false;
+          if (lastEnd && !isNaN(refTime)) {
+            const endTime = new Date(lastEnd).getTime();
+            const tenYearsMs = 10 * 365.25 * 86400000;
+            expired = refTime - endTime > tenYearsMs;
+          }
 
-        // 10년 경과 판정: 준공일(completion_date) 우선, 없으면 마지막 계약 종료일
-        const completion = (r as any).completion_date as string | null;
-        const lastEnd = completion || (validCps.length > 0 ? validCps[validCps.length - 1].end : null);
-        let expired = false;
-        if (lastEnd && !isNaN(refTime)) {
-          const endTime = new Date(lastEnd).getTime();
-          const tenYearsMs = 10 * 365.25 * 86400000;
-          expired = refTime - endTime > tenYearsMs;
+          const isPostEval = evalSet.has("사후");
+          const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
+          const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
+          const baseName = phaseMatch ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim() : r.project_name;
+          const under90 = partDays > 0 && partDays < 90;
+
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
+        })
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
+
+      const lastPhaseByBase = new Map<string, number>();
+      base.forEach((t) => {
+        if (t.isPostEval && t.phaseNum != null) {
+          const cur = lastPhaseByBase.get(t.baseName) ?? -1;
+          if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
         }
+      });
+      return base.map((t) => {
+        const isPhase = t.isPostEval && t.phaseNum != null;
+        const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
+        return { ...t, isPhase, isLastPhase };
+      });
+    };
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate]);
 
-        const isPostEval = evalSet.has("사후");
-        const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
-        const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
-        const baseName = phaseMatch ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim() : r.project_name;
-        const under90 = partDays > 0 && partDays < 90;
-
-        return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
-      })
-      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
-
-    const lastPhaseByBase = new Map<string, number>();
-    base.forEach((t) => {
-      if (t.isPostEval && t.phaseNum != null) {
-        const cur = lastPhaseByBase.get(t.baseName) ?? -1;
-        if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
-      }
-    });
-    return base.map((t) => {
-      const isPhase = t.isPostEval && t.phaseNum != null;
-      const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
-      return { ...t, isPhase, isLastPhase };
-    });
-  }, [rows, selectedTech, techEvalFilter, techServiceFilter, noticeDate]);
+  const techRows = useMemo(() => {
+    if (!selectedTech) return [];
+    return computeForTech(selectedTech);
+  }, [computeForTech, selectedTech]);
 
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
