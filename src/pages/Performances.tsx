@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Download, Loader2, X, FileText, Trash2 } from "lucide-react";
 import {
@@ -162,7 +163,12 @@ export default function Performances() {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
   });
 
-  useEffect(() => { fetchRows(); }, []);
+  // 전체보기 탭 상태
+  const [tab, setTab] = useState<string>("single");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
+  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { company: string; status: "active" | "retired" }>>(new Map());
+
+  useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
 
   async function fetchRows() {
     setLoading(true);
@@ -174,6 +180,30 @@ export default function Performances() {
     else setRows((data as any[]).map(normalize));
     setLoading(false);
   }
+
+  async function fetchTechMeta() {
+    const [techRes, careerRes] = await Promise.all([
+      supabase.from("technicians").select("name, company"),
+      supabase.from("personal_careers").select("technician_name, company, resign_date"),
+    ]);
+    const map = new Map<string, { company: string; status: "active" | "retired" }>();
+    (techRes.data as any[] | null)?.forEach((t) => {
+      map.set(t.name, { company: t.company ?? "", status: "active" });
+    });
+    // personal_careers 기준으로 상태 갱신: resign_date가 없는 항목이 하나라도 있으면 재직중
+    const byName = new Map<string, any[]>();
+    (careerRes.data as any[] | null)?.forEach((c) => {
+      const arr = byName.get(c.technician_name) ?? [];
+      arr.push(c); byName.set(c.technician_name, arr);
+    });
+    byName.forEach((arr, name) => {
+      const anyActive = arr.some((c) => !c.resign_date);
+      const company = arr[0]?.company ?? map.get(name)?.company ?? "";
+      map.set(name, { company, status: anyActive ? "active" : "retired" });
+    });
+    setTechCompanyMap(map);
+  }
+
 
   function normalize(r: any): Row {
     return {
@@ -337,72 +367,76 @@ export default function Performances() {
     return Array.from(s).sort();
   }, [rows]);
 
-  const techRows = useMemo(() => {
-    if (!selectedTech) return [];
+  const computeForTech = useMemo(() => {
     const refDateStr = noticeDate || new Date().toISOString().slice(0, 10);
     const refTime = new Date(refDateStr).getTime();
+    return (techName: string) => {
+      const base = rows
+        .map((r) => {
+          const part = r.participants?.find((p) => p.name === techName);
+          if (!part) return null;
+          const evalSet = new Set(r.evaluation_types);
+          let evalW = 0.6;
+          if (evalSet.has("평가")) evalW = 1.0;
+          else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
 
-    const base = rows
-      .map((r) => {
-        const part = r.participants?.find((p) => p.name === selectedTech);
-        if (!part) return null;
-        const evalSet = new Set(r.evaluation_types);
-        let evalW = 0.6;
-        if (evalSet.has("평가")) evalW = 1.0;
-        else if (techEvalFilter.length > 0 && techEvalFilter.some((t) => evalSet.has(t))) evalW = 1.0;
+          let svcW = 0.6;
+          if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
 
-        let svcW = 0.6;
-        if (techServiceFilter.length > 0 && techServiceFilter.some((t) => r.service_types.includes(t))) svcW = 1.0;
+          const simple = evalW * svcW;
+          const cps = getContractPeriods(r);
+          const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
+          const periods = getPeriods(part);
+          const partDays = periods.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
+          const ovSum = cps.reduce((s, cp) =>
+            s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+          const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start!.localeCompare(b.start!));
+          const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start!.localeCompare(b.start!));
+          const fullCover =
+            validPeriods.length > 0 && validCps.length > 0 &&
+            validPeriods[0].start === validCps[0].start &&
+            validPeriods[validPeriods.length - 1].end === validCps[validCps.length - 1].end;
+          const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
+          const periodCount = ratio * evalW * svcW;
 
-        const simple = evalW * svcW;
-        const cps = getContractPeriods(r);
-        const total = cps.reduce((s, cp) => s + (cp.start && cp.end ? daysBetween(cp.start, cp.end) : 0), 0);
-        const periods = getPeriods(part);
-        const partDays = periods.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
-        const ovSum = cps.reduce((s, cp) =>
-          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
-        const validPeriods = periods.filter((p) => p.start && p.end).sort((a, b) => a.start!.localeCompare(b.start!));
-        const validCps = cps.filter((c) => c.start && c.end).sort((a, b) => a.start!.localeCompare(b.start!));
-        const fullCover =
-          validPeriods.length > 0 && validCps.length > 0 &&
-          validPeriods[0].start === validCps[0].start &&
-          validPeriods[validPeriods.length - 1].end === validCps[validCps.length - 1].end;
-        const ratio = fullCover ? 1 : total > 0 ? Math.min(1, ovSum / total) : 0;
-        const periodCount = ratio * evalW * svcW;
+          const completion = (r as any).completion_date as string | null;
+          const lastEnd = completion || (validCps.length > 0 ? validCps[validCps.length - 1].end : null);
+          let expired = false;
+          if (lastEnd && !isNaN(refTime)) {
+            const endTime = new Date(lastEnd).getTime();
+            const tenYearsMs = 10 * 365.25 * 86400000;
+            expired = refTime - endTime > tenYearsMs;
+          }
 
-        // 10년 경과 판정: 준공일(completion_date) 우선, 없으면 마지막 계약 종료일
-        const completion = (r as any).completion_date as string | null;
-        const lastEnd = completion || (validCps.length > 0 ? validCps[validCps.length - 1].end : null);
-        let expired = false;
-        if (lastEnd && !isNaN(refTime)) {
-          const endTime = new Date(lastEnd).getTime();
-          const tenYearsMs = 10 * 365.25 * 86400000;
-          expired = refTime - endTime > tenYearsMs;
+          const isPostEval = evalSet.has("사후");
+          const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
+          const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
+          const baseName = phaseMatch ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim() : r.project_name;
+          const under90 = partDays > 0 && partDays < 90;
+
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
+        })
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
+
+      const lastPhaseByBase = new Map<string, number>();
+      base.forEach((t) => {
+        if (t.isPostEval && t.phaseNum != null) {
+          const cur = lastPhaseByBase.get(t.baseName) ?? -1;
+          if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
         }
+      });
+      return base.map((t) => {
+        const isPhase = t.isPostEval && t.phaseNum != null;
+        const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
+        return { ...t, isPhase, isLastPhase };
+      });
+    };
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate]);
 
-        const isPostEval = evalSet.has("사후");
-        const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
-        const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
-        const baseName = phaseMatch ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim() : r.project_name;
-        const under90 = partDays > 0 && partDays < 90;
-
-        return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
-      })
-      .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
-
-    const lastPhaseByBase = new Map<string, number>();
-    base.forEach((t) => {
-      if (t.isPostEval && t.phaseNum != null) {
-        const cur = lastPhaseByBase.get(t.baseName) ?? -1;
-        if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
-      }
-    });
-    return base.map((t) => {
-      const isPhase = t.isPostEval && t.phaseNum != null;
-      const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
-      return { ...t, isPhase, isLastPhase };
-    });
-  }, [rows, selectedTech, techEvalFilter, techServiceFilter, noticeDate]);
+  const techRows = useMemo(() => {
+    if (!selectedTech) return [];
+    return computeForTech(selectedTech);
+  }, [computeForTech, selectedTech]);
 
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
@@ -468,12 +502,51 @@ export default function Performances() {
     setTechServiceFilterInput("");
   }
 
+  // 전체보기: 모든 기술자에 대해 단순/기간대비 집계
+  const allTechList = useMemo(() => {
+    const s = new Set<string>(allTechnicians);
+    techCompanyMap.forEach((_, k) => s.add(k));
+    return Array.from(s).sort();
+  }, [allTechnicians, techCompanyMap]);
+
+  const allTechStats = useMemo(() => {
+    return allTechList.map((name) => {
+      const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
+      const items = computeForTech(name);
+      const active = items.filter((t) => {
+        if (t.expired) return false;
+        if (!includeUnder90 && t.under90) return false;
+        if (excludePrivate && (t.row as any).is_private) return false;
+        if (t.isPhase) {
+          if (excludeLhPhases) return false;
+          if (!t.isLastPhase) return false;
+        }
+        return true;
+      });
+      const simple = active.reduce((a, b) => a + b.simple, 0);
+      const period = active.reduce((a, b) => a + b.periodCount, 0);
+      return { name, company: meta.company, status: meta.status, count: items.length, activeCount: active.length, simple, period };
+    });
+  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate]);
+
+  const filteredAllTechStats = useMemo(() => {
+    let arr = allTechStats;
+    if (statusFilter !== "all") arr = arr.filter((t) => t.status === statusFilter);
+    return arr;
+  }, [allTechStats, statusFilter]);
+
   return (
     <AppLayout title="PQ 개인별 실적관리">
-      <div className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="single">개별 보기</TabsTrigger>
+          <TabsTrigger value="all">전체 기술자 보기</TabsTrigger>
+        </TabsList>
+        <TabsContent value="single" className="space-y-4">
         <div className="text-xs text-muted-foreground">
           ※ 실적 데이터는 <strong>실적 데이터베이스 관리</strong>에서 등록한 참여자 명단을 기준으로 자동 표시됩니다.
         </div>
+
 
         <Card className="p-4 space-y-3">
           <div className="grid md:grid-cols-3 gap-4">
@@ -695,7 +768,111 @@ export default function Performances() {
             </div>
           </>
         )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="all" className="space-y-4">
+          <div className="text-xs text-muted-foreground">
+            ※ 위의 <strong>평가종류 / 사업종류 / 공고일</strong> 필터가 그대로 적용되어 각 기술자별 단순/기간대비 건수가 자동 합산됩니다.
+          </div>
+
+          <Card className="p-4 space-y-3">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>공고일 (10년 경과 판정 기준)</Label>
+                <DateInput value={noticeDate} onChange={(iso) => setNoticeDate(iso)} />
+              </div>
+              <div>
+                <Label>평가종류 필터 (복수)</Label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {EVAL_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox checked={techEvalFilter.includes(opt)} onCheckedChange={(c) => setTechEvalFilter((p) => c ? [...p, opt] : p.filter((x) => x !== opt))} />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>사업종류 필터 (복수)</Label>
+                <div className="flex gap-1 mt-2">
+                  <Input value={techServiceFilterInput} onChange={(e) => setTechServiceFilterInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTechServiceFilter(); } }}
+                    placeholder="입력 후 Enter" />
+                  <Button type="button" size="sm" onClick={addTechServiceFilter}>추가</Button>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {techServiceFilter.map((t) => (
+                    <Badge key={t} variant="outline" className="gap-1">
+                      {t}
+                      <button onClick={() => setTechServiceFilter(techServiceFilter.filter((x) => x !== t))}><X className="h-3 w-3" /></button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">재직 상태</Label>
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="active">재직중</SelectItem>
+                    <SelectItem value="retired">퇴사자</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={includeUnder90} onCheckedChange={(c) => setIncludeUnder90(!!c)} />
+                참여일수 90일 미만 포함
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={excludeLhPhases} onCheckedChange={(c) => setExcludeLhPhases(!!c)} />
+                LH사업의 경우 차수분 제외
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={excludePrivate} onCheckedChange={(c) => setExcludePrivate(!!c)} />
+                민간사업 제외
+              </label>
+            </div>
+          </Card>
+
+          <Card className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>기술자명</TableHead>
+                  <TableHead>회사</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead className="text-right">참여사업수</TableHead>
+                  <TableHead className="text-right">집계대상</TableHead>
+                  <TableHead className="text-right">단순건수</TableHead>
+                  <TableHead className="text-right">기간대비건수</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAllTechStats.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">표시할 기술자가 없습니다</TableCell></TableRow>
+                ) : filteredAllTechStats.map((t) => (
+                  <TableRow key={t.name} className="cursor-pointer" onClick={() => { setSelectedTech(t.name); setTechSelectionTouched(false); setTab("single"); }}>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
+                    <TableCell>
+                      {t.status === "active"
+                        ? <Badge variant="default">재직중</Badge>
+                        : <Badge variant="outline">퇴사자</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">{t.count}</TableCell>
+                    <TableCell className="text-right">{t.activeCount}</TableCell>
+                    <TableCell className="text-right font-semibold">{t.simple.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-semibold">{t.period.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 }
