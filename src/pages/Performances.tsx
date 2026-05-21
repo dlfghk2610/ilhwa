@@ -768,7 +768,111 @@ export default function Performances() {
             </div>
           </>
         )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="all" className="space-y-4">
+          <div className="text-xs text-muted-foreground">
+            ※ 위의 <strong>평가종류 / 사업종류 / 공고일</strong> 필터가 그대로 적용되어 각 기술자별 단순/기간대비 건수가 자동 합산됩니다.
+          </div>
+
+          <Card className="p-4 space-y-3">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>공고일 (10년 경과 판정 기준)</Label>
+                <DateInput value={noticeDate} onChange={(iso) => setNoticeDate(iso)} />
+              </div>
+              <div>
+                <Label>평가종류 필터 (복수)</Label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {EVAL_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox checked={techEvalFilter.includes(opt)} onCheckedChange={(c) => setTechEvalFilter((p) => c ? [...p, opt] : p.filter((x) => x !== opt))} />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>사업종류 필터 (복수)</Label>
+                <div className="flex gap-1 mt-2">
+                  <Input value={techServiceFilterInput} onChange={(e) => setTechServiceFilterInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTechServiceFilter(); } }}
+                    placeholder="입력 후 Enter" />
+                  <Button type="button" size="sm" onClick={addTechServiceFilter}>추가</Button>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {techServiceFilter.map((t) => (
+                    <Badge key={t} variant="outline" className="gap-1">
+                      {t}
+                      <button onClick={() => setTechServiceFilter(techServiceFilter.filter((x) => x !== t))}><X className="h-3 w-3" /></button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">재직 상태</Label>
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="active">재직중</SelectItem>
+                    <SelectItem value="retired">퇴사자</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={includeUnder90} onCheckedChange={(c) => setIncludeUnder90(!!c)} />
+                참여일수 90일 미만 포함
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={excludeLhPhases} onCheckedChange={(c) => setExcludeLhPhases(!!c)} />
+                LH사업의 경우 차수분 제외
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={excludePrivate} onCheckedChange={(c) => setExcludePrivate(!!c)} />
+                민간사업 제외
+              </label>
+            </div>
+          </Card>
+
+          <Card className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>기술자명</TableHead>
+                  <TableHead>회사</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead className="text-right">참여사업수</TableHead>
+                  <TableHead className="text-right">집계대상</TableHead>
+                  <TableHead className="text-right">단순건수</TableHead>
+                  <TableHead className="text-right">기간대비건수</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAllTechStats.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">표시할 기술자가 없습니다</TableCell></TableRow>
+                ) : filteredAllTechStats.map((t) => (
+                  <TableRow key={t.name} className="cursor-pointer" onClick={() => { setSelectedTech(t.name); setTechSelectionTouched(false); setTab("single"); }}>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
+                    <TableCell>
+                      {t.status === "active"
+                        ? <Badge variant="default">재직중</Badge>
+                        : <Badge variant="outline">퇴사자</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">{t.count}</TableCell>
+                    <TableCell className="text-right">{t.activeCount}</TableCell>
+                    <TableCell className="text-right font-semibold">{t.simple.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-semibold">{t.period.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 }
