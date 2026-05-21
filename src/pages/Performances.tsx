@@ -502,12 +502,51 @@ export default function Performances() {
     setTechServiceFilterInput("");
   }
 
+  // 전체보기: 모든 기술자에 대해 단순/기간대비 집계
+  const allTechList = useMemo(() => {
+    const s = new Set<string>(allTechnicians);
+    techCompanyMap.forEach((_, k) => s.add(k));
+    return Array.from(s).sort();
+  }, [allTechnicians, techCompanyMap]);
+
+  const allTechStats = useMemo(() => {
+    return allTechList.map((name) => {
+      const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
+      const items = computeForTech(name);
+      const active = items.filter((t) => {
+        if (t.expired) return false;
+        if (!includeUnder90 && t.under90) return false;
+        if (excludePrivate && (t.row as any).is_private) return false;
+        if (t.isPhase) {
+          if (excludeLhPhases) return false;
+          if (!t.isLastPhase) return false;
+        }
+        return true;
+      });
+      const simple = active.reduce((a, b) => a + b.simple, 0);
+      const period = active.reduce((a, b) => a + b.periodCount, 0);
+      return { name, company: meta.company, status: meta.status, count: items.length, activeCount: active.length, simple, period };
+    });
+  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate]);
+
+  const filteredAllTechStats = useMemo(() => {
+    let arr = allTechStats;
+    if (statusFilter !== "all") arr = arr.filter((t) => t.status === statusFilter);
+    return arr;
+  }, [allTechStats, statusFilter]);
+
   return (
     <AppLayout title="PQ 개인별 실적관리">
-      <div className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="single">개별 보기</TabsTrigger>
+          <TabsTrigger value="all">전체 기술자 보기</TabsTrigger>
+        </TabsList>
+        <TabsContent value="single" className="space-y-4">
         <div className="text-xs text-muted-foreground">
           ※ 실적 데이터는 <strong>실적 데이터베이스 관리</strong>에서 등록한 참여자 명단을 기준으로 자동 표시됩니다.
         </div>
+
 
         <Card className="p-4 space-y-3">
           <div className="grid md:grid-cols-3 gap-4">
