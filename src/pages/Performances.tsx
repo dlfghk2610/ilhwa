@@ -106,6 +106,41 @@ const overlapDays = (aStart: string, aEnd: string, bStart: string, bEnd: string)
   return Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
 };
 
+function TechNameInput({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const matches = useMemo(() => {
+    const q = value.trim().toLowerCase();
+    if (!q) return options.slice(0, 50);
+    return options.filter((n) => n.toLowerCase().includes(q)).slice(0, 50);
+  }, [value, options]);
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        placeholder="이름을 입력하세요 (예: 김)"
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => { setFocused(true); setOpen(true); }}
+        onBlur={() => { setFocused(false); setTimeout(() => setOpen(false), 150); }}
+      />
+      {open && focused && matches.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+          {matches.map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+              onMouseDown={(e) => { e.preventDefault(); onChange(n); setOpen(false); }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Performances() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
