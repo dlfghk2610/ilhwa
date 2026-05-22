@@ -115,7 +115,7 @@ export default function Careers() {
     const q = search.trim().toLowerCase();
     if (!q) return techs;
     return techs.filter((t) =>
-      [t.name, t.specialty, t.company].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+      [t.name, t.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
     );
   }, [techs, search]);
 
