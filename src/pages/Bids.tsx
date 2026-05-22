@@ -426,7 +426,7 @@ export default function Bids() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>협정승인일</Label>
-                  <Input type="date" value={form.agreement_approval_date || ""} onChange={(e) => setForm({ ...form, agreement_approval_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.agreement_approval_date || ""} onChange={(e) => setForm({ ...form, agreement_approval_date: clampDate(e.target.value) })} />
                 </div>
               </div>
 
