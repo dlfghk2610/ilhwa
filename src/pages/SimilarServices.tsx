@@ -371,7 +371,7 @@ export default function SimilarServices() {
   };
 
   const filtered = rows.filter((r) => {
-    if ((r as any).is_private && !includePrivate) return false;
+    if ((r as any).is_private && excludePrivate) return false;
     if ((r as any).is_under_90days && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
     if ((r as any).is_progress && !includeProgress) return false;
