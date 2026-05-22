@@ -916,10 +916,16 @@ export default function Performances() {
                   <TableRow key={t.name} className="cursor-pointer" onClick={() => { setSelectedTech(t.name); setTechSelectionTouched(false); setTab("single"); }}>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
-                    <TableCell>
-                      {t.status === "active"
-                        ? <Badge variant="default">재직중</Badge>
-                        : <Badge variant="outline">퇴사자</Badge>}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select value={t.status} onValueChange={(v: "active" | "retired") => updateTechStatus(t.name, v)}>
+                        <SelectTrigger className="w-28 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">재직중</SelectItem>
+                          <SelectItem value="retired">퇴사자</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-right">{t.count}</TableCell>
                     <TableCell className="text-right">{t.activeCount}</TableCell>
