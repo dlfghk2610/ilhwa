@@ -425,7 +425,7 @@ function TechnicianDetail({
       const startIso = toIsoDate(startRaw);
       const endRaw = cell(r1, 1);                            // B(row2)
       const endStr = endRaw == null ? null
-        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim().replace(/-/g, "."));
 
       inserts.push({
         created_by: user!.id,
@@ -486,8 +486,9 @@ function TechnicianDetail({
       if (!projectName && !startRaw) continue;
       const startIso = toIsoDate(startRaw);
       const endRaw = get(r, "참여기간 종료일", "참여종료일", "종료일");
+      const endIso = endRaw instanceof Date ? toIsoDate(endRaw) : toIsoDate(endRaw);
       const endStr = endRaw == null ? null
-        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+        : (endIso ? formatIso(endIso) : String(endRaw).trim().replace(/-/g, "."));
       const days = get(r, "참여일수", "인정일");
       const hist = findHistory(startIso);
       inserts.push({
@@ -542,7 +543,7 @@ function TechnicianDetail({
           period_end_text: r["참여종료일"] != null && r["참여종료일"] !== ""
             ? (r["참여종료일"] instanceof Date
                 ? formatIso(toIsoDate(r["참여종료일"]))
-                : String(r["참여종료일"]))
+                : String(r["참여종료일"]).trim().replace(/-/g, "."))
             : null,
           recognized_days: r["인정일"] != null && r["인정일"] !== "" ? Number(r["인정일"]) : null,
           project_name: r["사업명"] ? String(r["사업명"]) : null,
