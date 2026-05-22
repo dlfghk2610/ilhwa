@@ -91,7 +91,7 @@ export default function SimilarServices() {
 
   // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (계정별 영속)
   const uid = user?.id;
-  const [includePrivate, setIncludePrivate] = useUserStorage<boolean>("similar_services.include_private.v1", false, uid);
+  const [excludePrivate, setExcludePrivate] = useUserStorage<boolean>("similar_services.exclude_private.v1", false, uid);
   const [includeUnder90, setIncludeUnder90] = useUserStorage<boolean>("similar_services.include_under90.v1", false, uid);
   const [includeLh, setIncludeLh] = useUserStorage<boolean>("similar_services.include_lh.v1", false, uid);
   const [includeProgress, setIncludeProgress] = useUserStorage<boolean>("similar_services.include_progress.v1", false, uid);
@@ -371,7 +371,7 @@ export default function SimilarServices() {
   };
 
   const filtered = rows.filter((r) => {
-    if ((r as any).is_private && !includePrivate) return false;
+    if ((r as any).is_private && excludePrivate) return false;
     if ((r as any).is_under_90days && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
     if ((r as any).is_progress && !includeProgress) return false;
@@ -785,6 +785,18 @@ export default function SimilarServices() {
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
                 <div className="flex items-center gap-1">
+                  <Input
+                    placeholder="직접입력 후 Enter (쉼표로 여러 개)"
+                    className="h-7 text-xs w-56"
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      const raw = (e.currentTarget.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+                      if (!raw.length) return;
+                      setFilterServiceTypes((prev) => Array.from(new Set([...prev, ...raw])));
+                      e.currentTarget.value = "";
+                    }}
+                  />
                   {editGroups && (
                     <>
                       <Input
@@ -808,6 +820,20 @@ export default function SimilarServices() {
                   </Button>
                 </div>
               </div>
+              {filterServiceTypes.length > 0 && (
+                <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
+                  <span className="text-[11px] text-muted-foreground mr-1 self-center">선택됨:</span>
+                  {filterServiceTypes.map((t) => (
+                    <span key={t} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                      {t}
+                      <button type="button" onClick={() => setFilterServiceTypes((prev) => prev.filter((s) => s !== t))} className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button type="button" onClick={() => setFilterServiceTypes([])} className="text-[11px] text-muted-foreground hover:text-destructive ml-1 self-center">전체해제</button>
+                </div>
+              )}
               <div className="space-y-2 p-2 rounded-md border bg-background">
                 {customGroups.length === 0 && <span className="text-xs text-muted-foreground">계열을 추가하세요</span>}
                 {customGroups.map((g) => (
@@ -880,8 +906,8 @@ export default function SimilarServices() {
               <span className="text-sm font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</span>
             </div>
             <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
-              <Checkbox checked={includePrivate} onCheckedChange={(v) => setIncludePrivate(!!v)} />
-              <span className="text-xs">민간사업 포함</span>
+              <Checkbox checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
+              <span className="text-xs">민간사업 제외</span>
             </label>
             <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
               <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
