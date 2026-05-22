@@ -560,6 +560,13 @@ function TechnicianDetail({
         formatLabel = "건기협 붙여넣기";
         if (!inserts.length) { toast.error("인식된 경력이 없습니다"); return; }
       }
+      // 건설기술인협회 기준이면서 평가협회 양식이 아닌 경우 인정일 소수점 반내림
+      if (calcStandard === "건설기술인협회" && !isAssoc) {
+        inserts = inserts.map((it) => ({
+          ...it,
+          recognized_days: it.recognized_days != null ? Math.floor(Number(it.recognized_days)) : it.recognized_days,
+        }));
+      }
       // 기존 데이터 삭제 후 일괄 insert
       const { error: delErr } = await supabase.from("career_entries").delete().eq("technician_id", tech.id);
       if (delErr) { toast.error(delErr.message); return; }
