@@ -425,7 +425,7 @@ function TechnicianDetail({
       const startIso = toIsoDate(startRaw);
       const endRaw = cell(r1, 1);                            // B(row2)
       const endStr = endRaw == null ? null
-        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim().replace(/-/g, "."));
 
       inserts.push({
         created_by: user!.id,
