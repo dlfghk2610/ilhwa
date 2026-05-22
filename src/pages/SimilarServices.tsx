@@ -1022,7 +1022,7 @@ export default function SimilarServices() {
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm px-4">데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.</div>
+              <div className="text-center py-12 text-muted-foreground text-sm px-4">실적 데이터베이스에서 동기화된 데이터가 없습니다.</div>
             ) : filtered.map((r) => {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
