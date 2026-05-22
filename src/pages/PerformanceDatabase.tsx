@@ -711,8 +711,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       const splitList = (v: any): string[] => String(v ?? "").split(/[,;|\/]/).map((s) => s.trim()).filter(Boolean);
       const recordMap = new Map<string, any>();
       for (const r of rows) {
-        const project_name = String(r["사업명"] ?? "").trim();
-        if (!project_name) continue;
+        const rawName = String(r["사업명"] ?? "").trim();
+        if (!rawName) continue;
+        const phaseMatch = rawName.match(/[\(\[（【]\s*(\d+)\s*(차|단계)\s*[\)\]）】]\s*$/);
+        const project_name = phaseMatch ? rawName.replace(phaseMatch[0], "").trim() : rawName;
+        const phaseLabel = phaseMatch ? `${phaseMatch[1]}${phaseMatch[2]}` : null;
+        const phaseKind = phaseMatch ? phaseMatch[2] : null;
         const periodsRaw = String(r["계약기간"] ?? "").trim();
         const periods = periodsRaw
           ? periodsRaw.split(/[|\n]/).map((s) => s.trim()).filter(Boolean).map((s) => {
@@ -738,10 +742,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
         const existing = recordMap.get(groupKey);
         if (existing) {
-          const isPost = (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
-          const label = isPost
-            ? `${existing.phases.length + 1}차`
-            : `${existing.phases.length + 1}단계`;
+          const isPost = phaseKind === "차" || (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
+          const label = phaseLabel || (isPost ? `${existing.phases.length + 1}차` : `${existing.phases.length + 1}단계`);
+
           existing.phases.push({
             label,
             amount: null,
