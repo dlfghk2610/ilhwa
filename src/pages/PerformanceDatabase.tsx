@@ -709,7 +709,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         return isNaN(n) ? null : n;
       };
       const splitList = (v: any): string[] => String(v ?? "").split(/[,;|\/]/).map((s) => s.trim()).filter(Boolean);
-      const records: any[] = [];
+      const recordMap = new Map<string, any>();
       for (const r of rows) {
         const project_name = String(r["사업명"] ?? "").trim();
         if (!project_name) continue;
@@ -731,7 +731,45 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         if (share_amount == null && contract_amount != null && share_rate != null) {
           share_amount = Math.round(contract_amount * share_rate / 100);
         }
-        records.push({
+        const contract_date = dateExcelToIso(r["계약일자"]);
+        const evaluation_types = splitList(r["평가종류"]);
+        const externalName = external ? (String(r["타회사명"] ?? "").trim() || null) : null;
+        const groupKey = `${externalName ?? ""}|${project_name}`;
+
+        const existing = recordMap.get(groupKey);
+        if (existing) {
+          const isPost = (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
+          const label = isPost
+            ? `${existing.phases.length + 1}차`
+            : `${existing.phases.length + 1}단계`;
+          existing.phases.push({
+            label,
+            amount: null,
+            contract_amount,
+            share_rate,
+            share_amount,
+            contract_date,
+            start_date: earliestStart,
+            end_date: latestEnd,
+            pdf_path: null,
+            participants: [],
+          });
+          // aggregate totals/dates
+          existing.contract_amount = (existing.contract_amount || 0) + (contract_amount || 0);
+          existing.share_amount = (existing.share_amount || 0) + (share_amount || 0);
+          existing.contract_periods = [...(existing.contract_periods || []), ...periods];
+          if (earliestStart && (!existing.contract_start_date || earliestStart < existing.contract_start_date)) existing.contract_start_date = earliestStart;
+          if (latestEnd && (!existing.contract_end_date || latestEnd > existing.contract_end_date)) {
+            existing.contract_end_date = latestEnd;
+            existing.completion_date = latestEnd;
+          }
+          if (evaluation_types.length) {
+            existing.evaluation_types = Array.from(new Set([...(existing.evaluation_types || []), ...evaluation_types]));
+          }
+          continue;
+        }
+
+        recordMap.set(groupKey, {
           created_by: user.id,
           project_name,
           service_overview: String(r["사업개요"] ?? "").trim() || null,
@@ -739,13 +777,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           contract_periods: periods,
           contract_start_date: earliestStart,
           contract_end_date: latestEnd,
-          contract_date: dateExcelToIso(r["계약일자"]),
+          contract_date,
           completion_date: latestEnd,
           contract_amount,
           share_rate,
           share_amount,
           company_share_rate: String(r["각사지분율"] ?? "").trim() || null,
-          evaluation_types: splitList(r["평가종류"]),
+          evaluation_types,
           service_types: splitList(r["사업종류"]),
           participation_rate: null,
           participants: [],
@@ -756,10 +794,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           is_progress: false,
           is_dual_participation: false,
           is_external_company: external,
-          external_company_name: external ? (String(r["타회사명"] ?? "").trim() || null) : null,
+          external_company_name: externalName,
           notes: String(r["비고"] ?? "").trim() || null,
         });
       }
+      const records: any[] = Array.from(recordMap.values());
+
       if (records.length === 0) { toast.error("유효한 행이 없습니다 (사업명 필수)"); return; }
       const { error } = await supabase.from("performance_records").insert(records);
       if (error) throw error;
