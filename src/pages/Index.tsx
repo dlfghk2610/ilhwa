@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { FileText, Award, Briefcase, Layers, Building2, ArrowRight } from "lucide-react";
+import { FileText, Award, Briefcase, Layers, Building2, ArrowRight, CalendarClock } from "lucide-react";
 
 const menus = [
   { title: "입찰참가관리", url: "/bids", icon: FileText, table: "bid_participations", desc: "입찰 사업 진행 현황" },
@@ -15,10 +14,20 @@ const menus = [
   { title: "유사용역(회사실적)", url: "/similar-services", icon: Building2, table: "similar_services", desc: "회사 누적 실적" },
 ];
 
+const fmtDT = (iso: string | null) => {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+type UpcomingBid = { id: string; project_name: string; client: string | null; opening_at: string };
+
 export default function Index() {
   const { user } = useAuth();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [companyName, setCompanyName] = useState<string>("");
+  const [upcomingOpenings, setUpcomingOpenings] = useState<UpcomingBid[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +37,19 @@ export default function Index() {
         result[m.table] = count ?? 0;
       }));
       setCounts(result);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("bid_participations")
+        .select("id, project_name, client, opening_at")
+        .not("opening_at", "is", null)
+        .gte("opening_at", new Date().toISOString())
+        .order("opening_at", { ascending: true })
+        .limit(5);
+      setUpcomingOpenings((data || []) as UpcomingBid[]);
     })();
   }, []);
 
@@ -59,6 +81,36 @@ export default function Index() {
             )}
           </div>
         </div>
+
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-accent" />
+              다가오는 개찰일시
+            </CardTitle>
+            <Link to="/bids" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              전체보기 <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {upcomingOpenings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">예정된 개찰이 없습니다.</p>
+            ) : (
+              <ul className="divide-y">
+                {upcomingOpenings.map((b) => (
+                  <li key={b.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{b.project_name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{b.client || "-"}</div>
+                    </div>
+                    <div className="text-sm whitespace-nowrap font-medium text-primary">{fmtDT(b.opening_at)}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {menus.map((m) => (
             <Link key={m.url} to={m.url}>
