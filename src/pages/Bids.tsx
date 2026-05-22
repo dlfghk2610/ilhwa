@@ -202,6 +202,7 @@ export default function Bids() {
       pq_due_date: row.pq_due_date || "",
       bid_start_date: row.bid_start_date || "",
       bid_end_at: row.bid_end_at || "",
+      opening_at: row.opening_at || "",
       estimated_amount: row.estimated_amount,
       share_rates: row.share_rates || [],
       participants: row.participants || [],
