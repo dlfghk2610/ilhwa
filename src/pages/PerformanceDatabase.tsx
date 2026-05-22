@@ -821,7 +821,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           </div>
         </div>
 
-        <Card className="overflow-x-auto">
+        <Card className="overflow-x-auto hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -888,6 +888,71 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             </TableBody>
           </Table>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
+        </Card>
+
+        {/* Mobile card list */}
+        <Card className="md:hidden overflow-hidden">
+          {loading ? (
+            <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">데이터가 없습니다.</div>
+          ) : (
+            <ul className="divide-y">
+              {filtered.map((r) => {
+                const isOpen = expanded.has(r.id);
+                return (
+                  <li key={r.id}>
+                    <div className="flex items-start gap-2 px-3 py-3">
+                      <Checkbox
+                        className="mt-1"
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={(c) => toggleRowSelection(r.id, !!c)}
+                      />
+                      <button type="button" onClick={() => toggleExpand(r.id)} className="flex-1 min-w-0 flex items-start gap-2 text-left">
+                        {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm break-words">
+                            {r.project_name}
+                            {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
+                          </div>
+                          {external && (r as any).external_company_name && (
+                            <div className="text-xs text-muted-foreground mt-0.5">{(r as any).external_company_name}</div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                    {isOpen && (
+                      <div className="px-3 pb-3 pl-10 space-y-1 text-xs">
+                        <div><span className="text-muted-foreground">발주처: </span>{r.client ?? "-"}</div>
+                        <div className="whitespace-pre-wrap"><span className="text-muted-foreground">계약기간: </span>{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</div>
+                        <div><span className="text-muted-foreground">계약금액: </span>{fmt(r.contract_amount)}</div>
+                        <div><span className="text-muted-foreground">지분금액: </span>{fmt(r.share_amount)}</div>
+                        {r.evaluation_types.length > 0 && (
+                          <div className="flex flex-wrap gap-1 items-center"><span className="text-muted-foreground">평가: </span>{r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div>
+                        )}
+                        {r.service_types.length > 0 && (
+                          <div className="flex flex-wrap gap-1 items-center"><span className="text-muted-foreground">사업종류: </span>{r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</div>
+                        )}
+                        <div><span className="text-muted-foreground">참여인원: </span>{r.participants.length}명</div>
+                        {(r.cert_pdf_path || r.participant_file_path) && (
+                          <div className="flex gap-1 items-center">
+                            <span className="text-muted-foreground">파일: </span>
+                            {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
+                            {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-2">
+                          <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="px-3 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
       </div>
 
