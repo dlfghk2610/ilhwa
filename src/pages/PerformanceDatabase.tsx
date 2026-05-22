@@ -818,7 +818,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           participation_rate: p.share_rate,
           share_amount: p.share_amount,
           company_share_rate: p.company_share_rate,
-          phases: [],
+          phases: p.phases || [],
           cert_pdf_path: null,
           is_private: p.is_private,
           is_under_90days: p.is_under_90days,
