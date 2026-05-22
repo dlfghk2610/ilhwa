@@ -91,7 +91,7 @@ export default function SimilarServices() {
 
   // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (계정별 영속)
   const uid = user?.id;
-  const [includePrivate, setIncludePrivate] = useUserStorage<boolean>("similar_services.include_private.v1", false, uid);
+  const [excludePrivate, setExcludePrivate] = useUserStorage<boolean>("similar_services.exclude_private.v1", false, uid);
   const [includeUnder90, setIncludeUnder90] = useUserStorage<boolean>("similar_services.include_under90.v1", false, uid);
   const [includeLh, setIncludeLh] = useUserStorage<boolean>("similar_services.include_lh.v1", false, uid);
   const [includeProgress, setIncludeProgress] = useUserStorage<boolean>("similar_services.include_progress.v1", false, uid);
