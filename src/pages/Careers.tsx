@@ -599,8 +599,8 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
-  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty)), [entries, tech.specialty]);
+function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
+  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
