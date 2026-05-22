@@ -591,7 +591,46 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).map((p, j) => j === partIdx ? { ...p, [key]: val } : p) }) }));
   }
   function addPhaseParticipant(phIdx: number) {
-    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: [...(ph.participants || []), { name: "", periods: [{ start: "", end: "" }] }] }) }));
+    setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => {
+      if (i !== phIdx) return ph;
+      const defStart = ph.start_date || "";
+      const defEnd = ph.end_date || "";
+      return { ...ph, participants: [...(ph.participants || []), { name: "", periods: [{ start: defStart, end: defEnd }] }] };
+    }) }));
+  }
+
+  // 차수별 엑셀 업로드로 참여자 자동 추출
+  async function handleExtractPhaseParticipants(phIdx: number, file: File) {
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      toast.error("엑셀(.xlsx/.xls) 파일만 지원합니다");
+      return;
+    }
+    try {
+      const { participants, completion } = await parseParticipantsFromExcel(file);
+      if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
+      setForm((f) => ({
+        ...f,
+        phases: f.phases.map((ph, i) => {
+          if (i !== phIdx) return ph;
+          // 참여기간이 비어있는 항목은 차수 착수~종료일을 자동 반영
+          const defStart = ph.start_date || "";
+          const defEnd = ph.end_date || "";
+          const filled = participants.map((p) => {
+            const hasPeriod = (p.periods || []).some((pd) => pd.start || pd.end);
+            return hasPeriod ? p : { ...p, periods: [{ start: defStart, end: defEnd }] };
+          });
+          return {
+            ...ph,
+            participants: filled,
+            end_date: ph.end_date || completion || null,
+          };
+        }),
+      }));
+      toast.success(`${participants.length}명 추출 완료 (${phIdx + 1}차)`);
+    } catch (e: any) {
+      toast.error(e?.message || "엑셀 추출 실패");
+    }
   }
   function removePhaseParticipant(phIdx: number, partIdx: number) {
     setForm((f) => ({ ...f, phases: f.phases.map((ph, i) => i !== phIdx ? ph : { ...ph, participants: (ph.participants || []).filter((_, j) => j !== partIdx) }) }));
