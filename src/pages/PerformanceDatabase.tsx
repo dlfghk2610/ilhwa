@@ -778,13 +778,29 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           participation_rate: p.share_rate,
           share_amount: p.share_amount,
           company_share_rate: p.company_share_rate,
+          phases: [],
+          cert_pdf_path: null,
+          is_private: p.is_private,
+          is_under_90days: p.is_under_90days,
+          is_lh_completion: p.is_lh_completion,
+          is_progress: p.is_progress,
+          is_dual_participation: p.is_dual_participation,
           notes: p.notes,
         }));
-        const names = simRecords.map((s) => s.project_name);
-        const { data: existing } = await supabase.from("similar_services").select("project_name").eq("created_by", user.id).in("project_name", names);
-        const existingNames = new Set((existing || []).map((x: any) => x.project_name));
-        const toInsert = simRecords.filter((s) => !existingNames.has(s.project_name));
-        if (toInsert.length > 0) await supabase.from("similar_services").insert(toInsert);
+        const names = Array.from(new Set(simRecords.map((s) => s.project_name)));
+        const { data: existing } = await supabase.from("similar_services").select("id,project_name").eq("created_by", user.id).in("project_name", names);
+        const existingByName = new Map<string, string>();
+        (existing || []).forEach((x: any) => existingByName.set(x.project_name, x.id));
+        const toInsert = simRecords.filter((s) => !existingByName.has(s.project_name));
+        const toUpdate = simRecords.filter((s) => existingByName.has(s.project_name));
+        if (toInsert.length > 0) {
+          const { error: simInsErr } = await supabase.from("similar_services").insert(toInsert);
+          if (simInsErr) toast.error("PQ유사용역 동기화 실패: " + simInsErr.message);
+        }
+        for (const s of toUpdate) {
+          const id = existingByName.get(s.project_name)!;
+          await supabase.from("similar_services").update(s).eq("id", id);
+        }
       }
       toast.success(`${records.length}건 가져오기 완료`);
       fetchRows();
