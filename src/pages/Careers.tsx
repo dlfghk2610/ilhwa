@@ -634,7 +634,7 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
             {rows.map((r, i) => {
               const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
               const working = isWorkingNow(r.entry.period_end_text);
-              const flagged = specialtyMismatch || r.isPrivate || working;
+              const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
@@ -650,11 +650,11 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                     </div>
                   )}
                 </TableCell>
-                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
+                <TableCell>{r.entry.client}{excludePrivate && r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
                 <TableCell>{r.entry.service_field}</TableCell>
                 <TableCell>
                   {r.entry.specialty}
-                  {specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
+                  {excludePrivate && specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
                 </TableCell>
                 <TableCell>{r.entry.duties}</TableCell>
                 <TableCell><Badge variant={r.evalGroup === "환경" ? "default" : "secondary"}>{r.evalGroup}</Badge></TableCell>
@@ -662,7 +662,7 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell>{r.entry.participation_company}</TableCell>
                 <TableCell>{r.entry.participation_position}</TableCell>
                 <TableCell className="text-right font-medium">{r.convertedDays}</TableCell>
-                <TableCell>{r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
+                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
               </TableRow>
               );
             })}
