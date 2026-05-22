@@ -630,18 +630,30 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={r.entry.id || i} className={r.recognizedDays === 0 ? "opacity-60" : ""}>
+            {rows.map((r, i) => {
+              const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
+              const working = isWorkingNow(r.entry.period_end_text);
+              const flagged = specialtyMismatch || r.isPrivate || working;
+              return (
+              <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
-                <TableCell className="max-w-[280px] whitespace-normal break-words align-top">{r.entry.project_name}</TableCell>
-                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="outline" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
+                <TableCell className="max-w-[280px] whitespace-normal break-words align-top">
+                  <div>{r.entry.project_name}</div>
+                  {flagged && (
+                    <div className="mt-1 flex flex-wrap gap-1 text-[10px] font-semibold">
+                      {specialtyMismatch && <span className="text-destructive">⚠ 전문분야 불일치</span>}
+                      {r.isPrivate && <span className="text-destructive">⚠ 민간사업</span>}
+                      {working && <span className="text-destructive">⚠ 근무중</span>}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
                 <TableCell>{r.entry.service_field}</TableCell>
                 <TableCell>
                   {r.entry.specialty}
-                  {r.entry.specialty && tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim() &&
-                    <Badge variant="outline" className="ml-1 text-[10px]">불일치</Badge>}
+                  {specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
                 </TableCell>
                 <TableCell>{r.entry.duties}</TableCell>
                 <TableCell><Badge variant={r.evalGroup === "환경" ? "default" : "secondary"}>{r.evalGroup}</Badge></TableCell>
@@ -650,7 +662,8 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell>{r.entry.participation_position}</TableCell>
                 <TableCell className="text-right font-medium">{r.convertedDays}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
