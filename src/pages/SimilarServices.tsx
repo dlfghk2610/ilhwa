@@ -1058,7 +1058,6 @@ export default function SimilarServices() {
                         <span className="text-muted-foreground">PDF</span><span>{hasPdf ? <FileText className="h-3.5 w-3.5 text-primary inline" /> : "-"}</span>
                       </div>
                       <div className="flex justify-end gap-1 pt-1">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 mr-1" />수정</Button>
                         <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 mr-1 text-destructive" />삭제</Button>
                       </div>
                     </div>
