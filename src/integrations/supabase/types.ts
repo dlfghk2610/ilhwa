@@ -33,6 +33,7 @@ export type Database = {
           notify_email: string | null
           notify_hours_before: number
           notify_phone: string | null
+          opening_at: string | null
           participants: Json
           pq_due_date: string | null
           project_name: string
@@ -59,6 +60,7 @@ export type Database = {
           notify_email?: string | null
           notify_hours_before?: number
           notify_phone?: string | null
+          opening_at?: string | null
           participants?: Json
           pq_due_date?: string | null
           project_name: string
@@ -85,6 +87,7 @@ export type Database = {
           notify_email?: string | null
           notify_hours_before?: number
           notify_phone?: string | null
+          opening_at?: string | null
           participants?: Json
           pq_due_date?: string | null
           project_name?: string
