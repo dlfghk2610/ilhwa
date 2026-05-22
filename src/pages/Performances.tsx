@@ -104,11 +104,14 @@ function getEffectiveParticipants(r: Row): Participant[] {
   const isPost = (r.evaluation_types || []).includes("사후");
   const phases = Array.isArray(r.phases) ? r.phases : [];
   if (isPost && phases.length > 0) {
-    for (let i = phases.length - 1; i >= 0; i--) {
-      const ps = (phases[i].participants || []) as Participant[];
-      if (ps.length > 0) return ps;
+    const seen = new Set<string>();
+    const all: Participant[] = [];
+    for (const ph of phases) {
+      for (const p of ((ph.participants || []) as Participant[])) {
+        if (p.name && !seen.has(p.name)) { seen.add(p.name); all.push(p); }
+      }
     }
-    return [];
+    if (all.length > 0) return all;
   }
   return r.participants || [];
 }
