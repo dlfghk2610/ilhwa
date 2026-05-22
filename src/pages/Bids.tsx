@@ -122,7 +122,16 @@ export default function Bids() {
   const [form, setForm] = useState<Omit<BidRow, "id">>(emptyForm());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
+
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
 
   const load = async () => {
     setLoading(true);
