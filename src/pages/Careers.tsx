@@ -514,9 +514,6 @@ function TechnicianDetail({
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xl font-bold">{tech.name}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              {[tech.company, tech.position, tech.birth_date].filter(Boolean).join(" · ") || "—"}
-            </div>
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <Label className="text-sm">전문분야:</Label>
               {specialtyEdit ? (
