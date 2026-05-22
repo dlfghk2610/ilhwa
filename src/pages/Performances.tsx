@@ -194,7 +194,7 @@ export default function Performances() {
   // 전체보기 탭 상태
   const [tab, setTab] = useState<string>("single");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
-  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { company: string; status: "active" | "retired" }>>(new Map());
+  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" }>>(new Map());
 
   useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
 
