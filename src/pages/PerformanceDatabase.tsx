@@ -1062,9 +1062,21 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
                     {/* 차수별 참여 기술자 */}
                     <div className="border-t pt-2 space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-xs font-medium text-muted-foreground">참여 기술자</span>
-                        <Button type="button" size="sm" variant="outline" onClick={() => addPhaseParticipant(i)}><Plus className="h-3 w-3 mr-1" />기술자 추가</Button>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="h-7 text-xs w-[200px]"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (f) handleExtractPhaseParticipants(i, f);
+                            }}
+                          />
+                          <Button type="button" size="sm" variant="outline" onClick={() => addPhaseParticipant(i)}><Plus className="h-3 w-3 mr-1" />기술자 추가</Button>
+                        </div>
                       </div>
                       {(p.participants || []).map((pt, j) => (
                         <div key={j} className="border rounded p-2 space-y-2 bg-background">
