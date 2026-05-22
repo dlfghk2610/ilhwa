@@ -330,11 +330,11 @@ export default function Bids() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-12">
+                  <TableRow><TableCell colSpan={12} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                     데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
                   </TableCell></TableRow>
                 ) : filtered.map((r) => {
