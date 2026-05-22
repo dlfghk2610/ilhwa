@@ -880,8 +880,8 @@ export default function SimilarServices() {
               <span className="text-sm font-bold text-primary">{Math.round(totalAppliedAmount).toLocaleString()} 원</span>
             </div>
             <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
-              <Checkbox checked={includePrivate} onCheckedChange={(v) => setIncludePrivate(!!v)} />
-              <span className="text-xs">민간사업 포함</span>
+              <Checkbox checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
+              <span className="text-xs">민간사업 제외</span>
             </label>
             <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background cursor-pointer">
               <Checkbox checked={includeUnder90} onCheckedChange={(v) => setIncludeUnder90(!!v)} />
