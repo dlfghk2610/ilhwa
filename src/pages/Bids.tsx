@@ -320,6 +320,7 @@ export default function Bids() {
                   <TableHead>PQ마감</TableHead>
                   <TableHead>입찰시작</TableHead>
                   <TableHead>입찰마감</TableHead>
+                  <TableHead>개찰일시</TableHead>
                   <TableHead>D-</TableHead>
                   <TableHead className="text-right">추정금액</TableHead>
                   <TableHead>상태</TableHead>
