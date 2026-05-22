@@ -672,9 +672,9 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
+function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
@@ -686,7 +686,7 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty]);
+  }, [entries, tech.specialty, excludePrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
