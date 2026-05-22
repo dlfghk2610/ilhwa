@@ -83,7 +83,35 @@ type Row = {
   participant_file_path: string | null;
   cert_pdf_path: string | null;
   is_private: boolean;
+  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null }>;
 };
+
+// 사후 + phases 입력시: 마지막 차수의 참여자 정보만 사용 (제일 마지막 차수만 건수 집계)
+function getEffectiveParticipant(r: Row, techName: string): Participant | null {
+  const isPost = (r.evaluation_types || []).includes("사후");
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (isPost && phases.length > 0) {
+    for (let i = phases.length - 1; i >= 0; i--) {
+      const found = ((phases[i].participants || []) as Participant[]).find((p) => p.name === techName);
+      if (found) return found;
+    }
+    return null;
+  }
+  return (r.participants || []).find((p) => p.name === techName) || null;
+}
+
+function getEffectiveParticipants(r: Row): Participant[] {
+  const isPost = (r.evaluation_types || []).includes("사후");
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (isPost && phases.length > 0) {
+    for (let i = phases.length - 1; i >= 0; i--) {
+      const ps = (phases[i].participants || []) as Participant[];
+      if (ps.length > 0) return ps;
+    }
+    return [];
+  }
+  return r.participants || [];
+}
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
 
