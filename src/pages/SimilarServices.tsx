@@ -944,335 +944,6 @@ export default function SimilarServices() {
                 <span className="text-xs">연번 기입 (착수일 오름차순)</span>
               </label>
               <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label>사업명<span className="text-destructive">*</span></Label>
-                        <Input value={form.project_name} onChange={(e) => setForm({ ...form, project_name: e.target.value })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>발주처</Label>
-                        <Input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>사업종류 (복수선택 가능)</Label>
-                        {(() => {
-                          const selected = splitTypes(form.service_type);
-                          const toggle = (t: string) => {
-                            const next = selected.includes(t) ? selected.filter((x) => x !== t) : [...selected, t];
-                            setForm({ ...form, service_type: next.join(", ") });
-                          };
-                          return (
-                            <div className="space-y-2 p-2 rounded-md border bg-background max-h-48 overflow-auto">
-                              {customGroups.map((g) => (
-                                <div key={g.group} className="flex flex-wrap items-center gap-1.5 pb-1 border-b last:border-0">
-                                  <span className="text-[11px] font-semibold text-muted-foreground min-w-[72px]">{g.group}</span>
-                                  {g.items.map((t) => (
-                                    <label key={t} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border cursor-pointer hover:bg-muted">
-                                      <Checkbox checked={selected.includes(t)} onCheckedChange={() => toggle(t)} />
-                                      <span>{t}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              ))}
-                              <Input
-                                value={form.service_type}
-                                onChange={(e) => setForm({ ...form, service_type: e.target.value })}
-                                placeholder="직접 입력 (쉼표로 구분)"
-                                className="h-7 text-xs mt-1"
-                              />
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>평가종류</Label>
-                        <Select value={form.evaluation_type || "__none__"} onValueChange={(v) => setForm({ ...form, evaluation_type: v === "__none__" ? "" : v })}>
-                          <SelectTrigger><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">선택 안 함</SelectItem>
-                            {EVAL_TYPES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>계약일</Label>
-                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.contract_date} onChange={(e) => setForm({ ...form, contract_date: clampDate(e.target.value) })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>착수일</Label>
-                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: clampDate(e.target.value) })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>준공일</Label>
-                        <Input type="date" min="1900-01-01" max="9999-12-31" value={form.completion_date} onChange={(e) => setForm({ ...form, completion_date: clampDate(e.target.value) })} />
-                      </div>
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label>용역개요</Label>
-                        <Textarea rows={3} value={form.service_overview} onChange={(e) => setForm({ ...form, service_overview: e.target.value })} />
-                      </div>
-
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label>계약금액 (원) {form.phases.length > 0 && <span className="text-xs text-muted-foreground">— 차수 계약금액 합계 자동, 수기 수정 가능</span>}</Label>
-                        <Input
-                          inputMode="decimal"
-                          value={form.contract_amount === "" ? "" : Number(form.contract_amount).toLocaleString()}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^\d.-]/g, "");
-                            setContractAmountTouched(true);
-                            setForm({ ...form, contract_amount: raw });
-                          }}
-                        />
-                      </div>
-
-                      <div className="md:col-span-2 flex flex-wrap items-center gap-4 p-3 rounded-md border bg-muted/20">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={form.is_private}
-                            onCheckedChange={(v) => setForm({ ...form, is_private: !!v })} />
-                          <span className="text-sm">민간사업</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={form.is_under_90days}
-                            onCheckedChange={(v) => setForm({ ...form, is_under_90days: !!v })} />
-                          <span className="text-sm">90일미만</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={form.is_lh_completion}
-                            onCheckedChange={(v) => setForm({ ...form, is_lh_completion: !!v })} />
-                          <span className="text-sm">LH기성실적</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={form.is_progress}
-                            onCheckedChange={(v) => setForm({ ...form, is_progress: !!v })} />
-                          <span className="text-sm">기성실적</span>
-                        </label>
-                      </div>
-
-                      <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-md border bg-muted/30">
-                        <Checkbox id="dual" checked={form.is_dual_participation}
-                          onCheckedChange={(v) => {
-                            const checked = !!v;
-                            setForm({
-                              ...form,
-                              is_dual_participation: checked,
-                              participation_rate: checked ? "" : form.participation_rate,
-                              company_share_rate: checked ? "" : form.company_share_rate,
-                            });
-                            if (checked) setShareAmountTouched(true);
-                          }} />
-                        <Label htmlFor="dual" className="cursor-pointer">2종 분담참여 (체크 시 지분율 입력 생략)</Label>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label>참여지분율 (%)</Label>
-                        <Input type="number" step="any" disabled={form.is_dual_participation}
-                          value={form.participation_rate}
-                          onChange={(e) => setForm({ ...form, participation_rate: e.target.value })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>각사지분율</Label>
-                        <Textarea rows={2} disabled={form.is_dual_participation}
-                          value={form.company_share_rate}
-                          onChange={(e) => setForm({ ...form, company_share_rate: e.target.value })}
-                          placeholder="예: A사 60% / B사 40%" />
-                      </div>
-
-                      {/* 차수 입력 */}
-                      <div className="space-y-2 md:col-span-2 p-3 rounded-md border bg-muted/20">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-semibold">차수 (사후 평가용)</Label>
-                          <Button type="button" size="sm" variant="outline" onClick={addPhase}>
-                            <Plus className="h-3 w-3 mr-1" />차수 추가
-                          </Button>
-                        </div>
-                        {form.phases.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">차수가 없으면 1건으로 처리됩니다. 사후의 경우 첫 차수 착수일·마지막 차수 준공일이 대표일자로 자동 반영됩니다.</div>
-                        ) : (
-                          <div className="space-y-3">
-                            {form.phases.map((p, i) => (
-                              <div key={i} className="space-y-1.5 p-2 rounded border bg-background">
-                                <div className="grid grid-cols-12 gap-2 items-end">
-                                  <div className="col-span-2">
-                                    <Label className="text-[10px] text-muted-foreground">차수명</Label>
-                                    <Input
-                                      placeholder="1차"
-                                      value={p.label}
-                                      onChange={(e) => updatePhase(i, "label", e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="col-span-3">
-                                    <Label className="text-[10px] text-muted-foreground">계약일</Label>
-                                    <Input
-                                      type="date"
-                                      min="1900-01-01"
-                                      max="9999-12-31"
-                                      value={p.contract_date}
-                                      onChange={(e) => updatePhase(i, "contract_date", clampDate(e.target.value))}
-                                    />
-                                  </div>
-                                  <div className="col-span-3">
-                                    <Label className="text-[10px] text-muted-foreground">착수일</Label>
-                                    <Input
-                                      type="date"
-                                      min="1900-01-01"
-                                      max="9999-12-31"
-                                      value={p.start_date}
-                                      onChange={(e) => updatePhase(i, "start_date", clampDate(e.target.value))}
-                                    />
-                                  </div>
-                                  <div className="col-span-3">
-                                    <Label className="text-[10px] text-muted-foreground">준공일</Label>
-                                    <Input
-                                      type="date"
-                                      min="1900-01-01"
-                                      max="9999-12-31"
-                                      value={p.end_date}
-                                      onChange={(e) => updatePhase(i, "end_date", clampDate(e.target.value))}
-                                    />
-                                  </div>
-                                  <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removePhase(i)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <div className="grid grid-cols-12 gap-2 items-center">
-                                  <div className="col-span-2 text-[10px] text-muted-foreground text-right pr-1">차수 금액</div>
-                                  <Input
-                                    className="col-span-3"
-                                    inputMode="decimal"
-                                    placeholder="계약금액"
-                                    value={p.contract_amount === "" ? "" : Number(p.contract_amount).toLocaleString()}
-                                    onChange={(e) => updatePhase(i, "contract_amount", e.target.value.replace(/[^\d.-]/g, ""))}
-                                  />
-                                  <Input
-                                    className="col-span-2"
-                                    inputMode="decimal"
-                                    placeholder="지분율 %"
-                                    value={p.share_rate}
-                                    onChange={(e) => updatePhase(i, "share_rate", e.target.value.replace(/[^\d.-]/g, ""))}
-                                  />
-                                  <Input
-                                    className="col-span-4"
-                                    inputMode="decimal"
-                                    placeholder="지분금액 (자동, 수정가능)"
-                                    value={p.amount === "" ? "" : Number(p.amount).toLocaleString()}
-                                    onChange={(e) => updatePhase(i, "amount", e.target.value.replace(/[^\d.-]/g, ""))}
-                                  />
-                                  <div className="col-span-1" />
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className="text-muted-foreground">{p.label || `${i + 1}차`} 실적증명서:</span>
-                                  <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    className="text-xs"
-                                    onChange={(e) => {
-                                      const f = e.target.files?.[0] ?? null;
-                                      const ps = [...form.phases];
-                                      ps[i] = { ...ps[i], pdf_file: f };
-                                      setForm({ ...form, phases: ps });
-                                    }}
-                                  />
-                                  {p.pdf_path && !p.pdf_file && (
-                                    <span className="text-primary">기존 파일 등록됨</span>
-                                  )}
-                                  {p.pdf_path && !p.pdf_file && (
-                                    <button
-                                      type="button"
-                                      className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                      onClick={() => downloadPdf(p.pdf_path!, `${form.project_name || "phase"}-${p.label || (i + 1) + "차"}.pdf`)}
-                                    ><Download className="h-3 w-3" />다운로드</button>
-                                  )}
-                                  {(p.pdf_path || p.pdf_file) && (
-                                    <button
-                                      type="button"
-                                      className="text-muted-foreground hover:text-destructive"
-                                      onClick={() => {
-                                        const ps = [...form.phases];
-                                        ps[i] = { ...ps[i], pdf_file: null, pdf_path: "" };
-                                        setForm({ ...form, phases: ps });
-                                      }}
-                                    >제거</button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                            <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
-                              <div className="col-span-2">차수명</div>
-                              <div className="col-span-3">착수일</div>
-                              <div className="col-span-3">준공일</div>
-                              <div className="col-span-3">계약일자</div>
-                            </div>
-                            <div className="text-xs text-right text-muted-foreground">
-                              차수 합계: {phasesTotal.toLocaleString()} 원
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 실적증명서 PDF (차수가 없을 때 사용) */}
-                      {form.phases.length === 0 && (
-                        <div className="space-y-1.5 md:col-span-2 p-3 rounded-md border bg-muted/20">
-                          <Label className="text-sm font-semibold flex items-center gap-1.5">
-                            <FileText className="h-4 w-4" />실적증명서 PDF
-                          </Label>
-                          <input
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] ?? null })}
-                            className="text-sm"
-                          />
-                          {form.cert_pdf_path && !form.cert_pdf_file && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-primary">기존 파일이 등록되어 있습니다.</span>
-                              <button
-                                type="button"
-                                className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                onClick={() => downloadPdf(form.cert_pdf_path, `${form.project_name || "cert"}.pdf`)}
-                              ><Download className="h-3 w-3" />다운로드</button>
-                            </div>
-                          )}
-                          {(form.cert_pdf_path || form.cert_pdf_file) && (
-                            <button
-                              type="button"
-                              className="text-xs text-muted-foreground hover:text-destructive"
-                              onClick={() => setForm({ ...form, cert_pdf_file: null, cert_pdf_path: "" })}
-                            >파일 제거</button>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label>지분금액 (원) <span className="text-xs text-muted-foreground">— 차수 입력 시 자동 합계 / 그 외 자동 계산되며 수기 수정 가능</span></Label>
-                        <Input
-                          inputMode="decimal"
-                          disabled={form.phases.length > 0}
-                          value={form.share_amount === "" ? "" : Number(form.share_amount).toLocaleString()}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^\d.-]/g, "");
-                            setShareAmountTouched(true);
-                            setForm({ ...form, share_amount: raw });
-                          }}
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label>비고</Label>
-                        <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button>
-                      <Button type="submit" disabled={submitting}>
-                        {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
         </Card>
@@ -1298,7 +969,7 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
-                  <TableHead className="text-right w-[100px]">관리</TableHead>
+                  <TableHead className="text-right w-[60px]">삭제</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1308,7 +979,7 @@ export default function SimilarServices() {
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
-                    데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
+                    실적 데이터베이스에서 동기화된 데이터가 없습니다.
                   </TableCell></TableRow>
                 ) : filtered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
@@ -1337,7 +1008,6 @@ export default function SimilarServices() {
                       {hasPdf ? <FileText className="h-4 w-4 text-primary inline" /> : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-right align-middle">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
@@ -1352,7 +1022,7 @@ export default function SimilarServices() {
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm px-4">데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.</div>
+              <div className="text-center py-12 text-muted-foreground text-sm px-4">실적 데이터베이스에서 동기화된 데이터가 없습니다.</div>
             ) : filtered.map((r) => {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
@@ -1388,7 +1058,6 @@ export default function SimilarServices() {
                         <span className="text-muted-foreground">PDF</span><span>{hasPdf ? <FileText className="h-3.5 w-3.5 text-primary inline" /> : "-"}</span>
                       </div>
                       <div className="flex justify-end gap-1 pt-1">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4 mr-1" />수정</Button>
                         <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 mr-1 text-destructive" />삭제</Button>
                       </div>
                     </div>
