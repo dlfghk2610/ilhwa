@@ -211,25 +211,55 @@ export default function Performances() {
 
   async function fetchTechMeta() {
     const [techRes, careerRes] = await Promise.all([
-      supabase.from("technicians").select("name, company"),
+      supabase.from("technicians").select("id, name, company, employment_status" as any),
       supabase.from("personal_careers").select("technician_name, company, resign_date"),
     ]);
-    const map = new Map<string, { company: string; status: "active" | "retired" }>();
+    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" }>();
     (techRes.data as any[] | null)?.forEach((t) => {
-      map.set(t.name, { company: t.company ?? "", status: "active" });
+      const status = (t.employment_status === "retired" ? "retired" : "active") as "active" | "retired";
+      map.set(t.name, { id: t.id, company: t.company ?? "", status });
     });
-    // personal_careers 기준으로 상태 갱신: resign_date가 없는 항목이 하나라도 있으면 재직중
+    // personal_careers는 보조: technicians에 미등록된 사람만 보강
     const byName = new Map<string, any[]>();
     (careerRes.data as any[] | null)?.forEach((c) => {
       const arr = byName.get(c.technician_name) ?? [];
       arr.push(c); byName.set(c.technician_name, arr);
     });
     byName.forEach((arr, name) => {
+      if (map.has(name)) return; // technicians에 있으면 그쪽 employment_status가 우선
       const anyActive = arr.some((c) => !c.resign_date);
-      const company = arr[0]?.company ?? map.get(name)?.company ?? "";
+      const company = arr[0]?.company ?? "";
       map.set(name, { company, status: anyActive ? "active" : "retired" });
     });
     setTechCompanyMap(map);
+  }
+
+  async function updateTechStatus(name: string, status: "active" | "retired") {
+    const meta = techCompanyMap.get(name);
+    if (!meta?.id) {
+      toast.error("기술자 마스터에 등록되지 않은 이름입니다. 먼저 [개인별 경력관리]에서 기술자를 등록하세요.");
+      return;
+    }
+    const prev = meta.status;
+    setTechCompanyMap((m) => {
+      const next = new Map(m);
+      next.set(name, { ...meta, status });
+      return next;
+    });
+    const { error } = await supabase
+      .from("technicians")
+      .update({ employment_status: status } as any)
+      .eq("id", meta.id);
+    if (error) {
+      toast.error(error.message);
+      setTechCompanyMap((m) => {
+        const next = new Map(m);
+        next.set(name, { ...meta, status: prev });
+        return next;
+      });
+    } else {
+      toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
+    }
   }
 
 
