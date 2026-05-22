@@ -267,63 +267,64 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     }
   }, [form.contract_amount, form.share_rate]);
 
+  // 엑셀 파일에서 참여기술자 추출 (재사용 가능 헬퍼)
+  async function parseParticipantsFromExcel(file: File): Promise<{ participants: Participant[]; completion: string | null }> {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+    let completionFromExcel: string | null = null;
+    const participants: Participant[] = rows
+      .map((r) => {
+        const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+        if (!nm) return null;
+        const birthRaw = r["생년월일"];
+        const birth = typeof birthRaw === "number"
+          ? new Date(Math.round((birthRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+          : normalizeIsoFromText(String(birthRaw ?? ""));
+        const periodRaw = r["참여기간"];
+        const periodText = typeof periodRaw === "number"
+          ? new Date(Math.round((periodRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+          : String(periodRaw ?? "").trim();
+        const periodLines = periodText.split(/[\n\r;]+/).map((s) => s.trim()).filter(Boolean);
+        const periods: Period[] = periodLines
+          .map((line) => {
+            const p = parsePeriodText(line);
+            return { start: p.start, end: p.end };
+          })
+          .filter((p) => p.start || p.end);
+        const finalPeriods = periods.length > 0 ? periods : [{ start: "", end: "" }];
+        const compRaw = r["준공일"] ?? r["완료일"];
+        const compIso = typeof compRaw === "number"
+          ? new Date(Math.round((compRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+          : normalizeIsoFromText(String(compRaw ?? ""));
+        if (compIso && (!completionFromExcel || compIso > completionFromExcel)) completionFromExcel = compIso;
+        return {
+          name: nm,
+          birth_date: birth || undefined,
+          specialty: String(r["전문분야"] ?? "").trim() || undefined,
+          position: String(r["직위"] ?? "").trim() || undefined,
+          responsibility: String(r["책임정도"] ?? "").trim() || undefined,
+          periods: finalPeriods,
+        } as Participant;
+      })
+      .filter(Boolean) as Participant[];
+    return { participants, completion: completionFromExcel };
+  }
+
   async function handleExtractParticipants() {
     if (!form.participant_file) { toast.error("먼저 파일을 선택하세요"); return; }
     setExtracting(true);
     try {
       const file = form.participant_file;
       const name = file.name.toLowerCase();
-      // 엑셀 양식이면 로컬에서 즉시 파싱
       if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-        let completionFromExcel: string | null = null;
-        const allPeriods: Period[] = [];
-        const participants: Participant[] = rows
-          .map((r) => {
-            const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
-            if (!nm) return null;
-            const birthRaw = r["생년월일"];
-            const birth = typeof birthRaw === "number"
-              ? new Date(Math.round((birthRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
-              : normalizeIsoFromText(String(birthRaw ?? ""));
-            // 참여기간: 셀 내 줄바꿈/세미콜론/콤마 등으로 여러 구간 분리
-            const periodRaw = r["참여기간"];
-            const periodText = typeof periodRaw === "number"
-              ? new Date(Math.round((periodRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
-              : String(periodRaw ?? "").trim();
-            const periodLines = periodText.split(/[\n\r;]+/).map((s) => s.trim()).filter(Boolean);
-            const periods: Period[] = periodLines
-              .map((line) => {
-                const p = parsePeriodText(line);
-                return { start: p.start, end: p.end };
-              })
-              .filter((p) => p.start || p.end);
-            const finalPeriods = periods.length > 0 ? periods : [{ start: "", end: "" }];
-            finalPeriods.forEach((p) => { if (p.start || p.end) allPeriods.push(p); });
-            // 준공일 열 인식 (있을 경우 프로젝트 준공일에 반영)
-            const compRaw = r["준공일"] ?? r["완료일"];
-            const compIso = typeof compRaw === "number"
-              ? new Date(Math.round((compRaw - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
-              : normalizeIsoFromText(String(compRaw ?? ""));
-            if (compIso && (!completionFromExcel || compIso > completionFromExcel)) completionFromExcel = compIso;
-            return {
-              name: nm,
-              birth_date: birth || undefined,
-              specialty: String(r["전문분야"] ?? "").trim() || undefined,
-              position: String(r["직위"] ?? "").trim() || undefined,
-              responsibility: String(r["책임정도"] ?? "").trim() || undefined,
-              periods: finalPeriods,
-            } as Participant;
-          })
-          .filter(Boolean) as Participant[];
+        const { participants, completion } = await parseParticipantsFromExcel(file);
         if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
         setForm((f) => ({
           ...f,
           participants,
-          completion_date: completionFromExcel || f.completion_date,
+          completion_date: completion || f.completion_date,
         }));
         toast.success(`${participants.length}명 추출 완료`);
         return;
