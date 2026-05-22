@@ -9,6 +9,7 @@ import Auth from "./pages/Auth.tsx";
 import Bids from "./pages/Bids.tsx";
 import Performances from "./pages/Performances.tsx";
 import Careers from "./pages/Careers.tsx";
+import PersonalHistory from "./pages/PersonalHistory.tsx";
 import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/bids" element={<ProtectedRoute><Bids /></ProtectedRoute>} />
           <Route path="/performances" element={<ProtectedRoute><Performances /></ProtectedRoute>} />
           <Route path="/careers" element={<ProtectedRoute><Careers /></ProtectedRoute>} />
+          <Route path="/personal-history" element={<ProtectedRoute><PersonalHistory /></ProtectedRoute>} />
           <Route path="/overlaps" element={<ProtectedRoute><Overlaps /></ProtectedRoute>} />
           <Route path="/similar-services" element={<ProtectedRoute><SimilarServices /></ProtectedRoute>} />
           <Route path="/performance-database" element={<ProtectedRoute><PerformanceDatabase /></ProtectedRoute>} />
