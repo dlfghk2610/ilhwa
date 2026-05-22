@@ -782,23 +782,19 @@ export default function SimilarServices() {
               </Select>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
-                <div className="flex items-center gap-1">
-                  <Input
-                    placeholder="직접입력 후 Enter (쉼표로 여러 개)"
-                    className="h-7 text-xs w-72"
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      const raw = (e.currentTarget.value || "").split(",").map((s) => s.trim()).filter(Boolean);
-                      if (!raw.length) return;
-                      setFilterServiceTypes((prev) => Array.from(new Set([...prev, ...raw])));
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                </div>
-              </div>
+              <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
+              <Input
+                placeholder="직접입력 후 Enter (쉼표로 여러 개)"
+                className="h-8 text-xs w-full max-w-md"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  const raw = (e.currentTarget.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+                  if (!raw.length) return;
+                  setFilterServiceTypes((prev) => Array.from(new Set([...prev, ...raw])));
+                  e.currentTarget.value = "";
+                }}
+              />
               {filterServiceTypes.length > 0 && (
                 <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
                   <span className="text-[11px] text-muted-foreground mr-1 self-center">선택됨:</span>
