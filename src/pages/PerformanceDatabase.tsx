@@ -659,8 +659,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   function removeParticipant(idx: number) { setForm((f) => ({ ...f, participants: f.participants.filter((_, i) => i !== idx) })); }
   function addParticipant() {
     setForm((f) => {
-      const defStart = (f.contract_periods.find((p) => p.start)?.start) || f.contract_start_date || "";
-      const defEnd = ([...f.contract_periods].reverse().find((p) => p.end)?.end) || f.contract_end_date || "";
+      const defStart = (f.contract_periods.find((p) => p.start)?.start) || "";
+      const defEnd = ([...f.contract_periods].reverse().find((p) => p.end)?.end) || f.completion_date || "";
       return { ...f, participants: [...f.participants, { name: "", periods: [{ start: defStart, end: defEnd }] }] };
     });
   }
