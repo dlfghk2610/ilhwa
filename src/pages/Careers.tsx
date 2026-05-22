@@ -486,8 +486,9 @@ function TechnicianDetail({
       if (!projectName && !startRaw) continue;
       const startIso = toIsoDate(startRaw);
       const endRaw = get(r, "참여기간 종료일", "참여종료일", "종료일");
+      const endIso = endRaw instanceof Date ? toIsoDate(endRaw) : toIsoDate(endRaw);
       const endStr = endRaw == null ? null
-        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+        : (endIso ? formatIso(endIso) : String(endRaw).trim().replace(/-/g, "."));
       const days = get(r, "참여일수", "인정일");
       const hist = findHistory(startIso);
       inserts.push({
