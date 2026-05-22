@@ -21,7 +21,7 @@ const fmtDT = (iso: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-type UpcomingBid = { id: string; project_name: string; client: string | null; opening_at: string };
+type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null };
 
 export default function Index() {
   const { user } = useAuth();
@@ -42,16 +42,26 @@ export default function Index() {
 
   useEffect(() => {
     (async () => {
+      const now = new Date();
+      const in7days = new Date(now.getTime() + 7 * 86400000);
       const { data } = await (supabase as any)
         .from("bid_participations")
-        .select("id, project_name, client, opening_at")
-        .not("opening_at", "is", null)
-        .gte("opening_at", new Date().toISOString())
-        .order("opening_at", { ascending: true })
-        .limit(5);
-      setUpcomingOpenings((data || []) as UpcomingBid[]);
+        .select("id, project_name, client, bid_end_at, opening_at")
+        .not("bid_end_at", "is", null)
+        .lte("bid_end_at", in7days.toISOString())
+        .order("bid_end_at", { ascending: true });
+      const filtered = ((data || []) as UpcomingBid[]).filter((b) => {
+        const ref = b.opening_at || b.bid_end_at;
+        if (!ref) return false;
+        const refDate = new Date(ref);
+        // 개찰일(없으면 입찰마감일)의 다음달 1일부터는 숨김
+        const cutoff = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
+        return now < cutoff;
+      });
+      setUpcomingOpenings(filtered);
     })();
   }, []);
+
 
   useEffect(() => {
     if (!user) return;
@@ -86,7 +96,7 @@ export default function Index() {
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent" />
-              다가오는 개찰일시
+              다가오는 입찰 및 개찰예정사업
             </CardTitle>
             <Link to="/bids" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
               전체보기 <ArrowRight className="h-3 w-3" />
@@ -94,16 +104,19 @@ export default function Index() {
           </CardHeader>
           <CardContent>
             {upcomingOpenings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">예정된 개찰이 없습니다.</p>
+              <p className="text-sm text-muted-foreground">예정된 입찰/개찰이 없습니다.</p>
             ) : (
               <ul className="divide-y">
                 {upcomingOpenings.map((b) => (
-                  <li key={b.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                  <li key={b.id} className="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 text-sm">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{b.project_name}</div>
+                      <div className="font-medium break-words">{b.project_name}</div>
                       <div className="text-xs text-muted-foreground truncate">{b.client || "-"}</div>
                     </div>
-                    <div className="text-sm whitespace-nowrap font-medium text-primary">{fmtDT(b.opening_at)}</div>
+                    <div className="text-xs whitespace-nowrap space-y-0.5 sm:text-right">
+                      <div><span className="text-muted-foreground">입찰마감 </span><span className="font-medium text-destructive">{fmtDT(b.bid_end_at)}</span></div>
+                      <div><span className="text-muted-foreground">개찰일시 </span><span className="font-medium text-primary">{fmtDT(b.opening_at)}</span></div>
+                    </div>
                   </li>
                 ))}
               </ul>
