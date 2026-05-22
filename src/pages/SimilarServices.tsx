@@ -969,7 +969,7 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
-                  <TableHead className="text-right w-[100px]">관리</TableHead>
+                  <TableHead className="text-right w-[60px]">삭제</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
