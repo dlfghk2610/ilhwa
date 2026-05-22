@@ -1,69 +1,65 @@
-# 실적 데이터베이스 관리 탭 — 통합 마스터 DB
+# 입찰참가관리 개편 계획
 
-## 목표
+## 1. 데이터베이스 스키마 변경 (bid_participations)
 
-- 새 탭 **"실적 데이터베이스 관리"** 신설 — 모든 사업 실적의 마스터 레코드 (정보 + 파일).
-- 기존 **PQ 개인별 실적관리**, **PQ 유사용역(회사실적)** 두 페이지는 이 마스터 DB의 **뷰(View)** 역할로 전환 — 자체 등록 폼 제거, 마스터 레코드를 읽고 각자 목적(개인별 분석 / 회사 PQ 적용)에 맞게 가공·필터·엑셀 추출만 수행.
-- 기존 등록된 모든 `personal_performances` + `similar_services` 데이터를 신규 마스터 테이블로 마이그레이션.
+기존 컬럼 유지하면서 다음 필드 추가/변경:
 
-## 데이터 모델
-
-새 테이블 `performance_records` (두 기존 테이블의 superset):
-
-| 필드 | 설명 | 출처 |
+| 컬럼 | 타입 | 비고 |
 |---|---|---|
-| project_name, service_overview, client | 사업 기본 | 공통 |
-| contract_periods (jsonb), contract_start_date, contract_end_date | 계약기간(다중) | personal_performances |
-| announcement_date | 공고일 | similar_services |
-| completion_date | 준공일 | similar_services |
-| contract_amount, share_rate, share_amount, company_share_rate | 금액/지분 | 공통 |
-| evaluation_types (text[]) | 평가종류 (다중) | personal_performances + similar_services.evaluation_type 단일→배열 |
-| service_types (text[]) | 사업종류 (다중) | personal_performances + similar_services.service_type 콤마분리→배열 |
-| participants (jsonb) | 참여 기술자 명단 | personal_performances |
-| participant_file_path | 참여자명단 원본파일 | personal_performances |
-| cert_pdf_path | 실적증명PDF | 공통 |
-| phases (jsonb) | 분담사업 단계 | similar_services |
-| is_private, is_under_90days, is_lh_completion, is_progress, is_dual_participation | 플래그 | similar_services |
-| participation_rate | 적용건수(기성건수 등) | similar_services |
-| notes | 비고 | 공통 |
-| created_by | RLS owner | 공통 |
+| project_name | text | 사업명 (기존) |
+| client | text | 발주처 (기존) |
+| announcement_date | date | 공고일 (신규) |
+| pq_due_date | date | PQ제출마감일 (신규) |
+| bid_start_date | date | 입찰시작일 (신규, 기존 bid_date 마이그레이션) |
+| bid_end_at | timestamptz | 입찰마감일+시간 (신규) |
+| estimated_amount | numeric | 추정금액 (기존) |
+| share_rates | jsonb | 각사 지분율 `[{company, rate}]` (신규) |
+| participants | jsonb | 참여인력 `[{name, role}]` (신규) |
+| evaluation_types | text[] | 평가종류 (신규) |
+| service_types | text[] | 사업종류 (신규) |
+| agreement_approval_date | date | 협정승인일 (신규) |
+| status | text | 상태 (기존) |
+| notes | text | 비고 (기존) |
+| notify_hours_before | integer | 마감 N시간 전 알람 (신규) |
+| notify_browser | boolean default true | 브라우저 알람 (신규, 고정 on) |
+| notify_email | text | 알람 메일 주소 (신규, nullable) |
+| notify_phone | text | 알람 핸드폰번호 (신규, nullable) |
+| notified_at | timestamptz | 발송 완료 시각 (중복 방지) |
 
-기존 `personal_performances`, `similar_services` 테이블은 **유지** (안전을 위해 백업 역할). 단, 두 페이지의 모든 등록/수정/삭제 로직은 마스터 테이블을 보도록 전환.
+## 2. UI (src/pages/Bids.tsx 재작성)
 
-## 마이그레이션 단계
+- DataManager 대신 PerformanceDatabase 스타일의 전용 폼/테이블 구현
+- 입찰마감일은 datetime-local input
+- 각사 지분율: 회사명+지분율 동적 추가/삭제 행
+- 참여인력: 이름+역할 동적 추가/삭제 행
+- 평가종류/사업종류: 멀티 체크박스
+- 알림 섹션:
+  - 브라우저 알람: 항상 켜짐 (체크박스 disabled+checked 표시)
+  - 메일 알림 받기 체크 → 메일 주소 입력칸
+  - 문자/카카오톡 알림 받기 체크 → 핸드폰번호 입력칸
+  - "마감 몇시간 전" 숫자 입력 (기본 24)
+- 테이블 컬럼: 사업명/발주처/공고일/PQ마감/입찰시작/입찰마감/추정금액/상태/D-시간
+- 스크롤 위치 기억 (PerformanceDatabase와 동일 패턴)
 
-1. **DB 마이그레이션** (`supabase--migration`)
-   - `performance_records` 테이블 + RLS 정책 (소유자 only) + updated_at 트리거 생성.
-   - `personal_performances` 행 → `performance_records`로 INSERT (필드 1:1 매핑, source='performance' 플래그 안 둠 — 통합).
-   - `similar_services` 행 → `performance_records`로 INSERT (evaluation_type/service_type 단일값을 배열로 변환, 콤마 분리).
-   - 기존 두 테이블은 그대로 둠 (롤백 안전망).
+## 3. 알람 구현
 
-2. **새 페이지** `src/pages/PerformanceDatabase.tsx`
-   - 라우트: `/performance-database` (사이드바 첫 번째 항목으로 추가, 아이콘 `Database`).
-   - 좌측 목록 + 우측 상세/등록 폼 (또는 전체 폭 테이블 + 다이얼로그).
-   - 모든 필드 입력: 사업명/개요/발주처, 다중 계약기간, 공고일/준공일, 금액·지분율·지분금액 자동계산, 평가종류·사업종류 다중선택, 각사지분율, 분담사업 단계, 참여 기술자 명단(파일업로드+자동추출 — 기존 edge function 재사용), 실적증명PDF 업로드, 플래그 체크박스 5개, 비고.
-   - 검색, 엑셀 가져오기/내보내기, PDF 일괄생성 등 기존 두 페이지의 핵심 기능 흡수.
+### 브라우저 알람 (즉시 작동)
+- 페이지 진입 시 `Notification.requestPermission()` 요청
+- 1분 간격 setInterval로 모든 bid 검사: `bid_end_at - notify_hours_before <= now < bid_end_at` 이고 `notified_at IS NULL` 인 건 알림 표시 후 notified_at 업데이트
+- 마감 임박/지난 항목은 테이블에서 색상 강조
 
-3. **기존 페이지 전환**
-   - **Performances.tsx**: 데이터 소스를 `performance_records`로 교체. 등록/수정/삭제 버튼 제거 (또는 "마스터 DB에서 관리" 안내 + 마스터 페이지로 이동 링크). 기술자별 필터/분석/엑셀 추출/PDF 일괄생성은 그대로 유지.
-   - **SimilarServices.tsx**: 동일 — 데이터 소스 교체, 등록/수정/삭제 제거, 회사실적 PQ 적용계산·엑셀 추출·필터·분담사업 토글 등 분석 기능만 유지.
+### 메일/문자 알람
+- 메일: Lovable Cloud 기본 이메일 인프라 사용 가능. 단 사용자가 별도 도메인/주소 설정해야 함. 본 단계에서는 **알람 수신 주소 필드만 저장**하고 발송 백엔드는 다음 작업으로 분리 권장 (Edge Function + pg_cron 필요, 도메인 설정 별도)
+- 문자/카카오톡: Lovable 내장 SMS 발송 기능 없음. Aligo/Solapi/Twilio 같은 외부 API 키 필요. 이번 단계에서는 **핸드폰번호 필드만 저장**, 실제 발송은 사용자가 SMS 제공자 선택 후 별도 진행
 
-4. **사이드바** (`AppSidebar.tsx`)
-   - "실적 데이터베이스 관리" 항목을 대시보드 다음에 추가.
+## 이번 작업 범위
+1. DB 마이그레이션 (위 컬럼 모두 추가)
+2. Bids.tsx 전체 재작성 — 폼/테이블/필터/엑셀 입출력/스크롤 기억
+3. 브라우저 알람 클라이언트 사이드 구현
+4. 메일/SMS 수신정보 입력 UI + DB 저장 (실제 발송은 후속 작업으로 안내)
 
-## 기술 메모
+## 다음 단계로 안내할 항목
+- 메일 발송: 이메일 도메인 설정 + cron edge function
+- 문자 알림: SMS 제공자(Aligo/Solapi 등) 선택 및 API 키 등록
 
-- 기존 `parse-participant-list` edge function, `performance-certs` / `participant-lists` 스토리지 버킷 그대로 재사용.
-- 분담사업(phases) 구조: SimilarServices의 jsonb 형태 그대로 유지.
-- 엑셀 가져오기 매핑: 기존 두 페이지의 컬럼 라벨을 합집합으로 지원.
-- 기존 두 페이지의 자동계산 로직(지분금액=계약금액×지분율, 적용계수, 분담사업 합산 등)은 분석 단계에서 그대로 사용 — 마스터 데이터는 raw로만 저장.
-
-## 영향 범위
-
-- 신규: `performance_records` 테이블, `src/pages/PerformanceDatabase.tsx`
-- 수정: `src/App.tsx` (라우트), `src/components/AppSidebar.tsx`, `src/pages/Performances.tsx`, `src/pages/SimilarServices.tsx`
-- 데이터: 기존 두 테이블의 모든 행을 마스터로 복사 (기존 테이블 보존)
-
-## 확인 사항
-
-규모가 큰 변경입니다(약 4~5개 파일 수정 + 1500줄 분량 신규 페이지 + DB 마이그레이션). 이 방향으로 진행할까요? 아니면 우선 **1단계: 마스터 테이블 생성 + 데이터 마이그레이션 + 빈 신규 페이지 골격**까지만 하고 폼/뷰 전환은 다음 단계로 나눌까요?
+진행해도 될까요?
