@@ -543,7 +543,7 @@ function TechnicianDetail({
           period_end_text: r["참여종료일"] != null && r["참여종료일"] !== ""
             ? (r["참여종료일"] instanceof Date
                 ? formatIso(toIsoDate(r["참여종료일"]))
-                : String(r["참여종료일"]))
+                : String(r["참여종료일"]).trim().replace(/-/g, "."))
             : null,
           recognized_days: r["인정일"] != null && r["인정일"] !== "" ? Number(r["인정일"]) : null,
           project_name: r["사업명"] ? String(r["사업명"]) : null,
