@@ -104,11 +104,14 @@ function getEffectiveParticipants(r: Row): Participant[] {
   const isPost = (r.evaluation_types || []).includes("사후");
   const phases = Array.isArray(r.phases) ? r.phases : [];
   if (isPost && phases.length > 0) {
-    for (let i = phases.length - 1; i >= 0; i--) {
-      const ps = (phases[i].participants || []) as Participant[];
-      if (ps.length > 0) return ps;
+    const seen = new Set<string>();
+    const all: Participant[] = [];
+    for (const ph of phases) {
+      for (const p of ((ph.participants || []) as Participant[])) {
+        if (p.name && !seen.has(p.name)) { seen.add(p.name); all.push(p); }
+      }
     }
-    return [];
+    if (all.length > 0) return all;
   }
   return r.participants || [];
 }
@@ -430,7 +433,27 @@ export default function Performances() {
     const refDateStr = noticeDate || new Date().toISOString().slice(0, 10);
     const refTime = new Date(refDateStr).getTime();
     return (techName: string) => {
-      const base = rows
+      // 사후+차수 입력 시: 각 차수별로 행을 만들어 노출 (마지막 차수만 점수 집계)
+      const expanded: Row[] = rows.flatMap((r) => {
+        const isPost = (r.evaluation_types || []).includes("사후");
+        const phases = Array.isArray(r.phases) ? r.phases : [];
+        if (isPost && phases.length > 0) {
+          return phases.map((ph, idx) => ({
+            ...r,
+            id: `${r.id}__p${idx}`,
+            project_name: `${(r.project_name || "").replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim()} (${idx + 1}차)`,
+            contract_periods: [{ start: ph.start_date || undefined, end: ph.end_date || undefined }] as Period[],
+            contract_start_date: ph.start_date || null,
+            contract_end_date: ph.end_date || null,
+            completion_date: ph.end_date || (r as any).completion_date,
+            participants: (ph.participants || []) as Participant[],
+            phases: [],
+          } as Row));
+        }
+        return [r];
+      });
+
+      const base = expanded
         .map((r) => {
           const part = getEffectiveParticipant(r, techName);
           if (!part) return null;
