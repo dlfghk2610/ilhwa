@@ -662,6 +662,7 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell>{r.entry.participation_company}</TableCell>
                 <TableCell>{r.entry.participation_position}</TableCell>
                 <TableCell className="text-right font-medium">{r.convertedDays}</TableCell>
+                <TableCell>{r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
               </TableRow>
               );
             })}
