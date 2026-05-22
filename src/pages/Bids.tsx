@@ -36,6 +36,7 @@ type BidRow = {
   pq_due_date: string | null;
   bid_start_date: string | null;
   bid_end_at: string | null;
+  opening_at: string | null;
   estimated_amount: number | null;
   share_rates: ShareRate[];
   participants: Participant[];
