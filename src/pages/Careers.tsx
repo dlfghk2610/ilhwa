@@ -74,15 +74,42 @@ export default function Careers() {
   const [techForm, setTechForm] = useState<Partial<Technician>>({});
   const [deleteTech, setDeleteTech] = useState<Technician | null>(null);
 
+  const [techStats, setTechStats] = useState<Record<string, TechStat>>({});
+
   const loadTechs = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("technicians").select("*").order("name");
+    const { data, error } = await (supabase as any).from("technicians").select("*").order("name");
     if (error) toast.error(error.message);
     else setTechs((data as Technician[]) || []);
     setLoading(false);
   };
 
+  const loadAllStats = async (techList: Technician[]) => {
+    const { data, error } = await supabase
+      .from("career_entries")
+      .select("technician_id,specialty,evaluation_category,period_end_text,recognized_days,client");
+    if (error) return;
+    const byTech = new Map<string, any[]>();
+    for (const e of (data || []) as any[]) {
+      if (!byTech.has(e.technician_id)) byTech.set(e.technician_id, []);
+      byTech.get(e.technician_id)!.push(e);
+    }
+    const stats: Record<string, TechStat> = {};
+    for (const t of techList) {
+      const list = byTech.get(t.id) || [];
+      let rec = 0, conv = 0;
+      for (const e of list) {
+        const r = computeRecognition(e as any, t.specialty, false);
+        rec += r.recognizedDays;
+        conv += r.convertedDays;
+      }
+      stats[t.id] = { recognizedDays: rec, convertedDays: +conv.toFixed(2), count: list.length };
+    }
+    setTechStats(stats);
+  };
+
   useEffect(() => { loadTechs(); }, []);
+  useEffect(() => { if (techs.length) loadAllStats(techs); }, [techs]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
