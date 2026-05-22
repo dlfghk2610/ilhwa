@@ -406,7 +406,7 @@ export default function Bids() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>PQ제출마감일</Label>
-                  <Input type="date" value={form.pq_due_date || ""} onChange={(e) => setForm({ ...form, pq_due_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.pq_due_date || ""} onChange={(e) => setForm({ ...form, pq_due_date: clampDate(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>입찰시작일</Label>
