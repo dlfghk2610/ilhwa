@@ -212,80 +212,37 @@ export default function Performances() {
     setLoading(false);
   }
 
+  // 재직/퇴사 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
+  const STATUS_LS_KEY = "perf_emp_status.v1";
+  const loadLocalStatus = (): Record<string, "active" | "retired"> => {
+    try { return JSON.parse(localStorage.getItem(STATUS_LS_KEY) || "{}"); }
+    catch { return {}; }
+  };
+  const saveLocalStatus = (m: Record<string, "active" | "retired">) => {
+    try { localStorage.setItem(STATUS_LS_KEY, JSON.stringify(m)); } catch {}
+  };
+
   async function fetchTechMeta() {
-    const [techRes, careerRes] = await Promise.all([
-      supabase.from("technicians").select("id, name, company, employment_status" as any),
-      supabase.from("personal_careers").select("technician_name, company, resign_date"),
-    ]);
+    // 경력관리(technicians/personal_careers)와 연동하지 않음 — 실적 데이터에 등장한 이름만 사용
+    const stored = loadLocalStatus();
     const map = new Map<string, { id?: string; company: string; status: "active" | "retired" }>();
-    (techRes.data as any[] | null)?.forEach((t) => {
-      const status = (t.employment_status === "retired" ? "retired" : "active") as "active" | "retired";
-      map.set(t.name, { id: t.id, company: t.company ?? "", status });
-    });
-    // personal_careers는 보조: technicians에 미등록된 사람만 보강
-    const byName = new Map<string, any[]>();
-    (careerRes.data as any[] | null)?.forEach((c) => {
-      const arr = byName.get(c.technician_name) ?? [];
-      arr.push(c); byName.set(c.technician_name, arr);
-    });
-    byName.forEach((arr, name) => {
-      if (map.has(name)) return; // technicians에 있으면 그쪽 employment_status가 우선
-      const anyActive = arr.some((c) => !c.resign_date);
-      const company = arr[0]?.company ?? "";
-      map.set(name, { company, status: anyActive ? "active" : "retired" });
+    Object.entries(stored).forEach(([name, status]) => {
+      map.set(name, { company: "", status });
     });
     setTechCompanyMap(map);
   }
 
   async function updateTechStatus(name: string, status: "active" | "retired") {
     const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
-    const prev = meta.status;
     setTechCompanyMap((m) => {
       const next = new Map(m);
       next.set(name, { ...meta, status });
       return next;
     });
-
-    let error: any = null;
-    if (meta.id) {
-      const r = await supabase
-        .from("technicians")
-        .update({ employment_status: status } as any)
-        .eq("id", meta.id);
-      error = r.error;
-    } else {
-      // 경력관리에 등록 안 된 기술자도 즉시 반영 — technicians에 자동 생성
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes.user?.id;
-      if (!uid) {
-        toast.error("로그인이 필요합니다");
-        return;
-      }
-      const r = await supabase
-        .from("technicians")
-        .insert({ name, company: meta.company || null, employment_status: status, created_by: uid } as any)
-        .select("id")
-        .single();
-      error = r.error;
-      if (!error && r.data) {
-        setTechCompanyMap((m) => {
-          const next = new Map(m);
-          next.set(name, { ...meta, id: (r.data as any).id, status });
-          return next;
-        });
-      }
-    }
-
-    if (error) {
-      toast.error(error.message);
-      setTechCompanyMap((m) => {
-        const next = new Map(m);
-        next.set(name, { ...meta, status: prev });
-        return next;
-      });
-    } else {
-      toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
-    }
+    const stored = loadLocalStatus();
+    stored[name] = status;
+    saveLocalStatus(stored);
+    toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
   }
 
 
