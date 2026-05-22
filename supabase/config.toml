@@ -1,1 +1,4 @@
 project_id = "qpsqvcgflkeyefyxsdiz"
+
+[functions.send-bid-notifications]
+verify_jwt = false
