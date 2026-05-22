@@ -561,16 +561,15 @@ function TechnicianDetail({
         </div>
         <div className="flex items-center gap-3">
           <Label className="text-sm">계산 기준:</Label>
-          <RadioGroup value={calcStandard} onValueChange={saveCalcStandard} className="flex gap-3">
-            <div className="flex items-center gap-1">
-              <RadioGroupItem id="cs-kepa" value="건설기술인협회" />
-              <Label htmlFor="cs-kepa" className="cursor-pointer text-sm">건설기술인협회</Label>
-            </div>
-            <div className="flex items-center gap-1">
-              <RadioGroupItem id="cs-eia" value="환경영향평가 경력관리시스템" />
-              <Label htmlFor="cs-eia" className="cursor-pointer text-sm">환경영향평가 경력관리시스템</Label>
-            </div>
-          </RadioGroup>
+          <Select value={calcStandard} onValueChange={saveCalcStandard}>
+            <SelectTrigger className="h-9 w-[240px]">
+              <SelectValue placeholder="계산 기준 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="건설기술인협회">건설기술인협회</SelectItem>
+              <SelectItem value="환경영향평가 경력관리시스템">환경영향평가 경력관리시스템</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
