@@ -167,7 +167,7 @@ export default function Careers() {
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="이름·전문분야·회사 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-8" placeholder="이름·전문분야 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Button onClick={openNewTech}><Plus className="h-4 w-4 mr-1" />기술자 추가</Button>
           </div>
