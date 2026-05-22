@@ -184,10 +184,23 @@ export default function Careers() {
                       <div className="font-semibold text-base truncate">{t.name}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.specialty ? <Badge variant="secondary">{t.specialty}</Badge> : <Badge variant="outline">전문분야 미지정</Badge>}
+                        <Badge variant="outline" className="text-[10px]">{t.calc_standard || "건설기술인협회"}</Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 truncate">
                         {[t.company, t.position].filter(Boolean).join(" · ") || "—"}
                       </div>
+                      {techStats[t.id] && (
+                        <div className="mt-2 rounded bg-muted/50 px-2 py-1.5 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">인정 경력 (민간포함)</span>
+                            <span className="font-semibold">{daysToYearMonth(techStats[t.id].convertedDays)}</span>
+                          </div>
+                          <div className="flex justify-between mt-0.5 text-[11px] text-muted-foreground">
+                            <span>인정일 {techStats[t.id].recognizedDays.toLocaleString()}일</span>
+                            <span>{techStats[t.id].count}건</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEditTech(t)}><Pencil className="h-4 w-4" /></Button>
