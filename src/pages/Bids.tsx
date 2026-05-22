@@ -36,6 +36,7 @@ type BidRow = {
   pq_due_date: string | null;
   bid_start_date: string | null;
   bid_end_at: string | null;
+  opening_at: string | null;
   estimated_amount: number | null;
   share_rates: ShareRate[];
   participants: Participant[];
@@ -58,6 +59,7 @@ const emptyForm = (): Omit<BidRow, "id"> => ({
   pq_due_date: "",
   bid_start_date: "",
   bid_end_at: "",
+  opening_at: "",
   estimated_amount: null,
   share_rates: [],
   participants: [],
@@ -200,6 +202,7 @@ export default function Bids() {
       pq_due_date: row.pq_due_date || "",
       bid_start_date: row.bid_start_date || "",
       bid_end_at: row.bid_end_at || "",
+      opening_at: row.opening_at || "",
       estimated_amount: row.estimated_amount,
       share_rates: row.share_rates || [],
       participants: row.participants || [],
@@ -230,6 +233,7 @@ export default function Bids() {
       pq_due_date: form.pq_due_date || null,
       bid_start_date: form.bid_start_date || null,
       bid_end_at: form.bid_end_at || null,
+      opening_at: form.opening_at || null,
       estimated_amount: form.estimated_amount === null || form.estimated_amount === ("" as any) ? null : Number(form.estimated_amount),
       share_rates: form.share_rates,
       participants: form.participants,
@@ -316,6 +320,7 @@ export default function Bids() {
                   <TableHead>PQ마감</TableHead>
                   <TableHead>입찰시작</TableHead>
                   <TableHead>입찰마감</TableHead>
+                  <TableHead>개찰일시</TableHead>
                   <TableHead>D-</TableHead>
                   <TableHead className="text-right">추정금액</TableHead>
                   <TableHead>상태</TableHead>
@@ -325,11 +330,11 @@ export default function Bids() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-12">
+                  <TableRow><TableCell colSpan={12} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                     데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
                   </TableCell></TableRow>
                 ) : filtered.map((r) => {
@@ -344,6 +349,7 @@ export default function Bids() {
                       <TableCell className="whitespace-nowrap">{r.pq_due_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.bid_start_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{fmtDT(r.bid_end_at)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{fmtDT(r.opening_at)}</TableCell>
                       <TableCell className={"whitespace-nowrap " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "")}>{dDisplay(r.bid_end_at)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.status || "-"}</TableCell>
@@ -401,6 +407,10 @@ export default function Bids() {
                 <div className="space-y-1.5">
                   <Label>입찰마감일시</Label>
                   <Input type="datetime-local" value={toLocalInput(form.bid_end_at)} onChange={(e) => setForm({ ...form, bid_end_at: fromLocalInput(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>개찰일시</Label>
+                  <Input type="datetime-local" value={toLocalInput(form.opening_at)} onChange={(e) => setForm({ ...form, opening_at: fromLocalInput(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>추정금액</Label>

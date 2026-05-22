@@ -1,0 +1,1 @@
+ALTER TABLE public.bid_participations ADD COLUMN IF NOT EXISTS opening_at timestamptz;
