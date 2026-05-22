@@ -233,6 +233,7 @@ export default function Bids() {
       pq_due_date: form.pq_due_date || null,
       bid_start_date: form.bid_start_date || null,
       bid_end_at: form.bid_end_at || null,
+      opening_at: form.opening_at || null,
       estimated_amount: form.estimated_amount === null || form.estimated_amount === ("" as any) ? null : Number(form.estimated_amount),
       share_rates: form.share_rates,
       participants: form.participants,
