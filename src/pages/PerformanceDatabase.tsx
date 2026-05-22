@@ -657,7 +657,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setForm((f) => ({ ...f, participants: f.participants.map((p, i) => i === idx ? { ...p, [key]: val } : p) }));
   }
   function removeParticipant(idx: number) { setForm((f) => ({ ...f, participants: f.participants.filter((_, i) => i !== idx) })); }
-  function addParticipant() { setForm((f) => ({ ...f, participants: [...f.participants, { name: "", periods: [{ start: "", end: "" }] }] })); }
+  function addParticipant() {
+    setForm((f) => {
+      const defStart = (f.contract_periods.find((p) => p.start)?.start) || f.contract_start_date || "";
+      const defEnd = ([...f.contract_periods].reverse().find((p) => p.end)?.end) || f.contract_end_date || "";
+      return { ...f, participants: [...f.participants, { name: "", periods: [{ start: defStart, end: defEnd }] }] };
+    });
+  }
   function updateParticipantPeriod(pIdx: number, prdIdx: number, key: "start" | "end", v: string) {
     setForm((f) => ({
       ...f,
