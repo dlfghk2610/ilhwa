@@ -558,6 +558,26 @@ function TechnicianDetail({
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
       </div>
 
+      <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Checkbox id="exclude-private" checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
+          <Label htmlFor="exclude-private" className="cursor-pointer">민간 제외 (발주처 기준 AI 판독: 대학교·개인이름·주식회사·(주))</Label>
+        </div>
+        <div className="flex items-center gap-3">
+          <Label className="text-sm">계산 기준:</Label>
+          <RadioGroup value={calcStandard} onValueChange={saveCalcStandard} className="flex gap-3">
+            <div className="flex items-center gap-1">
+              <RadioGroupItem id="cs-kepa" value="건설기술인협회" />
+              <Label htmlFor="cs-kepa" className="cursor-pointer text-sm">건설기술인협회</Label>
+            </div>
+            <div className="flex items-center gap-1">
+              <RadioGroupItem id="cs-eia" value="환경영향평가 경력관리시스템" />
+              <Label htmlFor="cs-eia" className="cursor-pointer text-sm">환경영향평가 경력관리시스템</Label>
+            </div>
+          </RadioGroup>
+        </div>
+      </Card>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "recognition" | "overlap")}>
         <TabsList>
           <TabsTrigger value="recognition">① 인정일 계산</TabsTrigger>
@@ -565,11 +585,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
     </div>
