@@ -59,6 +59,7 @@ const emptyForm = (): Omit<BidRow, "id"> => ({
   pq_due_date: "",
   bid_start_date: "",
   bid_end_at: "",
+  opening_at: "",
   estimated_amount: null,
   share_rates: [],
   participants: [],
