@@ -105,7 +105,6 @@ export const isPrivateClient = (clientName?: string | null): boolean => {
   // 7) 기본값 → 민간
   return true;
 };
-};
 
 export type CareerEntry = {
   id: string;
