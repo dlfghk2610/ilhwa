@@ -31,6 +31,13 @@ type Technician = {
   company: string | null;
   position: string | null;
   notes: string | null;
+  calc_standard?: string | null;
+};
+
+type TechStat = {
+  recognizedDays: number;
+  convertedDays: number;
+  count: number;
 };
 
 const EXCEL_HEADERS = [
