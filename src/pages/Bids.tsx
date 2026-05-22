@@ -409,6 +409,10 @@ export default function Bids() {
                   <Input type="datetime-local" value={toLocalInput(form.bid_end_at)} onChange={(e) => setForm({ ...form, bid_end_at: fromLocalInput(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
+                  <Label>개찰일시</Label>
+                  <Input type="datetime-local" value={toLocalInput(form.opening_at)} onChange={(e) => setForm({ ...form, opening_at: fromLocalInput(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5">
                   <Label>추정금액</Label>
                   <Input type="number" value={form.estimated_amount ?? ""} onChange={(e) => setForm({ ...form, estimated_amount: e.target.value === "" ? null : Number(e.target.value) })} />
                 </div>
