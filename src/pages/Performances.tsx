@@ -637,7 +637,11 @@ export default function Performances() {
   const filteredAllTechStats = useMemo(() => {
     let arr = allTechStats;
     if (statusFilter !== "all") arr = arr.filter((t) => t.status === statusFilter);
-    return arr;
+    // 재직중 위 / 퇴사자 아래 (그 안에서는 이름순)
+    return [...arr].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "active" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
   }, [allTechStats, statusFilter]);
 
   return (
