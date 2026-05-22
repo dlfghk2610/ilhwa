@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
@@ -115,7 +115,7 @@ export default function Careers() {
     const q = search.trim().toLowerCase();
     if (!q) return techs;
     return techs.filter((t) =>
-      [t.name, t.specialty, t.company].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+      [t.name, t.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
     );
   }, [techs, search]);
 
@@ -167,7 +167,7 @@ export default function Careers() {
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="이름·전문분야·회사 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-8" placeholder="이름·전문분야 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Button onClick={openNewTech}><Plus className="h-4 w-4 mr-1" />기술자 추가</Button>
           </div>
@@ -184,10 +184,6 @@ export default function Careers() {
                       <div className="font-semibold text-base truncate">{t.name}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.specialty ? <Badge variant="secondary">{t.specialty}</Badge> : <Badge variant="outline">전문분야 미지정</Badge>}
-                        <Badge variant="outline" className="text-[10px]">{t.calc_standard || "건설기술인협회"}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 truncate">
-                        {[t.company, t.position].filter(Boolean).join(" · ") || "—"}
                       </div>
                       {techStats[t.id] && (
                         <div className="mt-2 rounded bg-muted/50 px-2 py-1.5 text-xs">
@@ -230,11 +226,6 @@ export default function Careers() {
           <div className="space-y-3">
             <div><Label>이름 *</Label><Input value={techForm.name || ""} onChange={(e) => setTechForm({ ...techForm, name: e.target.value })} /></div>
             <div><Label>전문분야</Label><Input value={techForm.specialty || ""} onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })} placeholder="예: 대기, 수질, 토목" /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label>생년월일</Label><Input type="date" value={techForm.birth_date || ""} onChange={(e) => setTechForm({ ...techForm, birth_date: e.target.value })} /></div>
-              <div><Label>회사</Label><Input value={techForm.company || ""} onChange={(e) => setTechForm({ ...techForm, company: e.target.value })} /></div>
-            </div>
-            <div><Label>직위</Label><Input value={techForm.position || ""} onChange={(e) => setTechForm({ ...techForm, position: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTechDialogOpen(false)}>취소</Button>
@@ -523,9 +514,6 @@ function TechnicianDetail({
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xl font-bold">{tech.name}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              {[tech.company, tech.position, tech.birth_date].filter(Boolean).join(" · ") || "—"}
-            </div>
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <Label className="text-sm">전문분야:</Label>
               {specialtyEdit ? (
@@ -565,16 +553,15 @@ function TechnicianDetail({
         </div>
         <div className="flex items-center gap-3">
           <Label className="text-sm">계산 기준:</Label>
-          <RadioGroup value={calcStandard} onValueChange={saveCalcStandard} className="flex gap-3">
-            <div className="flex items-center gap-1">
-              <RadioGroupItem id="cs-kepa" value="건설기술인협회" />
-              <Label htmlFor="cs-kepa" className="cursor-pointer text-sm">건설기술인협회</Label>
-            </div>
-            <div className="flex items-center gap-1">
-              <RadioGroupItem id="cs-eia" value="환경영향평가 경력관리시스템" />
-              <Label htmlFor="cs-eia" className="cursor-pointer text-sm">환경영향평가 경력관리시스템</Label>
-            </div>
-          </RadioGroup>
+          <Select value={calcStandard} onValueChange={saveCalcStandard}>
+            <SelectTrigger className="h-9 w-[240px]">
+              <SelectValue placeholder="계산 기준 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="건설기술인협회">건설기술인협회</SelectItem>
+              <SelectItem value="환경영향평가 경력관리시스템">환경영향평가 경력관리시스템</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
