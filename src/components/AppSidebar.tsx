@@ -14,6 +14,7 @@ const items = [
   { title: "입찰참가관리", url: "/bids", icon: FileText },
   { title: "PQ 개인별 실적관리", url: "/performances", icon: Award },
   { title: "PQ 개인별 경력관리", url: "/careers", icon: Briefcase },
+  { title: "PQ 개인별 이력사항", url: "/personal-history", icon: UserCog },
   { title: "PQ 기술자별 업무중첩도", url: "/overlaps", icon: Layers },
   { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2 },
   { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
