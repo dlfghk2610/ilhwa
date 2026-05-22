@@ -184,10 +184,6 @@ export default function Careers() {
                       <div className="font-semibold text-base truncate">{t.name}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.specialty ? <Badge variant="secondary">{t.specialty}</Badge> : <Badge variant="outline">전문분야 미지정</Badge>}
-                        <Badge variant="outline" className="text-[10px]">{t.calc_standard || "건설기술인협회"}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 truncate">
-                        {[t.company, t.position].filter(Boolean).join(" · ") || "—"}
                       </div>
                       {techStats[t.id] && (
                         <div className="mt-2 rounded bg-muted/50 px-2 py-1.5 text-xs">
