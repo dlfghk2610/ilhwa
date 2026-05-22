@@ -20,6 +20,7 @@ import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
+  isWorkingNow, isPrivateClient,
   type CalcStandard,
 } from "@/lib/career-calc";
 
@@ -304,7 +305,7 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = computeRecognition(e, tech.specialty);
+        const r = computeRecognition(e, tech.specialty, excludePrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -319,6 +320,7 @@ function TechnicianDetail({
           참여회사: e.participation_company || "",
           참여직위: e.participation_position || "",
           환산일수: r.convertedDays,
+          민간: r.isPrivate ? "민간" : "",
         };
       });
       const totalRecog = rows.reduce((s, r) => s + Number(r.인정일 || 0), 0);
@@ -326,14 +328,14 @@ function TechnicianDetail({
       rows.push({
         참여시작일: "", 참여종료일: "", 인정일: totalRecog, 사업명: "합계", 발주처: "",
         사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: 0 as any,
-        참여회사: "", 참여직위: "", 환산일수: +totalConv.toFixed(2),
+        참여회사: "", 참여직위: "", 환산일수: +totalConv.toFixed(2), 민간: "",
       } as any);
       rows.push({
         참여시작일: "", 참여종료일: "", 인정일: "" as any, 사업명: `환산 (년/월): ${daysToYearMonth(totalConv)}`,
         발주처: "", 사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: "" as any,
-        참여회사: "", 참여직위: "", 환산일수: "" as any,
+        참여회사: "", 참여직위: "", 환산일수: "" as any, 민간: "",
       } as any);
-      exportToExcel(rows, `경력_인정일계산_${tech.name}`);
+      exportToExcel(rows, `경력_인정일계산_${tech.name}${excludePrivate ? "_민간제외" : ""}`);
       return;
     }
     // 중복일수 계산 (가중 구간 스케줄링)
@@ -625,21 +627,34 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
               <TableHead>참여회사</TableHead>
               <TableHead>참여직위</TableHead>
               <TableHead className="text-right">환산일수</TableHead>
+              <TableHead>민간</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={r.entry.id || i} className={r.recognizedDays === 0 ? "opacity-60" : ""}>
+            {rows.map((r, i) => {
+              const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
+              const working = isWorkingNow(r.entry.period_end_text);
+              const flagged = specialtyMismatch || r.isPrivate || working;
+              return (
+              <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
-                <TableCell className="max-w-[280px] whitespace-normal break-words align-top">{r.entry.project_name}</TableCell>
-                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="outline" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
+                <TableCell className="max-w-[280px] whitespace-normal break-words align-top">
+                  <div>{r.entry.project_name}</div>
+                  {flagged && (
+                    <div className="mt-1 flex flex-wrap gap-1 text-[10px] font-semibold">
+                      {specialtyMismatch && <span className="text-destructive">⚠ 전문분야 불일치</span>}
+                      {r.isPrivate && <span className="text-destructive">⚠ 민간사업</span>}
+                      {working && <span className="text-destructive">⚠ 근무중</span>}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
                 <TableCell>{r.entry.service_field}</TableCell>
                 <TableCell>
                   {r.entry.specialty}
-                  {r.entry.specialty && tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim() &&
-                    <Badge variant="outline" className="ml-1 text-[10px]">불일치</Badge>}
+                  {specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
                 </TableCell>
                 <TableCell>{r.entry.duties}</TableCell>
                 <TableCell><Badge variant={r.evalGroup === "환경" ? "default" : "secondary"}>{r.evalGroup}</Badge></TableCell>
@@ -647,8 +662,10 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell>{r.entry.participation_company}</TableCell>
                 <TableCell>{r.entry.participation_position}</TableCell>
                 <TableCell className="text-right font-medium">{r.convertedDays}</TableCell>
+                <TableCell>{r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
