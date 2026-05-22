@@ -277,6 +277,14 @@ function TechnicianDetail({
   const [specialtyDraft, setSpecialtyDraft] = useState(tech.specialty || "");
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"recognition" | "overlap">("recognition");
+  const [excludePrivate, setExcludePrivate] = useState(false);
+  const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
+
+  const saveCalcStandard = async (v: string) => {
+    setCalcStandard(v);
+    const { error } = await (supabase as any).from("technicians").update({ calc_standard: v }).eq("id", tech.id);
+    if (error) toast.error(error.message);
+  };
 
   const load = async () => {
     setLoading(true);
