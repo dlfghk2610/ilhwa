@@ -559,6 +559,7 @@ export type Database = {
       technicians: {
         Row: {
           birth_date: string | null
+          calc_standard: string
           company: string | null
           created_at: string
           created_by: string
@@ -572,6 +573,7 @@ export type Database = {
         }
         Insert: {
           birth_date?: string | null
+          calc_standard?: string
           company?: string | null
           created_at?: string
           created_by: string
@@ -585,6 +587,7 @@ export type Database = {
         }
         Update: {
           birth_date?: string | null
+          calc_standard?: string
           company?: string | null
           created_at?: string
           created_by?: string

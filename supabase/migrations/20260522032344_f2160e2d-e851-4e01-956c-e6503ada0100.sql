@@ -1,0 +1,1 @@
+ALTER TABLE public.technicians ADD COLUMN IF NOT EXISTS calc_standard text NOT NULL DEFAULT '건설기술인협회';

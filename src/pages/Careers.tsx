@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
@@ -18,6 +20,7 @@ import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
+  type CalcStandard,
 } from "@/lib/career-calc";
 
 type Technician = {
@@ -28,6 +31,13 @@ type Technician = {
   company: string | null;
   position: string | null;
   notes: string | null;
+  calc_standard?: string | null;
+};
+
+type TechStat = {
+  recognizedDays: number;
+  convertedDays: number;
+  count: number;
 };
 
 const EXCEL_HEADERS = [
@@ -64,15 +74,42 @@ export default function Careers() {
   const [techForm, setTechForm] = useState<Partial<Technician>>({});
   const [deleteTech, setDeleteTech] = useState<Technician | null>(null);
 
+  const [techStats, setTechStats] = useState<Record<string, TechStat>>({});
+
   const loadTechs = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("technicians").select("*").order("name");
+    const { data, error } = await (supabase as any).from("technicians").select("*").order("name");
     if (error) toast.error(error.message);
     else setTechs((data as Technician[]) || []);
     setLoading(false);
   };
 
+  const loadAllStats = async (techList: Technician[]) => {
+    const { data, error } = await supabase
+      .from("career_entries")
+      .select("technician_id,specialty,evaluation_category,period_end_text,recognized_days,client");
+    if (error) return;
+    const byTech = new Map<string, any[]>();
+    for (const e of (data || []) as any[]) {
+      if (!byTech.has(e.technician_id)) byTech.set(e.technician_id, []);
+      byTech.get(e.technician_id)!.push(e);
+    }
+    const stats: Record<string, TechStat> = {};
+    for (const t of techList) {
+      const list = byTech.get(t.id) || [];
+      let rec = 0, conv = 0;
+      for (const e of list) {
+        const r = computeRecognition(e as any, t.specialty, false);
+        rec += r.recognizedDays;
+        conv += r.convertedDays;
+      }
+      stats[t.id] = { recognizedDays: rec, convertedDays: +conv.toFixed(2), count: list.length };
+    }
+    setTechStats(stats);
+  };
+
   useEffect(() => { loadTechs(); }, []);
+  useEffect(() => { if (techs.length) loadAllStats(techs); }, [techs]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -147,10 +184,23 @@ export default function Careers() {
                       <div className="font-semibold text-base truncate">{t.name}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.specialty ? <Badge variant="secondary">{t.specialty}</Badge> : <Badge variant="outline">전문분야 미지정</Badge>}
+                        <Badge variant="outline" className="text-[10px]">{t.calc_standard || "건설기술인협회"}</Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 truncate">
                         {[t.company, t.position].filter(Boolean).join(" · ") || "—"}
                       </div>
+                      {techStats[t.id] && (
+                        <div className="mt-2 rounded bg-muted/50 px-2 py-1.5 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">인정 경력 (민간포함)</span>
+                            <span className="font-semibold">{daysToYearMonth(techStats[t.id].convertedDays)}</span>
+                          </div>
+                          <div className="flex justify-between mt-0.5 text-[11px] text-muted-foreground">
+                            <span>인정일 {techStats[t.id].recognizedDays.toLocaleString()}일</span>
+                            <span>{techStats[t.id].count}건</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEditTech(t)}><Pencil className="h-4 w-4" /></Button>
@@ -227,6 +277,14 @@ function TechnicianDetail({
   const [specialtyDraft, setSpecialtyDraft] = useState(tech.specialty || "");
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"recognition" | "overlap">("recognition");
+  const [excludePrivate, setExcludePrivate] = useState(false);
+  const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
+
+  const saveCalcStandard = async (v: string) => {
+    setCalcStandard(v);
+    const { error } = await (supabase as any).from("technicians").update({ calc_standard: v }).eq("id", tech.id);
+    if (error) toast.error(error.message);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -500,6 +558,26 @@ function TechnicianDetail({
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
       </div>
 
+      <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Checkbox id="exclude-private" checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
+          <Label htmlFor="exclude-private" className="cursor-pointer">민간 제외 (발주처 기준 AI 판독: 대학교·개인이름·주식회사·(주))</Label>
+        </div>
+        <div className="flex items-center gap-3">
+          <Label className="text-sm">계산 기준:</Label>
+          <RadioGroup value={calcStandard} onValueChange={saveCalcStandard} className="flex gap-3">
+            <div className="flex items-center gap-1">
+              <RadioGroupItem id="cs-kepa" value="건설기술인협회" />
+              <Label htmlFor="cs-kepa" className="cursor-pointer text-sm">건설기술인협회</Label>
+            </div>
+            <div className="flex items-center gap-1">
+              <RadioGroupItem id="cs-eia" value="환경영향평가 경력관리시스템" />
+              <Label htmlFor="cs-eia" className="cursor-pointer text-sm">환경영향평가 경력관리시스템</Label>
+            </div>
+          </RadioGroup>
+        </div>
+      </Card>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "recognition" | "overlap")}>
         <TabsList>
           <TabsTrigger value="recognition">① 인정일 계산</TabsTrigger>
@@ -507,11 +585,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -521,8 +599,8 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
-  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty)), [entries, tech.specialty]);
+function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
+  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -569,7 +647,7 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{r.entry.project_name}</TableCell>
-                <TableCell>{r.entry.client}</TableCell>
+                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="outline" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
                 <TableCell>{r.entry.service_field}</TableCell>
                 <TableCell>
                   {r.entry.specialty}
@@ -594,9 +672,9 @@ function RecognitionView({ entries, tech }: { entries: CareerEntry[]; tech: Tech
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technician }) {
+function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
@@ -608,7 +686,7 @@ function OverlapView({ entries, tech }: { entries: CareerEntry[]; tech: Technici
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty]);
+  }, [entries, tech.specialty, excludePrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
