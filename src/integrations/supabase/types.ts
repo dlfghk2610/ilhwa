@@ -562,6 +562,7 @@ export type Database = {
           company: string | null
           created_at: string
           created_by: string
+          employment_status: string
           id: string
           name: string
           notes: string | null
@@ -574,6 +575,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by: string
+          employment_status?: string
           id?: string
           name: string
           notes?: string | null
@@ -586,6 +588,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by?: string
+          employment_status?: string
           id?: string
           name?: string
           notes?: string | null
