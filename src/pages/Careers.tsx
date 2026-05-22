@@ -728,7 +728,7 @@ function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]
                 <TableBody>
                   {itemsConv.map(({ it, conv }, i) => (
                     <TableRow key={it.row.entry.id || i}>
-                      <TableCell className="max-w-[200px] truncate">{it.row.entry.project_name}</TableCell>
+                      <TableCell className="max-w-[280px] whitespace-normal break-words align-top">{it.row.entry.project_name}</TableCell>
                       <TableCell>{it.row.entry.client}</TableCell>
                       <TableCell>{it.row.entry.specialty}</TableCell>
                       <TableCell>{it.row.entry.duties}</TableCell>
