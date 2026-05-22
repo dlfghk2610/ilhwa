@@ -21,7 +21,7 @@ const fmtDT = (iso: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-type UpcomingBid = { id: string; project_name: string; client: string | null; opening_at: string };
+type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null };
 
 export default function Index() {
   const { user } = useAuth();
@@ -42,16 +42,26 @@ export default function Index() {
 
   useEffect(() => {
     (async () => {
+      const now = new Date();
+      const in7days = new Date(now.getTime() + 7 * 86400000);
       const { data } = await (supabase as any)
         .from("bid_participations")
-        .select("id, project_name, client, opening_at")
-        .not("opening_at", "is", null)
-        .gte("opening_at", new Date().toISOString())
-        .order("opening_at", { ascending: true })
-        .limit(5);
-      setUpcomingOpenings((data || []) as UpcomingBid[]);
+        .select("id, project_name, client, bid_end_at, opening_at")
+        .not("bid_end_at", "is", null)
+        .lte("bid_end_at", in7days.toISOString())
+        .order("bid_end_at", { ascending: true });
+      const filtered = ((data || []) as UpcomingBid[]).filter((b) => {
+        const ref = b.opening_at || b.bid_end_at;
+        if (!ref) return false;
+        const refDate = new Date(ref);
+        // 개찰일(없으면 입찰마감일)의 다음달 1일부터는 숨김
+        const cutoff = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
+        return now < cutoff;
+      });
+      setUpcomingOpenings(filtered);
     })();
   }, []);
+
 
   useEffect(() => {
     if (!user) return;
