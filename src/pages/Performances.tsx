@@ -422,7 +422,7 @@ export default function Performances() {
   // 데이터베이스에 등록된 참여자 기준 기술자 목록
   const allTechnicians = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => r.participants?.forEach((p) => p.name && s.add(p.name)));
+    rows.forEach((r) => getEffectiveParticipants(r).forEach((p) => p.name && s.add(p.name)));
     return Array.from(s).sort();
   }, [rows]);
 
@@ -432,7 +432,7 @@ export default function Performances() {
     return (techName: string) => {
       const base = rows
         .map((r) => {
-          const part = r.participants?.find((p) => p.name === techName);
+          const part = getEffectiveParticipant(r, techName);
           if (!part) return null;
           const evalSet = new Set(r.evaluation_types);
           let evalW = 0.6;
