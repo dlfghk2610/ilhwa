@@ -445,7 +445,7 @@ export default function Performances() {
             contract_periods: [{ start: ph.start_date || undefined, end: ph.end_date || undefined }] as Period[],
             contract_start_date: ph.start_date || null,
             contract_end_date: ph.end_date || null,
-            completion_date: ph.end_date || r.completion_date,
+            completion_date: ph.end_date || (r as any).completion_date,
             participants: (ph.participants || []) as Participant[],
             phases: [],
           } as Row));
