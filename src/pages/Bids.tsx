@@ -349,6 +349,7 @@ export default function Bids() {
                       <TableCell className="whitespace-nowrap">{r.pq_due_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.bid_start_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{fmtDT(r.bid_end_at)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{fmtDT(r.opening_at)}</TableCell>
                       <TableCell className={"whitespace-nowrap " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "")}>{dDisplay(r.bid_end_at)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.status || "-"}</TableCell>
