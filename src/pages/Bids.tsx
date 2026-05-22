@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight } from "lucide-react";
 
 const EVAL_TYPES = ["적격심사", "협상에의한계약", "종합심사낙찰제", "기술제안", "표준", "기타"];
 const SERVICE_TYPES = ["건축설계", "건설사업관리", "감리", "타당성조사", "기획", "기타"];
