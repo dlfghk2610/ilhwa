@@ -241,7 +241,7 @@ export default function SimilarServices() {
     if (!v) return "";
     const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
     if (!m) return v;
-    const y = m[1].slice(-4).padStart(4, "0");
+    const y = m[1].length > 4 ? m[1].slice(0, 4) : m[1].padStart(4, "0");
     return `${y}-${m[2]}-${m[3]}`;
   };
 

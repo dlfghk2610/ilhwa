@@ -191,7 +191,10 @@ export function DataManager({ table, fields, searchKeys, exportName }: Props) {
                             let v = e.target.value;
                             if (f.type === "date" && v) {
                               const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
-                              if (m) v = `${m[1].slice(-4).padStart(4, "0")}-${m[2]}-${m[3]}`;
+                              if (m) {
+                                const y = m[1].length > 4 ? m[1].slice(0, 4) : m[1].padStart(4, "0");
+                                v = `${y}-${m[2]}-${m[3]}`;
+                              }
                             }
                             setForm({ ...form, [f.key]: v });
                           }}

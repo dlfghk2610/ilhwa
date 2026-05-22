@@ -25,6 +25,14 @@ const EVAL_TYPES = ["적격심사", "협상에의한계약", "종합심사낙찰
 const SERVICE_TYPES = ["건축설계", "건설사업관리", "감리", "타당성조사", "기획", "기타"];
 const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료"];
 
+const clampDate = (v: string) => {
+  if (!v) return "";
+  const m = v.match(/^(\d+)-(\d{2})-(\d{2})$/);
+  if (!m) return v;
+  const y = m[1].length > 4 ? m[1].slice(0, 4) : m[1].padStart(4, "0");
+  return `${y}-${m[2]}-${m[3]}`;
+};
+
 type ShareRate = { company: string; rate: string };
 type Participant = { name: string; role: string };
 
@@ -394,15 +402,15 @@ export default function Bids() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>공고일</Label>
-                  <Input type="date" value={form.announcement_date || ""} onChange={(e) => setForm({ ...form, announcement_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.announcement_date || ""} onChange={(e) => setForm({ ...form, announcement_date: clampDate(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>PQ제출마감일</Label>
-                  <Input type="date" value={form.pq_due_date || ""} onChange={(e) => setForm({ ...form, pq_due_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.pq_due_date || ""} onChange={(e) => setForm({ ...form, pq_due_date: clampDate(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>입찰시작일</Label>
-                  <Input type="date" value={form.bid_start_date || ""} onChange={(e) => setForm({ ...form, bid_start_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.bid_start_date || ""} onChange={(e) => setForm({ ...form, bid_start_date: clampDate(e.target.value) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>입찰마감일시</Label>
@@ -418,7 +426,7 @@ export default function Bids() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>협정승인일</Label>
-                  <Input type="date" value={form.agreement_approval_date || ""} onChange={(e) => setForm({ ...form, agreement_approval_date: e.target.value })} />
+                  <Input type="date" min="1900-01-01" max="9999-12-31" value={form.agreement_approval_date || ""} onChange={(e) => setForm({ ...form, agreement_approval_date: clampDate(e.target.value) })} />
                 </div>
               </div>
 
