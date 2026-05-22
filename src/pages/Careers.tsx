@@ -305,7 +305,7 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = computeRecognition(e, tech.specialty);
+        const r = computeRecognition(e, tech.specialty, excludePrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -320,6 +320,7 @@ function TechnicianDetail({
           참여회사: e.participation_company || "",
           참여직위: e.participation_position || "",
           환산일수: r.convertedDays,
+          민간: r.isPrivate ? "민간" : "",
         };
       });
       const totalRecog = rows.reduce((s, r) => s + Number(r.인정일 || 0), 0);
@@ -327,14 +328,14 @@ function TechnicianDetail({
       rows.push({
         참여시작일: "", 참여종료일: "", 인정일: totalRecog, 사업명: "합계", 발주처: "",
         사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: 0 as any,
-        참여회사: "", 참여직위: "", 환산일수: +totalConv.toFixed(2),
+        참여회사: "", 참여직위: "", 환산일수: +totalConv.toFixed(2), 민간: "",
       } as any);
       rows.push({
         참여시작일: "", 참여종료일: "", 인정일: "" as any, 사업명: `환산 (년/월): ${daysToYearMonth(totalConv)}`,
         발주처: "", 사업공종: "", 전문분야: "", 담당업무: "", 평가구분: "", 가중치: "" as any,
-        참여회사: "", 참여직위: "", 환산일수: "" as any,
+        참여회사: "", 참여직위: "", 환산일수: "" as any, 민간: "",
       } as any);
-      exportToExcel(rows, `경력_인정일계산_${tech.name}`);
+      exportToExcel(rows, `경력_인정일계산_${tech.name}${excludePrivate ? "_민간제외" : ""}`);
       return;
     }
     // 중복일수 계산 (가중 구간 스케줄링)
