@@ -226,11 +226,6 @@ export default function Careers() {
           <div className="space-y-3">
             <div><Label>이름 *</Label><Input value={techForm.name || ""} onChange={(e) => setTechForm({ ...techForm, name: e.target.value })} /></div>
             <div><Label>전문분야</Label><Input value={techForm.specialty || ""} onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })} placeholder="예: 대기, 수질, 토목" /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label>생년월일</Label><Input type="date" value={techForm.birth_date || ""} onChange={(e) => setTechForm({ ...techForm, birth_date: e.target.value })} /></div>
-              <div><Label>회사</Label><Input value={techForm.company || ""} onChange={(e) => setTechForm({ ...techForm, company: e.target.value })} /></div>
-            </div>
-            <div><Label>직위</Label><Input value={techForm.position || ""} onChange={(e) => setTechForm({ ...techForm, position: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTechDialogOpen(false)}>취소</Button>
