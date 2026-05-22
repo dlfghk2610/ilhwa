@@ -908,6 +908,14 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
         {/* Mobile card list */}
         <Card className="md:hidden overflow-hidden">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+            <Checkbox
+              checked={allFilteredSelected}
+              onCheckedChange={(c) => toggleSelectAll(!!c)}
+              aria-label="모두선택"
+            />
+            <span className="text-sm text-muted-foreground">모두선택</span>
+          </div>
           {loading ? (
             <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
           ) : filtered.length === 0 ? (
