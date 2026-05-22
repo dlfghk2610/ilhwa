@@ -83,7 +83,35 @@ type Row = {
   participant_file_path: string | null;
   cert_pdf_path: string | null;
   is_private: boolean;
+  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null }>;
 };
+
+// 사후 + phases 입력시: 마지막 차수의 참여자 정보만 사용 (제일 마지막 차수만 건수 집계)
+function getEffectiveParticipant(r: Row, techName: string): Participant | null {
+  const isPost = (r.evaluation_types || []).includes("사후");
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (isPost && phases.length > 0) {
+    for (let i = phases.length - 1; i >= 0; i--) {
+      const found = ((phases[i].participants || []) as Participant[]).find((p) => p.name === techName);
+      if (found) return found;
+    }
+    return null;
+  }
+  return (r.participants || []).find((p) => p.name === techName) || null;
+}
+
+function getEffectiveParticipants(r: Row): Participant[] {
+  const isPost = (r.evaluation_types || []).includes("사후");
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (isPost && phases.length > 0) {
+    for (let i = phases.length - 1; i >= 0; i--) {
+      const ps = (phases[i].participants || []) as Participant[];
+      if (ps.length > 0) return ps;
+    }
+    return [];
+  }
+  return r.participants || [];
+}
 
 const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
 
@@ -166,7 +194,7 @@ export default function Performances() {
   // 전체보기 탭 상태
   const [tab, setTab] = useState<string>("single");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
-  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { company: string; status: "active" | "retired" }>>(new Map());
+  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" }>>(new Map());
 
   useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
 
@@ -183,25 +211,55 @@ export default function Performances() {
 
   async function fetchTechMeta() {
     const [techRes, careerRes] = await Promise.all([
-      supabase.from("technicians").select("name, company"),
+      supabase.from("technicians").select("id, name, company, employment_status" as any),
       supabase.from("personal_careers").select("technician_name, company, resign_date"),
     ]);
-    const map = new Map<string, { company: string; status: "active" | "retired" }>();
+    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" }>();
     (techRes.data as any[] | null)?.forEach((t) => {
-      map.set(t.name, { company: t.company ?? "", status: "active" });
+      const status = (t.employment_status === "retired" ? "retired" : "active") as "active" | "retired";
+      map.set(t.name, { id: t.id, company: t.company ?? "", status });
     });
-    // personal_careers 기준으로 상태 갱신: resign_date가 없는 항목이 하나라도 있으면 재직중
+    // personal_careers는 보조: technicians에 미등록된 사람만 보강
     const byName = new Map<string, any[]>();
     (careerRes.data as any[] | null)?.forEach((c) => {
       const arr = byName.get(c.technician_name) ?? [];
       arr.push(c); byName.set(c.technician_name, arr);
     });
     byName.forEach((arr, name) => {
+      if (map.has(name)) return; // technicians에 있으면 그쪽 employment_status가 우선
       const anyActive = arr.some((c) => !c.resign_date);
-      const company = arr[0]?.company ?? map.get(name)?.company ?? "";
+      const company = arr[0]?.company ?? "";
       map.set(name, { company, status: anyActive ? "active" : "retired" });
     });
     setTechCompanyMap(map);
+  }
+
+  async function updateTechStatus(name: string, status: "active" | "retired") {
+    const meta = techCompanyMap.get(name);
+    if (!meta?.id) {
+      toast.error("기술자 마스터에 등록되지 않은 이름입니다. 먼저 [개인별 경력관리]에서 기술자를 등록하세요.");
+      return;
+    }
+    const prev = meta.status;
+    setTechCompanyMap((m) => {
+      const next = new Map(m);
+      next.set(name, { ...meta, status });
+      return next;
+    });
+    const { error } = await supabase
+      .from("technicians")
+      .update({ employment_status: status } as any)
+      .eq("id", meta.id);
+    if (error) {
+      toast.error(error.message);
+      setTechCompanyMap((m) => {
+        const next = new Map(m);
+        next.set(name, { ...meta, status: prev });
+        return next;
+      });
+    } else {
+      toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
+    }
   }
 
 
@@ -212,6 +270,7 @@ export default function Performances() {
       service_types: Array.isArray(r.service_types) ? r.service_types : [],
       participants: Array.isArray(r.participants) ? r.participants : [],
       contract_periods: Array.isArray(r.contract_periods) ? r.contract_periods : [],
+      phases: Array.isArray(r.phases) ? r.phases : [],
     };
   }
 
@@ -363,7 +422,7 @@ export default function Performances() {
   // 데이터베이스에 등록된 참여자 기준 기술자 목록
   const allTechnicians = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => r.participants?.forEach((p) => p.name && s.add(p.name)));
+    rows.forEach((r) => getEffectiveParticipants(r).forEach((p) => p.name && s.add(p.name)));
     return Array.from(s).sort();
   }, [rows]);
 
@@ -373,7 +432,7 @@ export default function Performances() {
     return (techName: string) => {
       const base = rows
         .map((r) => {
-          const part = r.participants?.find((p) => p.name === techName);
+          const part = getEffectiveParticipant(r, techName);
           if (!part) return null;
           const evalSet = new Set(r.evaluation_types);
           let evalW = 0.6;
@@ -857,10 +916,16 @@ export default function Performances() {
                   <TableRow key={t.name} className="cursor-pointer" onClick={() => { setSelectedTech(t.name); setTechSelectionTouched(false); setTab("single"); }}>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
-                    <TableCell>
-                      {t.status === "active"
-                        ? <Badge variant="default">재직중</Badge>
-                        : <Badge variant="outline">퇴사자</Badge>}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select value={t.status} onValueChange={(v: "active" | "retired") => updateTechStatus(t.name, v)}>
+                        <SelectTrigger className="w-28 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">재직중</SelectItem>
+                          <SelectItem value="retired">퇴사자</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-right">{t.count}</TableCell>
                     <TableCell className="text-right">{t.activeCount}</TableCell>
