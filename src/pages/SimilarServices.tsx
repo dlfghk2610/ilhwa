@@ -979,7 +979,7 @@ export default function SimilarServices() {
                   </TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
-                    데이터가 없습니다. 상단 [등록] 버튼으로 추가하세요.
+                    실적 데이터베이스에서 동기화된 데이터가 없습니다.
                   </TableCell></TableRow>
                 ) : filtered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
