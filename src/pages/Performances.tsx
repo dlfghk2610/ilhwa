@@ -238,21 +238,44 @@ export default function Performances() {
   }
 
   async function updateTechStatus(name: string, status: "active" | "retired") {
-    const meta = techCompanyMap.get(name);
-    if (!meta?.id) {
-      toast.error("기술자 마스터에 등록되지 않은 이름입니다. 먼저 [개인별 경력관리]에서 기술자를 등록하세요.");
-      return;
-    }
+    const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
     const prev = meta.status;
     setTechCompanyMap((m) => {
       const next = new Map(m);
       next.set(name, { ...meta, status });
       return next;
     });
-    const { error } = await supabase
-      .from("technicians")
-      .update({ employment_status: status } as any)
-      .eq("id", meta.id);
+
+    let error: any = null;
+    if (meta.id) {
+      const r = await supabase
+        .from("technicians")
+        .update({ employment_status: status } as any)
+        .eq("id", meta.id);
+      error = r.error;
+    } else {
+      // 경력관리에 등록 안 된 기술자도 즉시 반영 — technicians에 자동 생성
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) {
+        toast.error("로그인이 필요합니다");
+        return;
+      }
+      const r = await supabase
+        .from("technicians")
+        .insert({ name, company: meta.company || null, employment_status: status, created_by: uid } as any)
+        .select("id")
+        .single();
+      error = r.error;
+      if (!error && r.data) {
+        setTechCompanyMap((m) => {
+          const next = new Map(m);
+          next.set(name, { ...meta, id: (r.data as any).id, status });
+          return next;
+        });
+      }
+    }
+
     if (error) {
       toast.error(error.message);
       setTechCompanyMap((m) => {
