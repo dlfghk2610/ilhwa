@@ -647,7 +647,7 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{r.entry.project_name}</TableCell>
-                <TableCell>{r.entry.client}</TableCell>
+                <TableCell>{r.entry.client}{r.isPrivate && <Badge variant="outline" className="ml-1 text-[10px]">민간</Badge>}</TableCell>
                 <TableCell>{r.entry.service_field}</TableCell>
                 <TableCell>
                   {r.entry.specialty}
