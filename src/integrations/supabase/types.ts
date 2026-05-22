@@ -16,38 +16,80 @@ export type Database = {
     Tables: {
       bid_participations: {
         Row: {
+          agreement_approval_date: string | null
+          announcement_date: string | null
           bid_date: string | null
+          bid_end_at: string | null
+          bid_start_date: string | null
           client: string | null
           created_at: string
           created_by: string
           estimated_amount: number | null
+          evaluation_types: string[]
           id: string
           notes: string | null
+          notified_at: string | null
+          notify_browser: boolean
+          notify_email: string | null
+          notify_hours_before: number
+          notify_phone: string | null
+          participants: Json
+          pq_due_date: string | null
           project_name: string
+          service_types: string[]
+          share_rates: Json
           status: string | null
           updated_at: string
         }
         Insert: {
+          agreement_approval_date?: string | null
+          announcement_date?: string | null
           bid_date?: string | null
+          bid_end_at?: string | null
+          bid_start_date?: string | null
           client?: string | null
           created_at?: string
           created_by: string
           estimated_amount?: number | null
+          evaluation_types?: string[]
           id?: string
           notes?: string | null
+          notified_at?: string | null
+          notify_browser?: boolean
+          notify_email?: string | null
+          notify_hours_before?: number
+          notify_phone?: string | null
+          participants?: Json
+          pq_due_date?: string | null
           project_name: string
+          service_types?: string[]
+          share_rates?: Json
           status?: string | null
           updated_at?: string
         }
         Update: {
+          agreement_approval_date?: string | null
+          announcement_date?: string | null
           bid_date?: string | null
+          bid_end_at?: string | null
+          bid_start_date?: string | null
           client?: string | null
           created_at?: string
           created_by?: string
           estimated_amount?: number | null
+          evaluation_types?: string[]
           id?: string
           notes?: string | null
+          notified_at?: string | null
+          notify_browser?: boolean
+          notify_email?: string | null
+          notify_hours_before?: number
+          notify_phone?: string | null
+          participants?: Json
+          pq_due_date?: string | null
           project_name?: string
+          service_types?: string[]
+          share_rates?: Json
           status?: string | null
           updated_at?: string
         }
