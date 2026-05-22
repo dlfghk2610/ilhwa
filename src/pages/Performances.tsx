@@ -240,6 +240,7 @@ export default function Performances() {
       service_types: Array.isArray(r.service_types) ? r.service_types : [],
       participants: Array.isArray(r.participants) ? r.participants : [],
       contract_periods: Array.isArray(r.contract_periods) ? r.contract_periods : [],
+      phases: Array.isArray(r.phases) ? r.phases : [],
     };
   }
 
