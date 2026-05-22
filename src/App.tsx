@@ -9,6 +9,7 @@ import Auth from "./pages/Auth.tsx";
 import Bids from "./pages/Bids.tsx";
 import Performances from "./pages/Performances.tsx";
 import Careers from "./pages/Careers.tsx";
+import PersonalHistory from "./pages/PersonalHistory.tsx";
 import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
