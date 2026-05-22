@@ -446,6 +446,69 @@ function TechnicianDetail({
     return inserts;
   };
 
+  // 평가협회(환경영향평가 경력관리시스템) 양식 파싱
+  // 헤더: 사업명, 발주자, 참여기간 시작일, 참여기간 종료일, 참여일수, 평가종류, 전문분야, 사업종류
+  const parseAssoc = async (sheet: XLSX.WorkSheet) => {
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: null, raw: false });
+    // 동일 기술자의 이력 로드 (참여회사/직위 자동 매핑용)
+    const { data: histRows } = await supabase
+      .from("personal_careers")
+      .select("company,position,hire_date,resign_date")
+      .eq("technician_name", tech.name);
+    const histories = (histRows || []) as Array<{ company: string; position: string | null; hire_date: string | null; resign_date: string | null }>;
+    const findHistory = (startIso: string | null) => {
+      if (!startIso) return histories[0] || null;
+      const s = new Date(startIso).getTime();
+      const match = histories.find((h) => {
+        const h1 = h.hire_date ? new Date(h.hire_date).getTime() : -Infinity;
+        const h2 = h.resign_date ? new Date(h.resign_date).getTime() : Infinity;
+        return s >= h1 && s <= h2;
+      });
+      return match || null;
+    };
+    const get = (r: Record<string, any>, ...keys: string[]) => {
+      for (const k of keys) {
+        if (r[k] != null && r[k] !== "") return r[k];
+        // 공백·대소문자 무시 매칭
+        const found = Object.keys(r).find((x) => x.replace(/\s/g, "") === k.replace(/\s/g, ""));
+        if (found && r[found] != null && r[found] !== "") return r[found];
+      }
+      return null;
+    };
+    const cleanSpecialty = (v: any) => {
+      if (v == null || v === "") return null;
+      return String(v).replace(/[·ㆍ・]/g, "").trim() || null;
+    };
+    const inserts: any[] = [];
+    for (const r of rows) {
+      const projectName = get(r, "사업명");
+      const startRaw = get(r, "참여기간 시작일", "참여시작일", "시작일");
+      if (!projectName && !startRaw) continue;
+      const startIso = toIsoDate(startRaw);
+      const endRaw = get(r, "참여기간 종료일", "참여종료일", "종료일");
+      const endStr = endRaw == null ? null
+        : (endRaw instanceof Date ? formatIso(toIsoDate(endRaw)) : String(endRaw).trim());
+      const days = get(r, "참여일수", "인정일");
+      const hist = findHistory(startIso);
+      inserts.push({
+        created_by: user!.id,
+        technician_id: tech.id,
+        period_start: startIso,
+        period_end_text: endStr,
+        recognized_days: days != null && days !== "" ? Number(String(days).replace(/[일,\s]/g, "")) : null,
+        project_name: projectName ? String(projectName).trim() : null,
+        client: (() => { const v = get(r, "발주자", "발주처"); return v ? String(v).trim() : null; })(),
+        service_field: (() => { const v = get(r, "사업종류", "사업공종"); return v ? String(v).trim() : null; })(),
+        specialty: cleanSpecialty(get(r, "전문분야")),
+        evaluation_category: (() => { const v = get(r, "평가종류", "평가구분"); return v ? String(v).trim() : null; })(),
+        duties: (() => { const v = get(r, "평가종류", "담당업무"); return v ? String(v).trim() : null; })(),
+        participation_company: hist?.company || null,
+        participation_position: hist?.position || null,
+      });
+    }
+    return inserts;
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -456,14 +519,22 @@ function TechnicianDetail({
       // 시트 우선순위: "①붙여넣기" → 첫 시트
       const sheetName = wb.SheetNames.find((n) => n.includes("붙여넣기")) || wb.SheetNames[0];
       const sheet = wb.Sheets[sheetName];
-      // 형식 감지: 첫 행에 표준 헤더가 있으면 표준 양식
+      // 형식 감지
       const firstRow: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })[0] as any[] || [];
-      const isStandard = firstRow.some((v) => typeof v === "string" && /참여시작일|사업명|인정일/.test(v));
+      const headerJoined = firstRow.filter((v) => typeof v === "string").join("|");
+      const isAssoc = /발주자|참여기간|평가종류|사업종류/.test(headerJoined);
+      const isStandard = !isAssoc && /참여시작일|사업명|인정일/.test(headerJoined);
 
       let inserts: any[] = [];
-      if (isStandard) {
+      let formatLabel = "";
+      if (isAssoc) {
+        inserts = await parseAssoc(sheet);
+        formatLabel = "평가협회 양식";
+        if (!inserts.length) { toast.error("인식된 경력이 없습니다"); return; }
+      } else if (isStandard) {
         const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: null });
         if (!rows.length) { toast.error("엑셀이 비어있습니다"); return; }
+        formatLabel = "표준 양식";
         inserts = rows.map((r) => ({
           created_by: user.id,
           technician_id: tech.id,
@@ -477,7 +548,7 @@ function TechnicianDetail({
           project_name: r["사업명"] ? String(r["사업명"]) : null,
           client: r["발주처"] ? String(r["발주처"]) : null,
           service_field: r["사업공종"] ? String(r["사업공종"]) : null,
-          specialty: r["전문분야"] ? String(r["전문분야"]) : null,
+          specialty: r["전문분야"] ? String(r["전문분야"]).replace(/[·ㆍ・]/g, "") : null,
           duties: r["담당업무"] ? String(r["담당업무"]) : null,
           evaluation_category: r["평가구분"] ? String(r["평가구분"]) : null,
           participation_company: r["참여회사"] ? String(r["참여회사"]) : null,
@@ -485,6 +556,7 @@ function TechnicianDetail({
         }));
       } else {
         inserts = parseGeonGiHyeop(sheet);
+        formatLabel = "건기협 붙여넣기";
         if (!inserts.length) { toast.error("인식된 경력이 없습니다"); return; }
       }
       // 기존 데이터 삭제 후 일괄 insert
@@ -492,7 +564,7 @@ function TechnicianDetail({
       if (delErr) { toast.error(delErr.message); return; }
       const { error: insErr } = await supabase.from("career_entries").insert(inserts);
       if (insErr) { toast.error(insErr.message); return; }
-      toast.success(`${inserts.length}건 업로드되었습니다 (${isStandard ? "표준 양식" : "건기협 붙여넣기"})`);
+      toast.success(`${inserts.length}건 업로드되었습니다 (${formatLabel})`);
       load();
     } catch (err: any) {
       toast.error("업로드 실패: " + (err?.message || err));
