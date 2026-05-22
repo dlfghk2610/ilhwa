@@ -326,7 +326,7 @@ export default function Bids() {
           </div>
         </Card>
 
-        <Card className="shadow-card overflow-hidden">
+        <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -388,6 +388,58 @@ export default function Bids() {
             </Table>
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
+        </Card>
+
+        {/* Mobile card list */}
+        <Card className="shadow-card overflow-hidden md:hidden">
+          {loading ? (
+            <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">데이터가 없습니다.</div>
+          ) : (
+            <ul className="divide-y">
+              {filtered.map((r) => {
+                const end = r.bid_end_at ? new Date(r.bid_end_at).getTime() : 0;
+                const urgent = end && end - Date.now() < r.notify_hours_before * 3600000 && end > Date.now();
+                const expired = end && end <= Date.now();
+                const isOpen = expanded.has(r.id);
+                return (
+                  <li key={r.id} className={urgent ? "bg-destructive/5" : ""}>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(r.id)}
+                      className="w-full flex items-start gap-2 px-3 py-3 text-left"
+                    >
+                      {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm break-words">{r.project_name}</div>
+                        <div className={"text-xs mt-1 " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "text-muted-foreground")}>
+                          입찰마감: {fmtDT(r.bid_end_at)} {r.bid_end_at && <span className="ml-1">({dDisplay(r.bid_end_at)})</span>}
+                        </div>
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="px-3 pb-3 pl-9 space-y-1 text-xs">
+                        <div><span className="text-muted-foreground">발주처: </span>{r.client || "-"}</div>
+                        <div><span className="text-muted-foreground">공고일: </span>{r.announcement_date || "-"}</div>
+                        <div><span className="text-muted-foreground">PQ마감: </span>{r.pq_due_date || "-"}</div>
+                        <div><span className="text-muted-foreground">입찰시작: </span>{r.bid_start_date || "-"}</div>
+                        <div><span className="text-muted-foreground">개찰일시: </span>{fmtDT(r.opening_at)}</div>
+                        <div><span className="text-muted-foreground">추정금액: </span>{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</div>
+                        <div><span className="text-muted-foreground">상태: </span>{r.status || "-"}</div>
+                        <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h {r.notify_email && "📧"} {r.notify_phone && "📱"}</div>
+                        <div className="flex gap-2 pt-2">
+                          <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="px-3 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
 
         <Dialog open={open} onOpenChange={setOpen}>
