@@ -86,7 +86,7 @@ export default function SimilarServices() {
   const [submitting, setSubmitting] = useState(false);
 
   // 적용 계수 필터
-  const [filterEvalType, setFilterEvalType] = useState<string>("");
+  const [filterEvalTypes, setFilterEvalTypes] = useState<string[]>([]);
   const [filterServiceTypes, setFilterServiceTypes] = useState<string[]>([]);
 
   // 민간사업 / 90일미만 / LH기성실적 / 기성실적 필터 (계정별 영속)
@@ -438,7 +438,7 @@ export default function SimilarServices() {
   const fmtDate = (v: string | null) => (v ? String(v).slice(0, 10) : "-");
 
   // 평가종류 (고정 4가지)
-  const EVAL_TYPES = ["소규모", "전략", "사후", "평가"] as const;
+  const EVAL_TYPES = ["소규모", "전략", "사후", "평가", "기후"] as const;
   const evalTypeOptions = EVAL_TYPES as readonly string[];
   // 사업종류 카테고리 그룹 (사용자 정의 + 데이터에서 발견된 기타)
   const knownServiceTypes = useMemo(() => new Set(customGroups.flatMap((g) => g.items)), [customGroups]);
@@ -471,9 +471,10 @@ export default function SimilarServices() {
 
   // 적용계수 계산 ("평가"는 항상 1.0, 미선택 시 기본 평가=1.0/그외=0.6)
   const evalCoef = (r: Row) => {
-    if ((r.evaluation_type ?? "") === "평가") return 1.0;
-    if (!filterEvalType) return 0.6;
-    return (r.evaluation_type ?? "") === filterEvalType ? 1.0 : 0.6;
+    const type = r.evaluation_type ?? "";
+    if (type === "평가") return 1.0;
+    if (filterEvalTypes.length === 0) return 0.6;
+    return filterEvalTypes.includes(type) ? 1.0 : 0.6;
   };
   const splitTypes = (s: string | null | undefined) =>
     String(s ?? "").split(",").map((t) => t.trim()).filter(Boolean);
@@ -773,13 +774,36 @@ export default function SimilarServices() {
         <Card className="p-4 shadow-card">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">평가종류 (기준)</Label>
-              <Select value={filterEvalType} onValueChange={(v) => setFilterEvalType(v)}>
-                <SelectTrigger className="h-8 w-[200px] text-sm"><SelectValue placeholder="평가종류 선택" /></SelectTrigger>
-                <SelectContent>
-                  {evalTypeOptions.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Label className="text-sm font-semibold">평가종류 (기준, 복수선택)</Label>
+              <div className="flex flex-wrap gap-3">
+                {evalTypeOptions.map((t) => (
+                  <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={filterEvalTypes.includes(t)}
+                      onCheckedChange={() => {
+                        setFilterEvalTypes((prev) =>
+                          prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t]
+                        );
+                      }}
+                    />
+                    <span>{t}</span>
+                  </label>
+                ))}
+              </div>
+              {filterEvalTypes.length > 0 && (
+                <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
+                  <span className="text-[11px] text-muted-foreground mr-1 self-center">선택됨:</span>
+                  {filterEvalTypes.map((t) => (
+                    <span key={t} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                      {t}
+                      <button type="button" onClick={() => setFilterEvalTypes((prev) => prev.filter((s) => s !== t))} className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button type="button" onClick={() => setFilterEvalTypes([])} className="text-[11px] text-muted-foreground hover:text-destructive ml-1 self-center">전체해제</button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
