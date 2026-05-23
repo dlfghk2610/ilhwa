@@ -740,7 +740,7 @@ export default function Performances() {
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
                     return (
-                    <TableRow key={i} className={t.expired ? "opacity-60" : ""}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
                       <TableCell>
                         {(() => {
                           const disabled = t.expired || blockUnder90;
