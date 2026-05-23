@@ -148,15 +148,15 @@ export default function Overlaps() {
   const fmtContract = (v: number | null) => {
     if (v === null || v === undefined) return "-";
     const n = Number(v);
-    if (unit === "tm") return Math.round(n / 10_000_000).toLocaleString() + " 천만원";
-    if (unit === "m") return Math.round(n / 1_000_000).toLocaleString() + " 백만원";
-    return n.toLocaleString() + " 원";
+    if (unit === "m") return Math.round(n / 1_000_000).toLocaleString();
+    if (unit === "k") return Math.round(n / 1_000).toLocaleString();
+    return n.toLocaleString();
   };
   const fmtOverlap = (v: number) => {
     if (!v) return "-";
-    if (unit === "tm") return Math.round(v / 10_000_000).toLocaleString() + " 천만원";
-    if (unit === "m") return (Math.round((v / 1_000_000) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " 백만원";
-    return Math.round(v).toLocaleString() + " 원";
+    if (unit === "m") return (Math.round((v / 1_000_000) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (unit === "k") return Math.round(v / 1_000).toLocaleString();
+    return Math.round(v).toLocaleString();
   };
 
   // participants editor
