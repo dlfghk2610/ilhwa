@@ -942,11 +942,11 @@ export default function SimilarServices() {
                   const over5 = isOver5y(r);
                   const isPrivate = r.is_private;
                   return (
-                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : undefined}>
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : isPrivate ? "bg-lime-100/60" : undefined}>
                     <TableCell className="align-middle">
                       <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     </TableCell>
-                    <TableCell className={`font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle ${isPrivate ? "bg-lime-100/60" : ""}`}>
+                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">
                       {r.project_name}{phaseSuffix(r)}
                       {isPrivate && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-lime-200 text-lime-800 border border-lime-300 align-middle">민간</span>}
                       {over5 && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
