@@ -91,6 +91,14 @@ export default function Overlaps() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // 기술자 관리
+  const [techOpen, setTechOpen] = useState(false);
+  const [techEditing, setTechEditing] = useState<{ id: string; name: string; specialty: string | null } | null>(null);
+  const [techForm, setTechForm] = useState<{ name: string; specialty: string }>({ name: "", specialty: "" });
+  const [techDeleteId, setTechDeleteId] = useState<string | null>(null);
+  const [techSubmitting, setTechSubmitting] = useState(false);
+  const [activeParticipantIdx, setActiveParticipantIdx] = useState<number | null>(null);
+
   const load = async () => {
     setLoading(true);
     const [{ data, error }, techRes] = await Promise.all([
