@@ -70,7 +70,7 @@ const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
 export default function Overlaps() {
   const { user } = useAuth();
   const [rows, setRows] = useState<OverlapRow[]>([]);
-  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+  const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
