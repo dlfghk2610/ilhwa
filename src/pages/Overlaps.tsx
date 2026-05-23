@@ -455,6 +455,9 @@ export default function Overlaps() {
                 <Checkbox id="absolute-tech" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
                 <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
               </div>
+              <div className="ml-auto">
+                <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
+              </div>
             </div>
           </Card>
           <Card className="shadow-card overflow-hidden">
@@ -466,11 +469,12 @@ export default function Overlaps() {
                     <TableHead className="whitespace-nowrap">전문분야</TableHead>
                     <TableHead className="whitespace-nowrap text-right">중복금액 합계</TableHead>
                     <TableHead className="whitespace-nowrap text-right">참여 사업수</TableHead>
+                    <TableHead className="text-right w-[110px]">관리</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {technicians.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
                   ) : technicians.map((t) => {
                     const total = techOverlapTotals.get(t.name) || 0;
                     const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
@@ -480,6 +484,10 @@ export default function Overlaps() {
                         <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right">{count}건</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="icon" variant="ghost" onClick={() => openTechEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setTechDeleteId(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
