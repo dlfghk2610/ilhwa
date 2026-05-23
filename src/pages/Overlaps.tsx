@@ -412,7 +412,7 @@ export default function Overlaps() {
                   const contractDays = diffDays(r.start_date, r.end_date);
                   const absoluteApplied = useAbsolute && !!r.absolute_period_days;
                   return (
-                  <TableRow key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtContract(r.contract_amount)}</TableCell>
