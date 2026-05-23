@@ -613,6 +613,39 @@ export default function Overlaps() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={techOpen} onOpenChange={setTechOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{techEditing ? "기술자 수정" : "기술자 등록"}</DialogTitle></DialogHeader>
+          <form onSubmit={saveTech} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>이름 <span className="text-destructive">*</span></Label>
+              <Input value={techForm.name} onChange={(e) => setTechForm({ ...techForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>전문분야</Label>
+              <Input value={techForm.specialty} onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTechOpen(false)}>취소</Button>
+              <Button type="submit" disabled={techSubmitting}>{techSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!techDeleteId} onOpenChange={(o) => !o && setTechDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>기술자를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={doTechDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
