@@ -201,7 +201,7 @@ export default function Overlaps() {
     if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
     const t = totalPeriod(r);
     if (!t || !r.contract_amount || info.days === null) return { value: 0 };
-    return { value: Number(r.contract_amount) * (info.days / t) };
+    return { value: Number(r.contract_amount) * (info.days / t) / 10 };
   };
 
   const fmtContract = (v: number | null) => {
