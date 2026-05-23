@@ -493,7 +493,7 @@ export default function Overlaps() {
                     const total = techOverlapTotals.get(t.name) || 0;
                     const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
                     return (
-                      <TableRow key={t.id}>
+                      <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
                         <TableCell className="whitespace-nowrap font-medium">{t.name}</TableCell>
                         <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
