@@ -169,6 +169,33 @@ export default function Overlaps() {
     setDeleteId(null);
   };
 
+  // 기술자 관리
+  const openTechCreate = () => { setTechEditing(null); setTechForm({ name: "", specialty: "" }); setTechOpen(true); };
+  const openTechEdit = (t: { id: string; name: string; specialty: string | null }) => {
+    setTechEditing(t); setTechForm({ name: t.name, specialty: t.specialty || "" }); setTechOpen(true);
+  };
+  const saveTech = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!techForm.name.trim()) { toast.error("이름은 필수입니다"); return; }
+    setTechSubmitting(true);
+    const payload: any = { name: techForm.name.trim(), specialty: techForm.specialty.trim() || null };
+    if (techEditing) {
+      const { error } = await (supabase as any).from("technicians").update(payload).eq("id", techEditing.id);
+      if (error) toast.error(error.message); else { toast.success("수정 완료"); setTechOpen(false); load(); }
+    } else {
+      const { error } = await (supabase as any).from("technicians").insert({ ...payload, created_by: user.id });
+      if (error) toast.error(error.message); else { toast.success("등록 완료"); setTechOpen(false); load(); }
+    }
+    setTechSubmitting(false);
+  };
+  const doTechDelete = async () => {
+    if (!techDeleteId) return;
+    const { error } = await (supabase as any).from("technicians").delete().eq("id", techDeleteId);
+    if (error) toast.error(error.message); else { toast.success("삭제 완료"); load(); }
+    setTechDeleteId(null);
+  };
+
   const filtered = useMemo(() => rows.filter((r) => {
     const matchSearch = !search ||
       (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
