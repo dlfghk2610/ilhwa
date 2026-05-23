@@ -68,6 +68,11 @@ const monthsBetween = (a?: string | null, b?: Date | null) => {
   const s = parseDate(a); if (!s || !b) return 0;
   return (b.getFullYear() - s.getFullYear()) * 12 + (b.getMonth() - s.getMonth()) - (b.getDate() < s.getDate() ? 1 : 0);
 };
+const isCivilianLike = (r: OverlapRow) => {
+  const name = (r.project_name || "").toLowerCase();
+  const client = (r.client || "").toLowerCase();
+  return name.includes("민간") || name.includes("유사용역") || client.includes("민간") || client.includes("유사용역");
+};
 const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
 
 export default function Overlaps() {
@@ -407,7 +412,7 @@ export default function Overlaps() {
                   const contractDays = diffDays(r.start_date, r.end_date);
                   const absoluteApplied = useAbsolute && !!r.absolute_period_days;
                   return (
-                  <TableRow key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtContract(r.contract_amount)}</TableCell>
@@ -459,6 +464,15 @@ export default function Overlaps() {
                 <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
               </div>
             </div>
+            {announcementDate && technicians.some((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000) && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                <span className="font-semibold">2.5억 이상:</span>{" "}
+                {technicians
+                  .filter((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000)
+                  .map((t) => t.name)
+                  .join(", ")}
+              </div>
+            )}
           </Card>
           <Card className="shadow-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -479,7 +493,7 @@ export default function Overlaps() {
                     const total = techOverlapTotals.get(t.name) || 0;
                     const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
                     return (
-                      <TableRow key={t.id}>
+                      <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
                         <TableCell className="whitespace-nowrap font-medium">{t.name}</TableCell>
                         <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
