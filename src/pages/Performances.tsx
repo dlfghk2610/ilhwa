@@ -797,11 +797,11 @@ export default function Performances() {
                 const dispRatio = blockUnder90 ? 0 : t.ratio;
                 const dispPeriod = blockUnder90 ? 0 : t.periodCount;
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
-                        <div className="font-medium text-sm break-words">{t.row.project_name}</div>
+                        <div className="font-medium text-sm break-words">{t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}</div>
                       </button>
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="text-xs px-2 py-1 rounded border bg-background shrink-0">
                         {expanded ? "접기" : "펼치기"}
