@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 
 type PersonalCareer = {
   id: string;
@@ -24,15 +24,46 @@ type PersonalCareer = {
   notes: string | null;
 };
 
+type PeriodForm = {
+  id?: string;
+  company: string;
+  department: string;
+  position: string;
+  hire_date: string;
+};
+
+const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
+
+const diffYM = (start?: string | null, end?: string | null) => {
+  const s = parseDate(start);
+  const e = parseDate(end);
+  if (!s || !e || e < s) return "";
+  let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  if (e.getDate() < s.getDate()) months -= 1;
+  if (months < 0) months = 0;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return `${y}년 ${m}개월`;
+};
+
+const diffDays = (start?: string | null, end?: string | null) => {
+  const s = parseDate(start);
+  const e = parseDate(end);
+  if (!s || !e || e < s) return 0;
+  return Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
+};
+
 export default function PersonalHistory() {
   const { user } = useAuth();
   const [rows, setRows] = useState<PersonalCareer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [announcementDate, setAnnouncementDate] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<PersonalCareer | null>(null);
-  const [form, setForm] = useState<Partial<PersonalCareer>>({});
-  const [deleteRow, setDeleteRow] = useState<PersonalCareer | null>(null);
+  const [editingTech, setEditingTech] = useState<string | null>(null);
+  const [techName, setTechName] = useState("");
+  const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "" }]);
+  const [deleteTech, setDeleteTech] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -48,125 +79,220 @@ export default function PersonalHistory() {
 
   useEffect(() => { load(); }, []);
 
+  // Group by technician_name
+  const grouped = useMemo(() => {
+    const map = new Map<string, PersonalCareer[]>();
+    for (const r of rows) {
+      const arr = map.get(r.technician_name) || [];
+      arr.push(r);
+      map.set(r.technician_name, arr);
+    }
+    // sort each group by hire_date asc
+    for (const arr of map.values()) {
+      arr.sort((a, b) => (a.hire_date || "").localeCompare(b.hire_date || ""));
+    }
+    return Array.from(map.entries());
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.technician_name, r.company, r.department, r.position].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+    if (!q) return grouped;
+    return grouped.filter(([name, list]) =>
+      name.toLowerCase().includes(q) ||
+      list.some((r) => [r.company, r.department, r.position].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))
     );
-  }, [rows, search]);
+  }, [grouped, search]);
 
-  const openNew = () => { setEditing(null); setForm({}); setDialogOpen(true); };
-  const openEdit = (r: PersonalCareer) => { setEditing(r); setForm(r); setDialogOpen(true); };
+  const openNew = () => {
+    setEditingTech(null);
+    setTechName("");
+    setPeriods([{ company: "", department: "", position: "", hire_date: "" }]);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (name: string, list: PersonalCareer[]) => {
+    setEditingTech(name);
+    setTechName(name);
+    setPeriods(list.map((r) => ({
+      id: r.id,
+      company: r.company || "",
+      department: r.department || "",
+      position: r.position || "",
+      hire_date: r.hire_date || "",
+    })));
+    setDialogOpen(true);
+  };
+
+  const updatePeriod = (i: number, patch: Partial<PeriodForm>) => {
+    setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  };
+  const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "" }]);
+  const removePeriod = (i: number) => setPeriods((p) => p.filter((_, idx) => idx !== i));
 
   const save = async () => {
     if (!user) return;
-    if (!form.technician_name?.trim()) { toast.error("기술자명을 입력하세요"); return; }
-    if (!form.company?.trim()) { toast.error("근무처(회사명)을 입력하세요"); return; }
-    const payload = {
-      technician_name: form.technician_name.trim(),
-      company: form.company.trim(),
-      department: form.department?.trim() || null,
-      position: form.position?.trim() || null,
-      hire_date: form.hire_date || null,
-      resign_date: form.resign_date || null,
-      duties: form.duties?.trim() || null,
-      notes: form.notes?.trim() || null,
-    };
-    if (editing) {
-      const { error } = await supabase.from("personal_careers").update(payload).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
-      toast.success("수정되었습니다");
-    } else {
-      const { error } = await supabase.from("personal_careers").insert({ ...payload, created_by: user.id });
-      if (error) { toast.error(error.message); return; }
-      toast.success("등록되었습니다");
+    if (!techName.trim()) { toast.error("기술자명을 입력하세요"); return; }
+    const cleaned = periods.filter((p) => p.company.trim() || p.hire_date);
+    if (cleaned.length === 0) { toast.error("근무처를 1개 이상 입력하세요"); return; }
+    for (const p of cleaned) {
+      if (!p.company.trim()) { toast.error("근무처(회사명)을 입력하세요"); return; }
     }
+
+    // Delete existing rows for this technician (if editing), then insert all
+    if (editingTech) {
+      const { error: delErr } = await supabase.from("personal_careers").delete().eq("technician_name", editingTech);
+      if (delErr) { toast.error(delErr.message); return; }
+    }
+    const payload = cleaned.map((p) => ({
+      technician_name: techName.trim(),
+      company: p.company.trim(),
+      department: p.department.trim() || null,
+      position: p.position.trim() || null,
+      hire_date: p.hire_date || null,
+      resign_date: null,
+      duties: null,
+      notes: null,
+      created_by: user.id,
+    }));
+    const { error } = await supabase.from("personal_careers").insert(payload);
+    if (error) { toast.error(error.message); return; }
+    toast.success(editingTech ? "수정되었습니다" : "등록되었습니다");
     setDialogOpen(false);
     load();
   };
 
   const remove = async () => {
-    if (!deleteRow) return;
-    const { error } = await supabase.from("personal_careers").delete().eq("id", deleteRow.id);
+    if (!deleteTech) return;
+    const { error } = await supabase.from("personal_careers").delete().eq("technician_name", deleteTech);
     if (error) toast.error(error.message);
     else { toast.success("삭제되었습니다"); load(); }
-    setDeleteRow(null);
+    setDeleteTech(null);
   };
 
   return (
     <AppLayout title="PQ 개인별 이력사항">
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="기술자명·회사명·직위 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-end sm:justify-between">
+          <div className="flex flex-col sm:flex-row gap-2 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Label className="text-xs text-muted-foreground">검색</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8" placeholder="기술자명·회사명·직위 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="w-full sm:w-56">
+              <Label className="text-xs text-muted-foreground">공고일</Label>
+              <Input type="date" value={announcementDate} onChange={(e) => setAnnouncementDate(e.target.value)} />
+            </div>
           </div>
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />이력 추가</Button>
         </div>
 
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-2">
-            여기에 입력한 근무이력은 PQ 개인별 경력관리에서 평가협회 엑셀 업로드 시 참여회사·참여직위를 자동으로 채우는 데 사용됩니다 (기술자명 + 사업 참여시작일이 근무기간에 포함될 때).
+            기술자별로 근무처 이력을 시간 순으로 입력하세요. 마지막 근무처가 현재 재직중이라면 입사일만 입력하면 공고일 기준으로 근무기간이 계산됩니다.
           </div>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">등록된 이력이 없습니다</div>
           ) : (
-            <div className="overflow-auto">
-              <Table className="min-w-[900px] text-sm">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>기술자명</TableHead>
-                    <TableHead>근무처(회사)</TableHead>
-                    <TableHead>부서</TableHead>
-                    <TableHead>직위</TableHead>
-                    <TableHead>입사일</TableHead>
-                    <TableHead>퇴사일</TableHead>
-                    <TableHead>담당업무</TableHead>
-                    <TableHead className="w-[100px] text-right">관리</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.technician_name}</TableCell>
-                      <TableCell>{r.company}</TableCell>
-                      <TableCell>{r.department || ""}</TableCell>
-                      <TableCell>{r.position || ""}</TableCell>
-                      <TableCell>{r.hire_date || ""}</TableCell>
-                      <TableCell>{r.resign_date || "재직중"}</TableCell>
-                      <TableCell className="max-w-[240px] whitespace-normal break-words">{r.duties || ""}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteRow(r)}><Trash2 className="h-4 w-4" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+              {filtered.map(([name, list]) => {
+                const firstHire = list[0]?.hire_date;
+                const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
+                const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
+                return (
+                  <div key={name} className="border rounded-md p-3 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-base">{name}</div>
+                        {announcementDate && firstHire && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
+                            {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 mr-1" />수정</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                    <div className="overflow-auto">
+                      <Table className="min-w-[700px] text-sm">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">순번</TableHead>
+                            <TableHead>근무처(회사)</TableHead>
+                            <TableHead>부서</TableHead>
+                            <TableHead>직위</TableHead>
+                            <TableHead>입사일</TableHead>
+                            <TableHead>근무기간</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {list.map((r, idx) => {
+                            const isLast = idx === list.length - 1;
+                            const next = list[idx + 1];
+                            const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                            const period = diffYM(r.hire_date, endDate);
+                            return (
+                              <TableRow key={r.id}>
+                                <TableCell>{idx + 1}</TableCell>
+                                <TableCell className="font-medium">{r.company}{isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}</TableCell>
+                                <TableCell>{r.department || ""}</TableCell>
+                                <TableCell>{r.position || ""}</TableCell>
+                                <TableCell>{r.hire_date || ""}</TableCell>
+                                <TableCell>{period || <span className="text-muted-foreground text-xs">{isLast && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "이력 수정" : "이력 추가"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>기술자명 *</Label><Input value={form.technician_name || ""} onChange={(e) => setForm({ ...form, technician_name: e.target.value })} /></div>
-            <div><Label>근무처(회사명) *</Label><Input value={form.company || ""} onChange={(e) => setForm({ ...form, company: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label>부서</Label><Input value={form.department || ""} onChange={(e) => setForm({ ...form, department: e.target.value })} /></div>
-              <div><Label>직위</Label><Input value={form.position || ""} onChange={(e) => setForm({ ...form, position: e.target.value })} /></div>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingTech ? "이력 수정" : "이력 추가"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>기술자명 *</Label>
+              <Input value={techName} onChange={(e) => setTechName(e.target.value)} disabled={!!editingTech} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label>입사일</Label><Input type="date" value={form.hire_date || ""} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} /></div>
-              <div><Label>퇴사일 (재직중이면 비움)</Label><Input type="date" value={form.resign_date || ""} onChange={(e) => setForm({ ...form, resign_date: e.target.value })} /></div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>근무처 이력 (시간순)</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addPeriod}><Plus className="h-3.5 w-3.5 mr-1" />추가</Button>
+              </div>
+              {periods.map((p, i) => (
+                <div key={i} className="border rounded-md p-3 space-y-2 relative">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium text-muted-foreground">근무처 #{i + 1} {i === periods.length - 1 && <span className="text-primary">(가장 최근/현재)</span>}</div>
+                    {periods.length > 1 && (
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removePeriod(i)}><X className="h-3.5 w-3.5" /></Button>
+                    )}
+                  </div>
+                  <div><Label className="text-xs">회사명 *</Label><Input value={p.company} onChange={(e) => updatePeriod(i, { company: e.target.value })} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">부서</Label><Input value={p.department} onChange={(e) => updatePeriod(i, { department: e.target.value })} /></div>
+                    <div><Label className="text-xs">직급</Label><Input value={p.position} onChange={(e) => updatePeriod(i, { position: e.target.value })} /></div>
+                  </div>
+                  <div><Label className="text-xs">입사일</Label><Input type="date" value={p.hire_date} onChange={(e) => updatePeriod(i, { hire_date: e.target.value })} /></div>
+                </div>
+              ))}
+              <div className="text-xs text-muted-foreground">
+                각 근무처의 퇴사일은 다음 근무처의 입사일로 자동 계산됩니다. 마지막 근무처는 공고일 기준으로 근무기간이 계산됩니다.
+              </div>
             </div>
-            <div><Label>담당업무</Label><Input value={form.duties || ""} onChange={(e) => setForm({ ...form, duties: e.target.value })} /></div>
-            <div><Label>비고</Label><Input value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
@@ -175,11 +301,11 @@ export default function PersonalHistory() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteRow} onOpenChange={(o) => !o && setDeleteRow(null)}>
+      <AlertDialog open={!!deleteTech} onOpenChange={(o) => !o && setDeleteTech(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>이력을 삭제하시겠어요?</AlertDialogTitle>
-            <AlertDialogDescription>{deleteRow?.technician_name} - {deleteRow?.company}</AlertDialogDescription>
+            <AlertDialogTitle>{deleteTech}님의 모든 근무이력을 삭제하시겠어요?</AlertDialogTitle>
+            <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
