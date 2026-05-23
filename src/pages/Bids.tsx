@@ -21,8 +21,7 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight } from "lucide-react";
 
-const EVAL_TYPES = ["적격심사", "협상에의한계약", "종합심사낙찰제", "기술제안", "표준", "기타"];
-const SERVICE_TYPES = ["건축설계", "건설사업관리", "감리", "타당성조사", "기획", "기타"];
+const EVAL_TYPES = ["평가", "전략", "사후", "소규모", "기후"];
 const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료"];
 
 const clampDate = (v: string) => {
