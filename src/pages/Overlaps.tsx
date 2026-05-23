@@ -67,8 +67,12 @@ const diffDays = (a?: string | null, b?: string | null) => {
 const monthsBetween = (a?: string | null, b?: Date | null) => {
   const s = parseDate(a); if (!s || !b) return 0;
   return (b.getFullYear() - s.getFullYear()) * 12 + (b.getMonth() - s.getMonth()) - (b.getDate() < s.getDate() ? 1 : 0);
-};
-const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
+  const isCivilianLike = (r: OverlapRow) => {
+    const name = (r.project_name || "").toLowerCase();
+    const client = (r.client || "").toLowerCase();
+    return name.includes("민간") || name.includes("유사용역") || client.includes("민간") || client.includes("유사용역");
+  };
+
 
 export default function Overlaps() {
   const { user } = useAuth();
