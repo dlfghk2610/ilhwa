@@ -1,0 +1,1 @@
+ALTER TABLE public.technician_overlaps ADD COLUMN IF NOT EXISTS absolute_period_days integer;

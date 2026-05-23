@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -25,6 +26,7 @@ type OverlapRow = {
   end_date: string | null;
   suspension_date: string | null;
   agreement_date: string | null;
+  absolute_period_days: number | null;
   participants: Participant[];
   notes: string | null;
 };
@@ -37,40 +39,48 @@ const diffDays = (a?: string | null, b?: string | null) => {
   if (!s || !e || e < s) return 0;
   return Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
 };
+const monthsBetween = (a?: string | null, b?: Date | null) => {
+  const s = parseDate(a); if (!s || !b) return 0;
+  return (b.getFullYear() - s.getFullYear()) * 12 + (b.getMonth() - s.getMonth()) - (b.getDate() < s.getDate() ? 1 : 0);
+};
 
 export default function Overlaps() {
   const { user } = useAuth();
   const [rows, setRows] = useState<OverlapRow[]>([]);
+  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
   const [unit, setUnit] = useState<Unit>("won");
+  const [useAbsolute, setUseAbsolute] = useState(false);
+  const [selectedTech, setSelectedTech] = useState<string>("__all__");
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<OverlapRow | null>(null);
   const [form, setForm] = useState<Omit<OverlapRow, "id">>({
     project_name: "", client: "", contract_amount: null,
     start_date: "", end_date: "", suspension_date: "", agreement_date: "",
-    participants: [], notes: "",
+    absolute_period_days: null, participants: [], notes: "",
   });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("technician_overlaps")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const [{ data, error }, techRes] = await Promise.all([
+      (supabase as any).from("technician_overlaps").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("technicians").select("id, name").order("name"),
+    ]);
     if (error) toast.error(error.message);
     else setRows((data || []).map((r: any) => ({ ...r, participants: Array.isArray(r.participants) ? r.participants : [] })));
+    if (!techRes.error) setTechnicians(techRes.data || []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ project_name: "", client: "", contract_amount: null, start_date: "", end_date: "", suspension_date: "", agreement_date: "", participants: [], notes: "" });
+    setForm({ project_name: "", client: "", contract_amount: null, start_date: "", end_date: "", suspension_date: "", agreement_date: "", absolute_period_days: null, participants: [], notes: "" });
     setOpen(true);
   };
   const openEdit = (r: OverlapRow) => {
@@ -83,6 +93,7 @@ export default function Overlaps() {
       end_date: r.end_date || "",
       suspension_date: r.suspension_date || "",
       agreement_date: r.agreement_date || "",
+      absolute_period_days: r.absolute_period_days ?? null,
       participants: r.participants || [],
       notes: r.notes || "",
     });
@@ -102,6 +113,7 @@ export default function Overlaps() {
       end_date: form.end_date || null,
       suspension_date: form.suspension_date || null,
       agreement_date: form.agreement_date || null,
+      absolute_period_days: form.absolute_period_days === null || form.absolute_period_days === undefined || (form.absolute_period_days as any) === "" ? null : Number(form.absolute_period_days),
       participants: form.participants || [],
       notes: form.notes || null,
       technician_name: null,
@@ -123,26 +135,47 @@ export default function Overlaps() {
     setDeleteId(null);
   };
 
-  const filtered = useMemo(() => rows.filter((r) =>
-    !search ||
-    (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
-    (r.client || "").toLowerCase().includes(search.toLowerCase()) ||
-    (r.participants || []).some((p) => (p.name || "").toLowerCase().includes(search.toLowerCase()))
-  ), [rows, search]);
+  const filtered = useMemo(() => rows.filter((r) => {
+    const matchSearch = !search ||
+      (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (r.client || "").toLowerCase().includes(search.toLowerCase()) ||
+      (r.participants || []).some((p) => (p.name || "").toLowerCase().includes(search.toLowerCase()));
+    const matchTech = selectedTech === "__all__" ||
+      (r.participants || []).some((p) => (p.name || "") === selectedTech);
+    return matchSearch && matchTech;
+  }), [rows, search, selectedTech]);
 
-  // 총계약기간 = end - start + 1
-  const totalPeriod = (r: OverlapRow) => diffDays(r.start_date, r.end_date);
-  // 잔여일수 = min(365, end - announcement + 1)
-  const remainDays = (r: OverlapRow) => {
-    if (!announcementDate || !r.end_date) return 0;
-    const d = diffDays(announcementDate, r.end_date);
-    return Math.min(365, d);
+  // 총계약기간: 절대공기 체크시 absolute_period_days, 아니면 end - start + 1
+  const totalPeriod = (r: OverlapRow) => {
+    if (useAbsolute) return r.absolute_period_days || 0;
+    return diffDays(r.start_date, r.end_date);
   };
-  // 중복금액 = contract * (remain / total)
-  const overlapAmount = (r: OverlapRow) => {
+
+  // 잔여일수 상태
+  // returns { value: number | null, label: string }
+  //  - null 이면 "-" 표시
+  const remainInfo = (r: OverlapRow): { days: number | null; suspendedLong: boolean; agreed: boolean } => {
+    // 협의완료: 무조건 -
+    if (r.agreement_date) return { days: null, suspendedLong: false, agreed: true };
+    // 과업중지
+    if (r.suspension_date) {
+      const months = monthsBetween(r.suspension_date, new Date());
+      if (months >= 3) return { days: null, suspendedLong: true, agreed: false };
+      if (!r.end_date) return { days: 0, suspendedLong: false, agreed: false };
+      const d = diffDays(r.suspension_date, r.end_date);
+      return { days: Math.min(365, d), suspendedLong: false, agreed: false };
+    }
+    if (!announcementDate || !r.end_date) return { days: 0, suspendedLong: false, agreed: false };
+    return { days: Math.min(365, diffDays(announcementDate, r.end_date)), suspendedLong: false, agreed: false };
+  };
+
+  const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    const info = remainInfo(r);
+    if (info.agreed) return { value: null, label: "-" };
+    if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
     const t = totalPeriod(r);
-    if (!t || !r.contract_amount) return 0;
-    return Number(r.contract_amount) * (remainDays(r) / t);
+    if (!t || !r.contract_amount || info.days === null) return { value: 0 };
+    return { value: Number(r.contract_amount) * (info.days / t) };
   };
 
   const fmtContract = (v: number | null) => {
@@ -153,11 +186,18 @@ export default function Overlaps() {
     return n.toLocaleString();
   };
   const fmtOverlap = (v: number) => {
-    if (!v) return "-";
+    if (!v) return "0";
     if (unit === "m") return (Math.round((v / 1_000_000) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (unit === "k") return Math.round(v / 1_000).toLocaleString();
     return Math.round(v).toLocaleString();
   };
+
+  // 합계 (선택된 기술자 기준)
+  const totalOverlap = useMemo(() => filtered.reduce((acc, r) => {
+    const o = overlapAmount(r);
+    return acc + (o.value || 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, 0), [filtered, announcementDate, useAbsolute]);
 
   // participants editor
   const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "" }] });
@@ -186,7 +226,7 @@ export default function Overlaps() {
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">금액단위</Label>
               <Select value={unit} onValueChange={(v) => setUnit(v as Unit)}>
-                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="won">원</SelectItem>
                   <SelectItem value="k">천원</SelectItem>
@@ -194,8 +234,31 @@ export default function Overlaps() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="absolute" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
+              <Label htmlFor="absolute" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">기술자</Label>
+              <Select value={selectedTech} onValueChange={setSelectedTech}>
+                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">전체</SelectItem>
+                  {technicians.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
           </div>
+          {selectedTech !== "__all__" && (
+            <div className="mt-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
+              <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
+              <span className="ml-1 text-xs">({filtered.length}건)</span>
+            </div>
+          )}
         </Card>
 
         <Card className="shadow-card overflow-hidden">
@@ -208,7 +271,7 @@ export default function Overlaps() {
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공예정일</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">총 계약기간</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">{useAbsolute ? "절대공기" : "총 계약기간"}</TableHead>
                   <TableHead className="whitespace-nowrap text-right">잔여일수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">중복금액</TableHead>
                   <TableHead className="whitespace-nowrap">과업중지일</TableHead>
@@ -222,7 +285,12 @@ export default function Overlaps() {
                   <TableRow><TableCell colSpan={12} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
-                ) : filtered.map((r) => (
+                ) : filtered.map((r) => {
+                  const info = remainInfo(r);
+                  const o = overlapAmount(r);
+                  const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
+                  const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
+                  return (
                   <TableRow key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openEdit(r)}>
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
@@ -230,8 +298,8 @@ export default function Overlaps() {
                     <TableCell className="whitespace-nowrap">{r.start_date || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.end_date || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{totalPeriod(r) ? totalPeriod(r).toLocaleString() + "일" : "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{announcementDate ? remainDays(r).toLocaleString() + "일" : "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{announcementDate ? fmtOverlap(overlapAmount(r)) : "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">{overlapText}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.suspension_date || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.agreement_date || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate">{r.notes || "-"}</TableCell>
@@ -240,7 +308,8 @@ export default function Overlaps() {
                       <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -274,6 +343,10 @@ export default function Overlaps() {
                 <Input type="date" value={form.end_date || ""} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
               </div>
               <div className="space-y-1.5">
+                <Label>절대공기일수 (일)</Label>
+                <Input type="number" value={form.absolute_period_days ?? ""} onChange={(e) => setForm({ ...form, absolute_period_days: e.target.value === "" ? null : Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1.5">
                 <Label>과업중지일</Label>
                 <Input type="date" value={form.suspension_date || ""} onChange={(e) => setForm({ ...form, suspension_date: e.target.value })} />
               </div>
@@ -294,7 +367,18 @@ export default function Overlaps() {
                 <div className="space-y-2">
                   {(form.participants || []).map((p, i) => (
                     <div key={i} className="flex gap-2 items-center">
-                      <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
+                      {technicians.length > 0 ? (
+                        <Select value={p.name || ""} onValueChange={(v) => updateParticipant(i, { name: v })}>
+                          <SelectTrigger className="flex-1"><SelectValue placeholder="기술자 선택" /></SelectTrigger>
+                          <SelectContent>
+                            {technicians.map((t) => (
+                              <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
+                      )}
                       <Input placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                     </div>
