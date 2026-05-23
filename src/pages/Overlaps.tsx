@@ -271,6 +271,27 @@ export default function Overlaps() {
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">공고일</Label>
               <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(inputToISO(e.target.value))} className="w-[140px]" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={announcementDate ? new Date(announcementDate + "T00:00:00") : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const iso = format(date, "yyyy-MM-dd");
+                        setAnnouncementDate(iso);
+                      }
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">금액단위</Label>
