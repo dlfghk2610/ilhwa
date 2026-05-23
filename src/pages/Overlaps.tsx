@@ -200,8 +200,17 @@ export default function Overlaps() {
     if (info.agreed) return { value: null, label: "-" };
     if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
     const t = totalPeriod(r);
-    if (!t || !r.contract_amount || info.days === null) return { value: 0 };
-    return { value: Number(r.contract_amount) * (info.days / t) / 10 };
+    const contract = roundedContractAmount(r.contract_amount);
+    if (!t || !contract || info.days === null) return { value: 0 };
+    return { value: contract * (info.days / t) / 10 };
+  };
+
+  const roundedContractAmount = (v: number | null) => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    if (unit === "m") return Math.round(n / 1_000_000) * 1_000_000;
+    if (unit === "k") return Math.round(n / 1_000) * 1_000;
+    return n;
   };
 
   const fmtContract = (v: number | null) => {
