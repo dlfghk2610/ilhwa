@@ -474,18 +474,7 @@ export default function Overlaps() {
                 <div className="space-y-2">
                   {(form.participants || []).map((p, i) => (
                     <div key={i} className="flex gap-2 items-center">
-                      {technicians.length > 0 ? (
-                        <Select value={p.name || ""} onValueChange={(v) => updateParticipant(i, { name: v })}>
-                          <SelectTrigger className="flex-1"><SelectValue placeholder="기술자 선택" /></SelectTrigger>
-                          <SelectContent>
-                            {technicians.map((t) => (
-                              <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
-                      )}
+                      <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
                       <Input placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                     </div>
