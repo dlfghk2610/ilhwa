@@ -464,6 +464,15 @@ export default function Overlaps() {
                 <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
               </div>
             </div>
+            {announcementDate && technicians.some((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000) && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                <span className="font-semibold">2.5억 이상:</span>{" "}
+                {technicians
+                  .filter((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000)
+                  .map((t) => t.name)
+                  .join(", ")}
+              </div>
+            )}
           </Card>
           <Card className="shadow-card overflow-hidden">
             <div className="overflow-x-auto">
