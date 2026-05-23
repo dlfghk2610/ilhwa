@@ -41,6 +41,16 @@ const toISODate = (display?: string | null) => {
   if (!display) return "";
   return display.replace(/\./g, "-");
 };
+const formatDateInput = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 4) return d;
+  if (d.length <= 6) return `${d.slice(0, 4)}.${d.slice(4)}`;
+  return `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}`;
+};
+const inputToISO = (v: string) => {
+  const f = formatDateInput(v);
+  return f.length === 10 ? f.replace(/\./g, "-") : f;
+};
 const parseDate = (s?: string | null) => {
   const iso = toISODate(s);
   return iso ? new Date(iso + "T00:00:00") : null;
@@ -233,7 +243,7 @@ export default function Overlaps() {
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">공고일</Label>
-              <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(toISODate(e.target.value))} className="w-[140px]" />
+              <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(inputToISO(e.target.value))} className="w-[140px]" />
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">금액단위</Label>
@@ -348,11 +358,11 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>착수일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.start_date)} onChange={(e) => setForm({ ...form, start_date: toISODate(e.target.value) })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.start_date)} onChange={(e) => setForm({ ...form, start_date: inputToISO(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>준공예정일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date)} onChange={(e) => setForm({ ...form, end_date: toISODate(e.target.value) })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date)} onChange={(e) => setForm({ ...form, end_date: inputToISO(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>절대공기일수 (일)</Label>
@@ -360,11 +370,11 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>과업중지일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: toISODate(e.target.value) })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: inputToISO(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>협의완료일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: toISODate(e.target.value) })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
               </div>
             </div>
 
