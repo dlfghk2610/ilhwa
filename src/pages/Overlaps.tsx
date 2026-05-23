@@ -33,7 +33,18 @@ type OverlapRow = {
 
 type Unit = "won" | "k" | "m"; // 원, 천원, 백만원
 
-const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
+const toDisplayDate = (iso?: string | null) => {
+  if (!iso) return "";
+  return iso.replace(/-/g, ".");
+};
+const toISODate = (display?: string | null) => {
+  if (!display) return "";
+  return display.replace(/\./g, "-");
+};
+const parseDate = (s?: string | null) => {
+  const iso = toISODate(s);
+  return iso ? new Date(iso + "T00:00:00") : null;
+};
 const diffDays = (a?: string | null, b?: string | null) => {
   const s = parseDate(a), e = parseDate(b);
   if (!s || !e || e < s) return 0;
@@ -43,6 +54,7 @@ const monthsBetween = (a?: string | null, b?: Date | null) => {
   const s = parseDate(a); if (!s || !b) return 0;
   return (b.getFullYear() - s.getFullYear()) * 12 + (b.getMonth() - s.getMonth()) - (b.getDate() < s.getDate() ? 1 : 0);
 };
+const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
 
 export default function Overlaps() {
   const { user } = useAuth();
