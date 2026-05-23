@@ -29,7 +29,7 @@ type OverlapRow = {
   notes: string | null;
 };
 
-type Unit = "won" | "m" | "tm"; // 원, 백만원, 천만원
+type Unit = "won" | "k" | "m"; // 원, 천원, 백만원
 
 const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
 const diffDays = (a?: string | null, b?: string | null) => {
