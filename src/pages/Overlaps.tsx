@@ -204,6 +204,14 @@ export default function Overlaps() {
     return { value: Number(r.contract_amount) * (info.days / t) / 10 };
   };
 
+  const roundedContractAmount = (v: number | null) => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    if (unit === "m") return Math.round(n / 1_000_000) * 1_000_000;
+    if (unit === "k") return Math.round(n / 1_000) * 1_000;
+    return n;
+  };
+
   const fmtContract = (v: number | null) => {
     if (v === null || v === undefined) return "-";
     const n = Number(v);
