@@ -91,6 +91,14 @@ export default function Overlaps() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // 기술자 관리
+  const [techOpen, setTechOpen] = useState(false);
+  const [techEditing, setTechEditing] = useState<{ id: string; name: string; specialty: string | null } | null>(null);
+  const [techForm, setTechForm] = useState<{ name: string; specialty: string }>({ name: "", specialty: "" });
+  const [techDeleteId, setTechDeleteId] = useState<string | null>(null);
+  const [techSubmitting, setTechSubmitting] = useState(false);
+  const [activeParticipantIdx, setActiveParticipantIdx] = useState<number | null>(null);
+
   const load = async () => {
     setLoading(true);
     const [{ data, error }, techRes] = await Promise.all([
@@ -159,6 +167,33 @@ export default function Overlaps() {
     const { error } = await (supabase as any).from("technician_overlaps").delete().eq("id", deleteId);
     if (error) toast.error(error.message); else { toast.success("삭제 완료"); load(); }
     setDeleteId(null);
+  };
+
+  // 기술자 관리
+  const openTechCreate = () => { setTechEditing(null); setTechForm({ name: "", specialty: "" }); setTechOpen(true); };
+  const openTechEdit = (t: { id: string; name: string; specialty: string | null }) => {
+    setTechEditing(t); setTechForm({ name: t.name, specialty: t.specialty || "" }); setTechOpen(true);
+  };
+  const saveTech = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!techForm.name.trim()) { toast.error("이름은 필수입니다"); return; }
+    setTechSubmitting(true);
+    const payload: any = { name: techForm.name.trim(), specialty: techForm.specialty.trim() || null };
+    if (techEditing) {
+      const { error } = await (supabase as any).from("technicians").update(payload).eq("id", techEditing.id);
+      if (error) toast.error(error.message); else { toast.success("수정 완료"); setTechOpen(false); load(); }
+    } else {
+      const { error } = await (supabase as any).from("technicians").insert({ ...payload, created_by: user.id });
+      if (error) toast.error(error.message); else { toast.success("등록 완료"); setTechOpen(false); load(); }
+    }
+    setTechSubmitting(false);
+  };
+  const doTechDelete = async () => {
+    if (!techDeleteId) return;
+    const { error } = await (supabase as any).from("technicians").delete().eq("id", techDeleteId);
+    if (error) toast.error(error.message); else { toast.success("삭제 완료"); load(); }
+    setTechDeleteId(null);
   };
 
   const filtered = useMemo(() => rows.filter((r) => {
@@ -420,6 +455,9 @@ export default function Overlaps() {
                 <Checkbox id="absolute-tech" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
                 <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
               </div>
+              <div className="ml-auto">
+                <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
+              </div>
             </div>
           </Card>
           <Card className="shadow-card overflow-hidden">
@@ -431,11 +469,12 @@ export default function Overlaps() {
                     <TableHead className="whitespace-nowrap">전문분야</TableHead>
                     <TableHead className="whitespace-nowrap text-right">중복금액 합계</TableHead>
                     <TableHead className="whitespace-nowrap text-right">참여 사업수</TableHead>
+                    <TableHead className="text-right w-[110px]">관리</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {technicians.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
                   ) : technicians.map((t) => {
                     const total = techOverlapTotals.get(t.name) || 0;
                     const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
@@ -445,6 +484,10 @@ export default function Overlaps() {
                         <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-right">{count}건</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="icon" variant="ghost" onClick={() => openTechEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setTechDeleteId(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -505,13 +548,42 @@ export default function Overlaps() {
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
                 <div className="space-y-2">
-                  {(form.participants || []).map((p, i) => (
+                  {(form.participants || []).map((p, i) => {
+                    const q = (p.name || "").trim();
+                    const suggestions = q
+                      ? technicians.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) && t.name !== q).slice(0, 8)
+                      : [];
+                    const showList = activeParticipantIdx === i && suggestions.length > 0;
+                    return (
                     <div key={i} className="flex gap-2 items-center">
-                      <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
-                      <Input placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
+                      <div className="relative flex-1">
+                        <Input
+                          placeholder="성명 (등록된 기술자 검색)"
+                          value={p.name}
+                          onFocus={() => setActiveParticipantIdx(i)}
+                          onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
+                          onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
+                        />
+                        {showList && (
+                          <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
+                            {suggestions.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                                onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
+                              >
+                                {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -538,6 +610,39 @@ export default function Overlaps() {
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction onClick={doDelete}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={techOpen} onOpenChange={setTechOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{techEditing ? "기술자 수정" : "기술자 등록"}</DialogTitle></DialogHeader>
+          <form onSubmit={saveTech} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>이름 <span className="text-destructive">*</span></Label>
+              <Input value={techForm.name} onChange={(e) => setTechForm({ ...techForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>전문분야</Label>
+              <Input value={techForm.specialty} onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTechOpen(false)}>취소</Button>
+              <Button type="submit" disabled={techSubmitting}>{techSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!techDeleteId} onOpenChange={(o) => !o && setTechDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>기술자를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={doTechDelete}>삭제</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
