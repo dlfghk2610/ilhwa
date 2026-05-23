@@ -157,9 +157,9 @@ export default function Overlaps() {
     return matchSearch && matchTech;
   }), [rows, search, selectedTech]);
 
-  // 총계약기간: 절대공기 체크시 absolute_period_days, 아니면 end - start + 1
+  // 총계약기간: 절대공기 체크시 absolute_period_days 있으면 사용, 없으면 기본 end - start + 1
   const totalPeriod = (r: OverlapRow) => {
-    if (useAbsolute) return r.absolute_period_days || 0;
+    if (useAbsolute && r.absolute_period_days) return r.absolute_period_days;
     return diffDays(r.start_date, r.end_date);
   };
 
