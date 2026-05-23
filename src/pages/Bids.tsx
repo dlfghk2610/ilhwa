@@ -503,18 +503,43 @@ export default function Bids() {
                 </div>
               </div>
 
-              {/* 사업종류 */}
+              {/* 사업종류 (자유 입력, 복수) */}
               <div className="space-y-1.5">
                 <Label>사업종류</Label>
-                <div className="flex flex-wrap gap-3">
-                  {SERVICE_TYPES.map((t) => (
-                    <label key={t} className="flex items-center gap-1.5 text-sm">
-                      <Checkbox checked={form.service_types.includes(t)} onCheckedChange={() => toggleArr("service_types", t)} />
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {form.service_types.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 rounded bg-secondary text-secondary-foreground px-2 py-0.5 text-xs">
                       {t}
-                    </label>
+                      <button type="button" className="hover:text-destructive" onClick={() => setForm({ ...form, service_types: form.service_types.filter((x) => x !== t) })}>×</button>
+                    </span>
                   ))}
                 </div>
+                <Input
+                  placeholder="사업종류 입력 후 Enter (쉼표로 여러 개 가능)"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      const val = (e.currentTarget.value || "").trim().replace(/,$/, "");
+                      if (val) {
+                        const parts = val.split(",").map((s) => s.trim()).filter(Boolean);
+                        const next = Array.from(new Set([...form.service_types, ...parts]));
+                        setForm({ ...form, service_types: next });
+                        e.currentTarget.value = "";
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = (e.currentTarget.value || "").trim();
+                    if (val) {
+                      const parts = val.split(",").map((s) => s.trim()).filter(Boolean);
+                      const next = Array.from(new Set([...form.service_types, ...parts]));
+                      setForm({ ...form, service_types: next });
+                      e.currentTarget.value = "";
+                    }
+                  }}
+                />
               </div>
+
 
               {/* 각사 지분율 */}
               <div className="space-y-1.5">
