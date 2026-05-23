@@ -189,8 +189,8 @@ export default function Overlaps() {
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="won">원</SelectItem>
+                  <SelectItem value="k">천원</SelectItem>
                   <SelectItem value="m">백만원</SelectItem>
-                  <SelectItem value="tm">천만원</SelectItem>
                 </SelectContent>
               </Select>
             </div>
