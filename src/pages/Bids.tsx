@@ -53,9 +53,6 @@ type BidRow = {
   status: string | null;
   notes: string | null;
   notify_hours_before: number;
-  notify_browser: boolean;
-  notify_email: string | null;
-  notify_phone: string | null;
   notified_at: string | null;
 };
 
@@ -76,9 +73,6 @@ const emptyForm = (): Omit<BidRow, "id"> => ({
   status: "검토중",
   notes: "",
   notify_hours_before: 24,
-  notify_browser: true,
-  notify_email: "",
-  notify_phone: "",
   notified_at: null,
 });
 
@@ -228,9 +222,6 @@ export default function Bids() {
       status: row.status || "검토중",
       notes: row.notes || "",
       notify_hours_before: row.notify_hours_before ?? 24,
-      notify_browser: true,
-      notify_email: row.notify_email || "",
-      notify_phone: row.notify_phone || "",
       notified_at: row.notified_at,
     });
     setOpen(true);
@@ -259,9 +250,8 @@ export default function Bids() {
       status: form.status || null,
       notes: form.notes || null,
       notify_hours_before: Number(form.notify_hours_before) || 24,
-      notify_browser: true,
-      notify_email: form.notify_email || null,
-      notify_phone: form.notify_phone || null,
+      notify_email: null,
+      notify_phone: null,
     };
 
     // Reset notified_at if deadline changed or cleared
@@ -293,15 +283,6 @@ export default function Bids() {
     [r.project_name, r.client, r.status].some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()))
   ), [rows, search]);
 
-  const enableEmail = !!form.notify_email && form.notify_email.length > 0;
-  const enableSms = !!form.notify_phone && form.notify_phone.length > 0;
-  const [emailChecked, setEmailChecked] = useState(false);
-  const [smsChecked, setSmsChecked] = useState(false);
-
-  useEffect(() => {
-    setEmailChecked(!!form.notify_email);
-    setSmsChecked(!!form.notify_phone);
-  }, [open]);
 
   const toggleArr = (key: "evaluation_types" | "service_types", v: string) => {
     setForm((f) => {
@@ -372,8 +353,6 @@ export default function Bids() {
                       <TableCell className="whitespace-nowrap text-xs">
                         <div className="flex items-center gap-1">
                           <Bell className="h-3 w-3" /> {r.notify_hours_before}h
-                          {r.notify_email && <span className="text-muted-foreground">📧</span>}
-                          {r.notify_phone && <span className="text-muted-foreground">📱</span>}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -426,7 +405,7 @@ export default function Bids() {
                         <div><span className="text-muted-foreground">개찰일시: </span>{fmtDT(r.opening_at)}</div>
                         <div><span className="text-muted-foreground">추정금액: </span>{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</div>
                         <div><span className="text-muted-foreground">상태: </span>{r.status || "-"}</div>
-                        <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h {r.notify_email && "📧"} {r.notify_phone && "📱"}</div>
+                        <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h</div>
                         <div className="flex gap-2 pt-2">
                           <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
@@ -581,37 +560,13 @@ export default function Bids() {
 
               {/* 알림 */}
               <Card className="p-3 bg-muted/30 space-y-3">
-                <div className="flex items-center gap-2 font-medium text-sm"><Bell className="h-4 w-4" />마감 알림</div>
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label>마감 몇시간 전 알림</Label>
-                    <Input type="number" min={1} value={form.notify_hours_before} onChange={(e) => setForm({ ...form, notify_hours_before: Number(e.target.value) || 0 })} />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm pb-2">
-                    <Checkbox checked disabled />
-                    브라우저 알림 (기본, 항상 켜짐)
-                  </label>
-                </div>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={emailChecked} onCheckedChange={(c) => { setEmailChecked(!!c); if (!c) setForm({ ...form, notify_email: "" }); }} />
-                    이메일로 받기
-                  </label>
-                  {emailChecked && (
-                    <Input type="email" placeholder="alert@example.com" value={form.notify_email || ""} onChange={(e) => setForm({ ...form, notify_email: e.target.value })} />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={smsChecked} onCheckedChange={(c) => { setSmsChecked(!!c); if (!c) setForm({ ...form, notify_phone: "" }); }} />
-                    문자/카카오톡으로 받기
-                  </label>
-                  {smsChecked && (
-                    <Input type="tel" placeholder="01012345678" value={form.notify_phone || ""} onChange={(e) => setForm({ ...form, notify_phone: e.target.value })} />
-                  )}
+                <div className="flex items-center gap-2 font-medium text-sm"><Bell className="h-4 w-4" />마감 알림 (브라우저)</div>
+                <div className="space-y-1.5">
+                  <Label>마감 몇시간 전 알림</Label>
+                  <Input type="number" min={1} value={form.notify_hours_before} onChange={(e) => setForm({ ...form, notify_hours_before: Number(e.target.value) || 0 })} />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ※ 브라우저 알림은 즉시 작동합니다. 이메일/문자 발송은 외부 발송 인프라(이메일 도메인·SMS API) 설정 후 별도 연결이 필요합니다.
+                  ※ 브라우저가 열려 있을 때만 알림이 표시됩니다. (이메일/문자 발송 기능은 제거됨)
                 </p>
               </Card>
 
