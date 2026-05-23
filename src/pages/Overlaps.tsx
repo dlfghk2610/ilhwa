@@ -540,13 +540,42 @@ export default function Overlaps() {
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
                 <div className="space-y-2">
-                  {(form.participants || []).map((p, i) => (
+                  {(form.participants || []).map((p, i) => {
+                    const q = (p.name || "").trim();
+                    const suggestions = q
+                      ? technicians.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) && t.name !== q).slice(0, 8)
+                      : [];
+                    const showList = activeParticipantIdx === i && suggestions.length > 0;
+                    return (
                     <div key={i} className="flex gap-2 items-center">
-                      <Input placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, { name: e.target.value })} />
-                      <Input placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
+                      <div className="relative flex-1">
+                        <Input
+                          placeholder="성명 (등록된 기술자 검색)"
+                          value={p.name}
+                          onFocus={() => setActiveParticipantIdx(i)}
+                          onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
+                          onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
+                        />
+                        {showList && (
+                          <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
+                            {suggestions.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                                onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
+                              >
+                                {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
