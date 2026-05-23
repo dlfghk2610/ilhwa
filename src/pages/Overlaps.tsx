@@ -233,9 +233,32 @@ export default function Overlaps() {
     setForm({ ...form, participants: (form.participants || []).filter((_, idx) => idx !== i) });
   };
 
+  // 기술자별 중복금액 합계 (공고일 반영 시)
+  const techOverlapTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const o = overlapAmount(r);
+      const v = o.value || 0;
+      if (!v) continue;
+      for (const p of r.participants || []) {
+        const name = (p.name || "").trim();
+        if (!name) continue;
+        map.set(name, (map.get(name) || 0) + v);
+      }
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, announcementDate, useAbsolute]);
+
   return (
     <AppLayout title="PQ 기술자별 업무중첩도 관리">
-      <div className="space-y-4">
+      <Tabs defaultValue="projects" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="projects">사업명 입력</TabsTrigger>
+          <TabsTrigger value="technicians">기술자 관리</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="projects" className="space-y-4 mt-0">
         <Card className="p-4 shadow-card">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px] max-w-md">
@@ -294,7 +317,7 @@ export default function Overlaps() {
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공예정일</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">{useAbsolute ? "절대공기" : "총 계약기간"}</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">총 계약기간</TableHead>
                   <TableHead className="whitespace-nowrap text-right">잔여일수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">중복금액</TableHead>
                   <TableHead className="whitespace-nowrap">과업중지일</TableHead>
@@ -313,6 +336,8 @@ export default function Overlaps() {
                   const o = overlapAmount(r);
                   const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
                   const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
+                  const contractDays = diffDays(r.start_date, r.end_date);
+                  const absoluteApplied = useAbsolute && !!r.absolute_period_days;
                   return (
                   <TableRow key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openEdit(r)}>
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
@@ -320,9 +345,9 @@ export default function Overlaps() {
                     <TableCell className="whitespace-nowrap text-right">{fmtContract(r.contract_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.end_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{totalPeriod(r) ? totalPeriod(r).toLocaleString() + "일" : "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{overlapText}</TableCell>
+                    <TableCell className={"whitespace-nowrap text-right" + (absoluteApplied ? " text-red-600 font-semibold" : "")}>{overlapText}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.suspension_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.agreement_date)}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate">{r.notes || "-"}</TableCell>
@@ -338,7 +363,66 @@ export default function Overlaps() {
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="technicians" className="space-y-4 mt-0">
+          <Card className="p-4 shadow-card">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">공고일</Label>
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(inputToISO(e.target.value))} className="w-[140px]" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">금액단위</Label>
+                <Select value={unit} onValueChange={(v) => setUnit(v as Unit)}>
+                  <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="won">원</SelectItem>
+                    <SelectItem value="k">천원</SelectItem>
+                    <SelectItem value="m">백만원</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="absolute-tech" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
+                <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
+              </div>
+            </div>
+          </Card>
+          <Card className="shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="whitespace-nowrap">기술자명</TableHead>
+                    <TableHead className="whitespace-nowrap">전문분야</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">중복금액 합계</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">참여 사업수</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {technicians.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
+                  ) : technicians.map((t) => {
+                    const total = techOverlapTotals.get(t.name) || 0;
+                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
+                    return (
+                      <TableRow key={t.id}>
+                        <TableCell className="whitespace-nowrap font-medium">{t.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-right">{count}건</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 중복금액이 계산됩니다."}</div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
