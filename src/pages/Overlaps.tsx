@@ -307,13 +307,13 @@ export default function Overlaps() {
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{fmtContract(r.contract_amount)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.start_date || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.end_date || "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.end_date)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{totalPeriod(r) ? totalPeriod(r).toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{overlapText}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.suspension_date || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.agreement_date || "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.suspension_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.agreement_date)}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate">{r.notes || "-"}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
@@ -348,11 +348,11 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>착수일</Label>
-                <Input type="date" value={form.start_date || ""} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.start_date)} onChange={(e) => setForm({ ...form, start_date: toISODate(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>준공예정일</Label>
-                <Input type="date" value={form.end_date || ""} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date)} onChange={(e) => setForm({ ...form, end_date: toISODate(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>절대공기일수 (일)</Label>
@@ -360,11 +360,11 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>과업중지일</Label>
-                <Input type="date" value={form.suspension_date || ""} onChange={(e) => setForm({ ...form, suspension_date: e.target.value })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: toISODate(e.target.value) })} />
               </div>
               <div className="space-y-1.5">
                 <Label>협의완료일</Label>
-                <Input type="date" value={form.agreement_date || ""} onChange={(e) => setForm({ ...form, agreement_date: e.target.value })} />
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: toISODate(e.target.value) })} />
               </div>
             </div>
 
