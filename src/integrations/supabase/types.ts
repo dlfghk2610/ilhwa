@@ -519,6 +519,7 @@ export type Database = {
       }
       technician_overlaps: {
         Row: {
+          absolute_period_days: number | null
           agreement_date: string | null
           client: string | null
           contract_amount: number | null
@@ -536,6 +537,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          absolute_period_days?: number | null
           agreement_date?: string | null
           client?: string | null
           contract_amount?: number | null
@@ -553,6 +555,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          absolute_period_days?: number | null
           agreement_date?: string | null
           client?: string | null
           contract_amount?: number | null
