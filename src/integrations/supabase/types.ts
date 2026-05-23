@@ -519,39 +519,54 @@ export type Database = {
       }
       technician_overlaps: {
         Row: {
+          agreement_date: string | null
+          client: string | null
+          contract_amount: number | null
           created_at: string
           created_by: string
-          end_date: string
+          end_date: string | null
           id: string
           notes: string | null
+          participants: Json
           participation_rate: number | null
           project_name: string
-          start_date: string
-          technician_name: string
+          start_date: string | null
+          suspension_date: string | null
+          technician_name: string | null
           updated_at: string
         }
         Insert: {
+          agreement_date?: string | null
+          client?: string | null
+          contract_amount?: number | null
           created_at?: string
           created_by: string
-          end_date: string
+          end_date?: string | null
           id?: string
           notes?: string | null
+          participants?: Json
           participation_rate?: number | null
           project_name: string
-          start_date: string
-          technician_name: string
+          start_date?: string | null
+          suspension_date?: string | null
+          technician_name?: string | null
           updated_at?: string
         }
         Update: {
+          agreement_date?: string | null
+          client?: string | null
+          contract_amount?: number | null
           created_at?: string
           created_by?: string
-          end_date?: string
+          end_date?: string | null
           id?: string
           notes?: string | null
+          participants?: Json
           participation_rate?: number | null
           project_name?: string
-          start_date?: string
-          technician_name?: string
+          start_date?: string | null
+          suspension_date?: string | null
+          technician_name?: string | null
           updated_at?: string
         }
         Relationships: []
