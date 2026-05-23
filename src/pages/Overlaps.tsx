@@ -464,26 +464,17 @@ export default function Overlaps() {
                 <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
               </div>
             </div>
-            {announcementDate && technicians.some((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000) && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
-                <span className="font-semibold">2.5억 이상:</span>{" "}
-                {technicians
-                  .filter((t) => (techOverlapTotals.get(t.name) || 0) >= 250_000_000)
-                  .map((t) => t.name)
-                  .join(", ")}
-              </div>
-            )}
           </Card>
           <Card className="shadow-card overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="whitespace-nowrap">기술자명</TableHead>
-                    <TableHead className="whitespace-nowrap">전문분야</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">중복금액 합계</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">참여 사업수</TableHead>
-                    <TableHead className="text-right w-[110px]">관리</TableHead>
+                    <TableHead className="w-[140px]">기술자명</TableHead>
+                    <TableHead className="w-[120px]">전문분야</TableHead>
+                    <TableHead className="text-right w-[160px]">중복금액 합계</TableHead>
+                    <TableHead className="text-right w-[100px]">참여 사업수</TableHead>
+                    <TableHead className="text-right w-[90px]">관리</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -492,12 +483,23 @@ export default function Overlaps() {
                   ) : technicians.map((t) => {
                     const total = techOverlapTotals.get(t.name) || 0;
                     const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
+                    const over = total - 250_000_000;
                     return (
                       <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
-                        <TableCell className="whitespace-nowrap font-medium">{t.name}</TableCell>
-                        <TableCell className="whitespace-nowrap">{t.specialty || "-"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-semibold text-primary">{announcementDate ? fmtOverlap(total) : "-"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-right">{count}건</TableCell>
+                        <TableCell className="font-medium">
+                          {t.name}
+                          {total >= 250_000_000 && (
+                            <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded">2.5억 이상</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{t.specialty || "-"}</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          {announcementDate ? fmtOverlap(total) : "-"}
+                          {announcementDate && over > 0 && (
+                            <span className="block text-[10px] text-blue-700">+{fmtOverlap(over)} 초과</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">{count}건</TableCell>
                         <TableCell className="text-right">
                           <Button size="icon" variant="ghost" onClick={() => openTechEdit(t)}><Pencil className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => setTechDeleteId(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
