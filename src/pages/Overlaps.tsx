@@ -13,8 +13,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon } from "lucide-react";
 
 type Participant = { name: string; role?: string };
 
@@ -268,6 +271,27 @@ export default function Overlaps() {
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">공고일</Label>
               <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(inputToISO(e.target.value))} className="w-[140px]" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={announcementDate ? new Date(announcementDate + "T00:00:00") : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const iso = format(date, "yyyy-MM-dd");
+                        setAnnouncementDate(iso);
+                      }
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">금액단위</Label>
