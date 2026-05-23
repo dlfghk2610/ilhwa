@@ -748,7 +748,7 @@ export default function Performances() {
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {t.row.project_name}
+                        {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
                         {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정되어 집계 제외</div>}
