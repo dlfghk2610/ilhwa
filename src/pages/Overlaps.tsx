@@ -74,6 +74,8 @@ const isCivilianLike = (r: OverlapRow) => {
   return name.includes("민간") || name.includes("유사용역") || client.includes("민간") || client.includes("유사용역");
 };
 const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
+
+export default function Overlaps() {
   const { user } = useAuth();
   const [rows, setRows] = useState<OverlapRow[]>([]);
   const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null }[]>([]);
