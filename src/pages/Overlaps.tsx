@@ -233,7 +233,7 @@ export default function Overlaps() {
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">공고일</Label>
-              <Input type="date" value={announcementDate} onChange={(e) => setAnnouncementDate(e.target.value)} className="w-[160px]" />
+              <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(toISODate(e.target.value))} className="w-[140px]" />
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">금액단위</Label>
