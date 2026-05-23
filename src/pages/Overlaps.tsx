@@ -29,7 +29,7 @@ type OverlapRow = {
   notes: string | null;
 };
 
-type Unit = "won" | "m" | "tm"; // 원, 백만원, 천만원
+type Unit = "won" | "k" | "m"; // 원, 천원, 백만원
 
 const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
 const diffDays = (a?: string | null, b?: string | null) => {
@@ -148,15 +148,15 @@ export default function Overlaps() {
   const fmtContract = (v: number | null) => {
     if (v === null || v === undefined) return "-";
     const n = Number(v);
-    if (unit === "tm") return Math.round(n / 10_000_000).toLocaleString() + " 천만원";
-    if (unit === "m") return Math.round(n / 1_000_000).toLocaleString() + " 백만원";
-    return n.toLocaleString() + " 원";
+    if (unit === "m") return Math.round(n / 1_000_000).toLocaleString();
+    if (unit === "k") return Math.round(n / 1_000).toLocaleString();
+    return n.toLocaleString();
   };
   const fmtOverlap = (v: number) => {
     if (!v) return "-";
-    if (unit === "tm") return Math.round(v / 10_000_000).toLocaleString() + " 천만원";
-    if (unit === "m") return (Math.round((v / 1_000_000) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " 백만원";
-    return Math.round(v).toLocaleString() + " 원";
+    if (unit === "m") return (Math.round((v / 1_000_000) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (unit === "k") return Math.round(v / 1_000).toLocaleString();
+    return Math.round(v).toLocaleString();
   };
 
   // participants editor
@@ -189,8 +189,8 @@ export default function Overlaps() {
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="won">원</SelectItem>
+                  <SelectItem value="k">천원</SelectItem>
                   <SelectItem value="m">백만원</SelectItem>
-                  <SelectItem value="tm">천만원</SelectItem>
                 </SelectContent>
               </Select>
             </div>
