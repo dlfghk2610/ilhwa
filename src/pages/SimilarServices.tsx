@@ -940,14 +940,16 @@ export default function SimilarServices() {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
                   const over5 = isOver5y(r);
+                  const isPrivate = r.is_private;
                   return (
                   <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : undefined}>
                     <TableCell className="align-middle">
                       <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     </TableCell>
-                    <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">
+                    <TableCell className={`font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle ${isPrivate ? "bg-lime-100/60" : ""}`}>
                       {r.project_name}{phaseSuffix(r)}
-                      {over5 && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
+                      {isPrivate && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-lime-200 text-lime-800 border border-lime-300 align-middle">민간</span>}
+                      {over5 && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
                     </TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
                     <TableCell className="whitespace-nowrap align-middle">{fmtDate(r.start_date)}</TableCell>
@@ -983,8 +985,9 @@ export default function SimilarServices() {
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
               const over5 = isOver5y(r);
+              const isPrivate = r.is_private;
               return (
-                <div key={r.id} className={`px-3 py-2.5 ${over5 ? "bg-destructive/5" : ""}`}>
+                <div key={r.id} className={`px-3 py-2.5 ${over5 ? "bg-destructive/5" : isPrivate ? "bg-lime-100/60" : ""}`}>
                   <div className="flex items-center gap-2">
                     <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     <button
@@ -993,7 +996,8 @@ export default function SimilarServices() {
                       className="flex-1 text-left text-sm font-medium break-words"
                     >
                       {r.project_name}{phaseSuffix(r)}
-                      {over5 && <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
+                      {isPrivate && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-lime-200 text-lime-800 border border-lime-300 align-middle">민간</span>}
+                      {over5 && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
                     </button>
                     <span className="text-xs text-muted-foreground shrink-0">{expanded ? "접기" : "펼치기"}</span>
                   </div>
