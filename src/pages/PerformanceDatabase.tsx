@@ -58,7 +58,7 @@ type Row = {
   notes: string | null;
 };
 
-const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모"];
+const EVAL_OPTIONS = ["평가", "전략", "사후", "소규모", "기후"];
 
 const isoToDisplay = (v?: string | null) => (v ? v.replace(/-/g, ".") : "");
 const displayToIso = (v: string) => {
