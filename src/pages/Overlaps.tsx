@@ -41,6 +41,16 @@ const toISODate = (display?: string | null) => {
   if (!display) return "";
   return display.replace(/\./g, "-");
 };
+const formatDateInput = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 4) return d;
+  if (d.length <= 6) return `${d.slice(0, 4)}.${d.slice(4)}`;
+  return `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}`;
+};
+const inputToISO = (v: string) => {
+  const f = formatDateInput(v);
+  return f.length === 10 ? f.replace(/\./g, "-") : f;
+};
 const parseDate = (s?: string | null) => {
   const iso = toISODate(s);
   return iso ? new Date(iso + "T00:00:00") : null;
