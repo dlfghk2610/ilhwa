@@ -741,7 +741,22 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                 <TableCell className="text-right">{r.weight.toFixed(1)}</TableCell>
                 <TableCell>{r.entry.participation_company}</TableCell>
                 <TableCell>{r.entry.participation_position}</TableCell>
-                <TableCell className="text-right font-medium">{r.convertedDays}</TableCell>
+                <TableCell className="text-right font-medium">
+                  <div>{r.convertedDays}</div>
+                  {r.convertedDays === 0 && (() => {
+                    const reasons: string[] = [];
+                    if (specialtyMismatch) reasons.push("전문분야 다름");
+                    if (working) reasons.push("근무중");
+                    if (excludePrivate && r.isPrivate) reasons.push("민간 제외");
+                    if (!Number(r.entry.recognized_days || 0) && !working && !specialtyMismatch) reasons.push("인정일 0");
+                    if (reasons.length === 0) reasons.push("계산 제외");
+                    return (
+                      <div className="mt-1 text-[10px] font-normal text-destructive whitespace-normal">
+                        {reasons.map((t, idx) => <div key={idx}>⚠ {t}</div>)}
+                      </div>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
               </TableRow>
               );
