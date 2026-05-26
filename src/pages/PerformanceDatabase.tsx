@@ -569,7 +569,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setForm((f) => {
       const isPost = f.evaluation_types.includes("사후");
       const label = isPost ? `${f.phases.length + 1}차` : `${f.phases.length + 1}단계`;
-      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, participants: [] }] };
+      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, cert_pdf_path: null, participant_file_path: null, cert_pdf_file: null, participant_file: null, participants: [] }] };
     });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
