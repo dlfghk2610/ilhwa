@@ -1225,6 +1225,29 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                       <Button type="button" size="sm" variant="ghost" onClick={() => removePhase(i)}><X className="h-4 w-4 mr-1" />삭제</Button>
                     </div>
 
+                    {/* 차수별 첨부파일 */}
+                    <div className="border-t pt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">실적증명 PDF</Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="file" accept="application/pdf" className="h-8 text-xs" onChange={(e) => updatePhase(i, { cert_pdf_file: e.target.files?.[0] || null })} />
+                          {p.cert_pdf_path && !p.cert_pdf_file && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", p.cert_pdf_path!)}><Download className="h-3 w-3" /></Button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">참여자명단 파일</Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="h-8 text-xs" onChange={(e) => updatePhase(i, { participant_file: e.target.files?.[0] || null })} />
+                          {p.participant_file_path && !p.participant_file && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", p.participant_file_path!)}><Download className="h-3 w-3" /></Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+
                     {/* 차수별 참여 기술자 */}
                     <div className="border-t pt-2 space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
