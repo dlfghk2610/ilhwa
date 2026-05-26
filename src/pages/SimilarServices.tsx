@@ -586,8 +586,8 @@ export default function SimilarServices() {
     return evalCoef(r) * serviceCoef(r) * Number(r.share_amount ?? 0);
   };
 
-  const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
-  const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
+  const totalAppliedCount = groupedFiltered.reduce((s, r) => s + appliedCount(r), 0);
+  const totalAppliedAmount = groupedFiltered.reduce((s, r) => s + appliedAmount(r), 0);
 
   const handleExportExcel = async () => {
     const targets = (selectedIds.size > 0
