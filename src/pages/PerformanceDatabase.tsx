@@ -386,6 +386,27 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         cert_pdf_path = path;
       }
 
+      // 차수별 첨부파일 업로드
+      const phasesUploaded: Phase[] = await Promise.all(form.phases.map(async (p, i) => {
+        let phCert = p.cert_pdf_path || null;
+        if (p.cert_pdf_file) {
+          const path = `${user.id}/${Date.now()}_phase${i}_cert.pdf`;
+          const { error } = await supabase.storage.from("performance-certs").upload(path, p.cert_pdf_file, { contentType: "application/pdf", upsert: true });
+          if (error) throw error;
+          phCert = path;
+        }
+        let phPart = p.participant_file_path || null;
+        if (p.participant_file) {
+          const ext = p.participant_file.name.split(".").pop();
+          const path = `${user.id}/${Date.now()}_phase${i}.${ext}`;
+          const { error } = await supabase.storage.from("participant-lists").upload(path, p.participant_file, { upsert: false });
+          if (error) throw error;
+          phPart = path;
+        }
+        const { cert_pdf_file, participant_file, ...rest } = p;
+        return { ...rest, cert_pdf_path: phCert, participant_file_path: phPart };
+      }));
+
       let cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
