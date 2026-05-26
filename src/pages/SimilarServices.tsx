@@ -693,9 +693,10 @@ export default function SimilarServices() {
       const records = Array.from(groups.values()).map((items) => {
         const head = items[0];
         const r = head.r;
-        const hasPhases = items.length > 1 || items.some((it) => it.phaseLabel);
-        const phases = hasPhases ? items.map((it) => ({
-          label: it.phaseLabel || "",
+        const isPostEval = String(r["평가종류"] ?? "").includes("사후");
+        const hasPhases = items.length > 1 || items.some((it) => it.phaseLabel) || isPostEval;
+        const phases = hasPhases ? items.map((it, idx) => ({
+          label: it.phaseLabel || `${idx + 1}차`,
           amount: toNum(it.r["지분금액"]),
           contract_amount: toNum(it.r["계약금액"]),
           share_rate: null,
