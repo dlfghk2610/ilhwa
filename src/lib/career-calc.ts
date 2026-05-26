@@ -154,6 +154,7 @@ export type RecognitionRow = {
   recognizedDays: number; 
   convertedDays: number; 
   isPrivate: boolean; // 화면에 표시하기 위해 추가
+  envByProject: boolean; // 평가구분이 아닌 사업명으로 환경 판정된 경우 true
 };
 
 // [수정됨] 파라미터에 excludePrivate (민간제외 여부) 추가
@@ -162,7 +163,10 @@ export const computeRecognition = (
   techSpecialty?: string | null,
   excludePrivate: boolean = false
 ): RecognitionRow => {
-  const evalGroup = classifyEval(entry.evaluation_category);
+  const rawCat = (entry.evaluation_category || "").trim();
+  const catIsEnv = ENV_CATEGORIES.some((c) => rawCat.includes(c));
+  const evalGroup = classifyEval(entry.evaluation_category, entry.project_name);
+  const envByProject = evalGroup === "환경" && !catIsEnv;
   const weight = evalWeight(evalGroup);
   const working = isWorkingNow(entry.period_end_text);
   const specialtyMatch =
@@ -180,7 +184,8 @@ export const computeRecognition = (
       weight,
       recognizedDays: 0,
       convertedDays: 0,
-      isPrivate
+      isPrivate,
+      envByProject,
     };
   }
 
@@ -191,7 +196,8 @@ export const computeRecognition = (
     weight,
     recognizedDays: base,
     convertedDays: +(base * weight).toFixed(2),
-    isPrivate
+    isPrivate,
+    envByProject,
   };
 };
 
