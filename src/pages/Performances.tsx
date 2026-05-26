@@ -522,26 +522,30 @@ export default function Performances() {
           }
 
           const isPostEval = evalSet.has("사후");
-          const phaseMatch = (r.project_name || "").match(/\(\s*(\d+)\s*차\s*\)\s*$/);
-          const phaseNum = isPostEval && phaseMatch ? Number(phaseMatch[1]) : null;
-          const baseName = phaseMatch ? r.project_name.replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim() : r.project_name;
+          const pm = (r.project_name || "").trim().match(/^(.+?)[\s\(\-_]+(\d+(?:-\d+)?)\s*차\s*\)?\s*$/);
+          const phaseLabel = pm ? pm[2] : null;
+          const phaseNum = isPostEval && phaseLabel ? Number(phaseLabel.split("-")[0]) : null;
+          const baseName = pm ? pm[1].trim() : (r.project_name || "");
+          const groupKey = `${baseName}__${r.client || ""}`;
           const under90 = partDays > 0 && partDays < 90;
 
-          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, baseName };
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
         })
-        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; baseName: string }>;
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
 
-      const lastPhaseByBase = new Map<string, number>();
+      const lastPhaseByGroup = new Map<string, { num: number; label: string }>();
       base.forEach((t) => {
-        if (t.isPostEval && t.phaseNum != null) {
-          const cur = lastPhaseByBase.get(t.baseName) ?? -1;
-          if (t.phaseNum > cur) lastPhaseByBase.set(t.baseName, t.phaseNum);
+        if (t.isPostEval && t.phaseNum != null && t.phaseLabel) {
+          const cur = lastPhaseByGroup.get(t.groupKey);
+          if (!cur || t.phaseNum > cur.num) lastPhaseByGroup.set(t.groupKey, { num: t.phaseNum, label: t.phaseLabel });
         }
       });
       return base.map((t) => {
         const isPhase = t.isPostEval && t.phaseNum != null;
-        const isLastPhase = isPhase && lastPhaseByBase.get(t.baseName) === t.phaseNum;
-        return { ...t, isPhase, isLastPhase };
+        const last = isPhase ? lastPhaseByGroup.get(t.groupKey) : undefined;
+        const isLastPhase = !!(isPhase && last && last.num === t.phaseNum);
+        const lastPhaseLabel = last?.label ?? null;
+        return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
     };
   }, [rows, techEvalFilter, techServiceFilter, noticeDate]);
@@ -791,7 +795,7 @@ export default function Performances() {
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
                     return (
-                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
                       <TableCell>
                         {(() => {
                           const disabled = t.expired || blockUnder90;
@@ -802,7 +806,7 @@ export default function Performances() {
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
-                        {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정되어 집계 제외</div>}
+                        {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-amber-700 mt-1">⚠ 최근차수({t.lastPhaseLabel}차)가 있어 집계 제외</div>}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>}
                         {!t.expired && excludePrivate && (t.row as any).is_private && <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>}
                       </TableCell>
@@ -848,7 +852,7 @@ export default function Performances() {
                 const dispRatio = blockUnder90 ? 0 : t.ratio;
                 const dispPeriod = blockUnder90 ? 0 : t.periodCount;
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
