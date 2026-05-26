@@ -11,9 +11,28 @@ export const ENV_CATEGORIES = [
 export type EvalGroup = "환경" | "기타";
 export type CalcStandard = "건설기술인협회" | "환경영향평가"; // 계산 기준 타입 추가
 
-export const classifyEval = (raw?: string | null): EvalGroup => {
+// 사업명에 포함되면 평가구분을 "환경"으로 간주하는 키워드
+export const ENV_PROJECT_KEYWORDS = [
+  "환경영향평가",
+  "전략환경영향평가",
+  "소규모환경영향평가",
+  "사후환경영향조사",
+  "사후환경조사",
+  "사전환경성검토서",
+  "사전환경성검토",
+];
+
+export const projectNameIsEnv = (projectName?: string | null): boolean => {
+  const v = (projectName || "").trim();
+  if (!v) return false;
+  return ENV_PROJECT_KEYWORDS.some((k) => v.includes(k));
+};
+
+export const classifyEval = (raw?: string | null, projectName?: string | null): EvalGroup => {
   const v = (raw || "").trim();
-  return ENV_CATEGORIES.some((c) => v.includes(c)) ? "환경" : "기타";
+  if (ENV_CATEGORIES.some((c) => v.includes(c))) return "환경";
+  if (projectNameIsEnv(projectName)) return "환경";
+  return "기타";
 };
 
 export const evalWeight = (g: EvalGroup): number => (g === "환경" ? 1.0 : 0.6);
@@ -135,6 +154,7 @@ export type RecognitionRow = {
   recognizedDays: number; 
   convertedDays: number; 
   isPrivate: boolean; // 화면에 표시하기 위해 추가
+  envByProject: boolean; // 평가구분이 아닌 사업명으로 환경 판정된 경우 true
 };
 
 // [수정됨] 파라미터에 excludePrivate (민간제외 여부) 추가
@@ -143,7 +163,10 @@ export const computeRecognition = (
   techSpecialty?: string | null,
   excludePrivate: boolean = false
 ): RecognitionRow => {
-  const evalGroup = classifyEval(entry.evaluation_category);
+  const rawCat = (entry.evaluation_category || "").trim();
+  const catIsEnv = ENV_CATEGORIES.some((c) => rawCat.includes(c));
+  const evalGroup = classifyEval(entry.evaluation_category, entry.project_name);
+  const envByProject = evalGroup === "환경" && !catIsEnv;
   const weight = evalWeight(evalGroup);
   const working = isWorkingNow(entry.period_end_text);
   const specialtyMatch =
@@ -161,7 +184,8 @@ export const computeRecognition = (
       weight,
       recognizedDays: 0,
       convertedDays: 0,
-      isPrivate
+      isPrivate,
+      envByProject,
     };
   }
 
@@ -172,7 +196,8 @@ export const computeRecognition = (
     weight,
     recognizedDays: base,
     convertedDays: +(base * weight).toFixed(2),
-    isPrivate
+    isPrivate,
+    envByProject,
   };
 };
 
