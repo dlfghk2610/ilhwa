@@ -25,7 +25,7 @@ type Participant = {
   position?: string;
   responsibility?: string;
 };
-type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; share_amount?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null; participants?: Participant[] };
+type Phase = { label: string; amount: number | null; contract_amount?: number | null; share_rate?: number | null; share_amount?: number | null; contract_date?: string | null; start_date?: string | null; end_date?: string | null; pdf_path?: string | null; cert_pdf_path?: string | null; participant_file_path?: string | null; cert_pdf_file?: File | null; participant_file?: File | null; participants?: Participant[] };
 
 type Row = {
   id: string;
@@ -386,6 +386,27 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         cert_pdf_path = path;
       }
 
+      // 차수별 첨부파일 업로드
+      const phasesUploaded: Phase[] = await Promise.all(form.phases.map(async (p, i) => {
+        let phCert = p.cert_pdf_path || null;
+        if (p.cert_pdf_file) {
+          const path = `${user.id}/${Date.now()}_phase${i}_cert.pdf`;
+          const { error } = await supabase.storage.from("performance-certs").upload(path, p.cert_pdf_file, { contentType: "application/pdf", upsert: true });
+          if (error) throw error;
+          phCert = path;
+        }
+        let phPart = p.participant_file_path || null;
+        if (p.participant_file) {
+          const ext = p.participant_file.name.split(".").pop();
+          const path = `${user.id}/${Date.now()}_phase${i}.${ext}`;
+          const { error } = await supabase.storage.from("participant-lists").upload(path, p.participant_file, { upsert: false });
+          if (error) throw error;
+          phPart = path;
+        }
+        const { cert_pdf_file, participant_file, ...rest } = p;
+        return { ...rest, cert_pdf_path: phCert, participant_file_path: phPart };
+      }));
+
       let cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
@@ -426,7 +447,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         participants: form.participants,
         participant_file_path,
         cert_pdf_path,
-        phases: form.phases,
+        phases: phasesUploaded,
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
         is_lh_completion: form.is_lh_completion,
@@ -569,7 +590,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setForm((f) => {
       const isPost = f.evaluation_types.includes("사후");
       const label = isPost ? `${f.phases.length + 1}차` : `${f.phases.length + 1}단계`;
-      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, participants: [] }] };
+      return { ...f, phases: [...f.phases, { label, amount: null, contract_amount: null, share_rate: null, share_amount: null, contract_date: null, start_date: null, end_date: null, pdf_path: null, cert_pdf_path: null, participant_file_path: null, cert_pdf_file: null, participant_file: null, participants: [] }] };
     });
   }
   function updatePhase(idx: number, patch: Partial<Phase>) {
@@ -1203,6 +1224,29 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                       <DateInput value={p.end_date || ""} onChange={(v) => updatePhase(i, { end_date: v || null })} placeholder="종료일" />
                       <Button type="button" size="sm" variant="ghost" onClick={() => removePhase(i)}><X className="h-4 w-4 mr-1" />삭제</Button>
                     </div>
+
+                    {/* 차수별 첨부파일 */}
+                    <div className="border-t pt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">실적증명 PDF</Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="file" accept="application/pdf" className="h-8 text-xs" onChange={(e) => updatePhase(i, { cert_pdf_file: e.target.files?.[0] || null })} />
+                          {p.cert_pdf_path && !p.cert_pdf_file && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", p.cert_pdf_path!)}><Download className="h-3 w-3" /></Button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">참여자명단 파일</Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="h-8 text-xs" onChange={(e) => updatePhase(i, { participant_file: e.target.files?.[0] || null })} />
+                          {p.participant_file_path && !p.participant_file && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", p.participant_file_path!)}><Download className="h-3 w-3" /></Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
 
                     {/* 차수별 참여 기술자 */}
                     <div className="border-t pt-2 space-y-2">
