@@ -1030,11 +1030,11 @@ export default function SimilarServices() {
                   <TableRow><TableCell colSpan={17} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
-                ) : filtered.length === 0 ? (
+                ) : groupedFiltered.length === 0 ? (
                   <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
                     실적 데이터베이스에서 동기화된 데이터가 없습니다.
                   </TableCell></TableRow>
-                ) : filtered.map((r) => {
+                ) : groupedFiltered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
                   const over5 = isOver5y(r);
@@ -1076,9 +1076,9 @@ export default function SimilarServices() {
           <div className="md:hidden divide-y">
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
-            ) : filtered.length === 0 ? (
+            ) : groupedFiltered.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground text-sm px-4">실적 데이터베이스에서 동기화된 데이터가 없습니다.</div>
-            ) : filtered.map((r) => {
+            ) : groupedFiltered.map((r) => {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
@@ -1125,7 +1125,7 @@ export default function SimilarServices() {
           </div>
 
           <div className="px-4 py-2 text-xs text-muted-foreground border-t flex flex-col sm:flex-row gap-1 sm:justify-between">
-            <span>총 {filtered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
+            <span>총 {groupedFiltered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
