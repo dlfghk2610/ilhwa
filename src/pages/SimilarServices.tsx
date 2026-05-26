@@ -501,14 +501,12 @@ export default function SimilarServices() {
   const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
   const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
 
-  const handleExport = async () => {
-    // 선택된 행만 (없으면 전체) - 착수일 오름차순 정렬 (filtered가 이미 정렬됨)
+  const handleExportExcel = async () => {
     const targets = (selectedIds.size > 0
       ? filtered.filter((r) => selectedIds.has(r.id))
       : filtered);
-    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+    if (targets.length === 0) { toast.error("보낼 데이터가 없습니다"); return; }
 
-    // 메인 화면 컬럼 순서와 동일
     const data: Record<string, any>[] = [];
     let seq = 0;
     targets.forEach((r) => {
@@ -543,7 +541,6 @@ export default function SimilarServices() {
       if (ps.length === 0) {
         data.push(makeRow("", seqLabel));
       } else {
-        // 사후 등 차수가 여러 개여도 첫 행에만 연번 기재
         ps.forEach((p, idx) => {
           const label = (p.label && p.label.trim()) || "";
           data.push(makeRow(label ? `(${label})` : "", idx === 0 ? seqLabel : "", {
@@ -557,8 +554,14 @@ export default function SimilarServices() {
     });
     exportToExcel(data, "PQ유사용역");
     toast.success("엑셀 다운로드 완료");
+  };
 
-    // 실적증명서 PDF 병합 (대표 착수일 오름차순; 사후는 차수 PDF를 통으로)
+  const handleExportPdf = async () => {
+    const targets = (selectedIds.size > 0
+      ? filtered.filter((r) => selectedIds.has(r.id))
+      : filtered);
+    if (targets.length === 0) { toast.error("보낼 데이터가 없습니다"); return; }
+
     try {
       const merged = await PDFDocument.create();
       const seqFont = addSeqNumbers ? await merged.embedFont(StandardFonts.HelveticaBold) : null;
@@ -566,7 +569,6 @@ export default function SimilarServices() {
       let pdfSeq = 0;
       for (const r of targets) {
         pdfSeq++;
-        // 차수별 PDF (있으면 1차→N차 순서대로)
         const phasePdfs = (Array.isArray(r.phases) ? r.phases : [])
           .map((p) => (p as any).pdf_path as string | undefined)
           .filter((x): x is string => !!x);
@@ -585,7 +587,6 @@ export default function SimilarServices() {
             const pages = await merged.copyPages(src, src.getPageIndices());
             pages.forEach((pg, idx) => {
               merged.addPage(pg);
-              // 사후/다차수 → 1차 첫 페이지에만 / 일반 다중 페이지 → 첫 페이지에만
               if (addSeqNumbers && seqFont && !stampedThisTarget && idx === 0) {
                 const { height } = pg.getSize();
                 pg.drawText(String(pdfSeq), {
@@ -623,6 +624,8 @@ export default function SimilarServices() {
       toast.error("PDF 병합 오류: " + (err?.message ?? ""));
     }
   };
+
+
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -899,7 +902,8 @@ export default function SimilarServices() {
                 <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
                 <span className="text-xs">연번 기입 (착수일 오름차순)</span>
               </label>
-              <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
+              <Button variant="outline" size="sm" onClick={handleExportPdf}><FileText className="mr-1 h-4 w-4" />PDF 병합</Button>
             </div>
           </div>
         </Card>
