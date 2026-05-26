@@ -279,10 +279,38 @@ export default function Performances() {
     } catch (e: any) { toast.error(e?.message ?? "다운로드 실패"); }
   }
 
-  // 선택된 행 (착수일 오름차순)
+  // 선택된 행 (착수일 오름차순). 차수 행(`${id}__p${idx}`)도 해당 차수 데이터로 변환.
   function getTargets(): Row[] {
-    const base = rows.filter((r) => techSelectedRowIds.has(r.id));
-    return [...base].sort((a, b) => {
+    const base: Row[] = [];
+    techSelectedRowIds.forEach((sid) => {
+      const m = sid.match(/^(.+)__p(\d+)$/);
+      if (m) {
+        const orig = rows.find((r) => r.id === m[1]);
+        if (!orig) return;
+        const idx = Number(m[2]);
+        const phases = Array.isArray(orig.phases) ? orig.phases : [];
+        const ph = phases[idx];
+        if (!ph) return;
+        base.push({
+          ...orig,
+          id: sid,
+          project_name: `${(orig.project_name || "").replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim()} (${idx + 1}차)`,
+          contract_periods: [{ start: ph.start_date || undefined, end: ph.end_date || undefined }] as Period[],
+          contract_start_date: ph.start_date || null,
+          contract_end_date: ph.end_date || null,
+          completion_date: ph.end_date || (orig as any).completion_date,
+          participants: (ph.participants || []) as Participant[],
+          cert_pdf_path: ph.cert_pdf_path ?? null,
+          participant_file_path: ph.participant_file_path ?? null,
+          phases: [],
+          evaluation_types: (orig.evaluation_types || []).filter((t) => t !== "사후"),
+        } as Row);
+      } else {
+        const r = rows.find((row) => row.id === sid);
+        if (r) base.push(r);
+      }
+    });
+    return base.sort((a, b) => {
       const av = a.contract_start_date ?? "";
       const bv = b.contract_start_date ?? "";
       if (!av && !bv) return 0;
