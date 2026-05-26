@@ -625,11 +625,7 @@ export default function SimilarServices() {
     }
   };
 
-    // 선택된 행만 (없으면 전체) - 착수일 오름차순 정렬 (filtered가 이미 정렬됨)
-    const targets = (selectedIds.size > 0
-      ? filtered.filter((r) => selectedIds.has(r.id))
-      : filtered);
-    if (targets.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+
 
     // 메인 화면 컬럼 순서와 동일
     const data: Record<string, any>[] = [];
@@ -1022,7 +1018,8 @@ export default function SimilarServices() {
                 <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
                 <span className="text-xs">연번 기입 (착수일 오름차순)</span>
               </label>
-              <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel}><Download className="mr-1 h-4 w-4" />엑셀 내보내기</Button>
+              <Button variant="outline" size="sm" onClick={handleExportPdf}><FileText className="mr-1 h-4 w-4" />PDF 병합</Button>
             </div>
           </div>
         </Card>
