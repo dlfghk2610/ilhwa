@@ -591,8 +591,8 @@ export default function SimilarServices() {
 
   const handleExportExcel = async () => {
     const targets = (selectedIds.size > 0
-      ? filtered.filter((r) => selectedIds.has(r.id))
-      : filtered);
+      ? groupedFiltered.filter((r) => selectedIds.has(r.id))
+      : groupedFiltered);
     if (targets.length === 0) { toast.error("보낼 데이터가 없습니다"); return; }
 
     const data: Record<string, any>[] = [];
