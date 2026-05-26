@@ -88,7 +88,7 @@ export default function Careers() {
   const loadAllStats = async (techList: Technician[]) => {
     const { data, error } = await supabase
       .from("career_entries")
-      .select("technician_id,specialty,evaluation_category,period_end_text,recognized_days,client");
+      .select("technician_id,specialty,evaluation_category,period_start,period_end_text,recognized_days,client,project_name");
     if (error) return;
     const byTech = new Map<string, any[]>();
     for (const e of (data || []) as any[]) {
@@ -98,11 +98,22 @@ export default function Careers() {
     const stats: Record<string, TechStat> = {};
     for (const t of techList) {
       const list = byTech.get(t.id) || [];
-      let rec = 0, conv = 0;
-      for (const e of list) {
-        const r = computeRecognition(e as any, t.specialty, false);
-        rec += r.recognizedDays;
-        conv += r.convertedDays;
+      let rec = 0;
+      const recRows = list
+        .map((e) => computeRecognition(e as any, t.specialty, false))
+        .filter((r) => r.convertedDays > 0);
+      for (const r of recRows) rec += r.recognizedDays;
+      // 상세화면 OverlapView와 동일한 방식: 전문분야별로 겹치지 않게 선택한 환산일수 합계
+      const map = new Map<string, typeof recRows>();
+      for (const r of recRows) {
+        const key = (r.entry.specialty || "").trim() || "(미지정)";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(r);
+      }
+      let conv = 0;
+      for (const [, arr] of map) {
+        const chosen = selectOptimal(arr);
+        for (const it of chosen) conv += it.participationDays * it.row.weight;
       }
       stats[t.id] = { recognizedDays: rec, convertedDays: +conv.toFixed(2), count: list.length };
     }
