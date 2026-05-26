@@ -388,6 +388,94 @@ export default function SimilarServices() {
     return av.localeCompare(bv);
   });
 
+  // 사업명에서 "N차" 접미사 분리 (예: "사업명 1차", "사업명(2차)", "사업명-3차", "사업명 2-1차")
+  const parsePhase = (name: string): { base: string; label: string | null } => {
+    const s = (name || "").trim();
+    const m = s.match(/^(.*?)[\s\-_,·]*[(\[]?\s*(\d+(?:[-~]\d+)?\s*차)\s*[)\]]?\s*$/);
+    if (m && m[1].trim()) return { base: m[1].trim(), label: m[2].replace(/\s+/g, "") };
+    return { base: s, label: null };
+  };
+
+  // 같은 base 사업명 + 발주처로 차수 묶기
+  type GroupedRow = Row & { _childIds: string[]; _children: Row[] };
+  const groupedFiltered = useMemo<GroupedRow[]>(() => {
+    const groups = new Map<string, { base: string; client: string; items: { row: Row; label: string | null }[] }>();
+    for (const r of filtered) {
+      const { base, label } = parsePhase(r.project_name);
+      const key = `${base}__${r.client ?? ""}`;
+      const g = groups.get(key) ?? { base, client: r.client ?? "", items: [] };
+      g.items.push({ row: r, label });
+      groups.set(key, g);
+    }
+    const out: GroupedRow[] = [];
+    groups.forEach((g) => {
+      const items = g.items;
+      const anyLabel = items.some((it) => it.label);
+      if (items.length === 1 && !anyLabel) {
+        const r = items[0].row;
+        out.push({ ...r, _childIds: [r.id], _children: [r] });
+        return;
+      }
+      const sorted = [...items].sort((a, b) => {
+        const an = a.label ? parseInt(a.label, 10) : 9999;
+        const bn = b.label ? parseInt(b.label, 10) : 9999;
+        if (an !== bn) return an - bn;
+        return (a.row.start_date ?? "").localeCompare(b.row.start_date ?? "");
+      });
+      const head = sorted[0].row;
+      const childIds = sorted.map((s) => s.row.id);
+      const children = sorted.map((s) => s.row);
+      const phases: Phase[] = sorted.flatMap((s, i) => {
+        const cr = s.row;
+        const inner = Array.isArray(cr.phases) ? cr.phases : [];
+        if (inner.length > 0) {
+          return inner.map((ip) => ({ ...ip, label: ip.label || s.label || `${i + 1}차` }));
+        }
+        return [{
+          label: s.label || `${i + 1}차`,
+          amount: cr.share_amount,
+          contract_amount: cr.contract_amount,
+          share_rate: null,
+          contract_date: cr.contract_date,
+          start_date: cr.start_date,
+          end_date: cr.completion_date,
+          pdf_path: cr.cert_pdf_path,
+        }];
+      });
+      const sumContract = children.reduce((s, c) => s + (Number(c.contract_amount) || 0), 0);
+      const sumShare = children.reduce((s, c) => s + (Number(c.share_amount) || 0), 0);
+      const dates = (vs: (string | null)[]) => vs.filter((v): v is string => !!v).sort();
+      const starts = dates(children.map((c) => c.start_date));
+      const ends = dates(children.map((c) => c.completion_date));
+      out.push({
+        ...head,
+        id: `group:${g.base}::${g.client}`,
+        project_name: g.base,
+        contract_amount: sumContract || null,
+        share_amount: sumShare || null,
+        start_date: starts[0] ?? null,
+        completion_date: ends[ends.length - 1] ?? null,
+        phases,
+        cert_pdf_path: null,
+        is_private: children.some((c) => c.is_private),
+        is_under_90days: children.some((c) => c.is_under_90days),
+        is_lh_completion: children.some((c) => c.is_lh_completion),
+        is_progress: children.some((c) => c.is_progress),
+        _childIds: childIds,
+        _children: children,
+      });
+    });
+    out.sort((a, b) => {
+      const av = a.start_date ?? "";
+      const bv = b.start_date ?? "";
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return av.localeCompare(bv);
+    });
+    return out;
+  }, [filtered]);
+
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // 모바일에서 행 펼치기
