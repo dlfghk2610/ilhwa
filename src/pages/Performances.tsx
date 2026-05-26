@@ -795,7 +795,7 @@ export default function Performances() {
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
                     return (
-                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
                       <TableCell>
                         {(() => {
                           const disabled = t.expired || blockUnder90;
@@ -806,7 +806,7 @@ export default function Performances() {
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
-                        {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-destructive mt-1">⚠ 사후 차수({t.phaseNum}차) - 마지막 차수만 인정되어 집계 제외</div>}
+                        {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-amber-700 mt-1">⚠ 최근차수({t.lastPhaseLabel}차)가 있어 집계 제외</div>}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>}
                         {!t.expired && excludePrivate && (t.row as any).is_private && <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>}
                       </TableCell>
