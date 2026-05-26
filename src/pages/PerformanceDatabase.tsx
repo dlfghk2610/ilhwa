@@ -447,7 +447,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         participants: form.participants,
         participant_file_path,
         cert_pdf_path,
-        phases: form.phases,
+        phases: phasesUploaded,
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
         is_lh_completion: form.is_lh_completion,
