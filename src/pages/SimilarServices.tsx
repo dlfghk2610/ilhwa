@@ -502,7 +502,7 @@ export default function SimilarServices() {
     return a - c > 5 * 365.25 * 24 * 60 * 60 * 1000;
   };
   const toggleSelect = (id: string) => {
-    const row = filtered.find((r) => r.id === id);
+    const row = groupedFiltered.find((r) => r.id === id);
     if (row && isOver5y(row)) {
       toast.error("공고일 기준 5년 경과 사업은 선택할 수 없습니다");
       return;
@@ -513,7 +513,7 @@ export default function SimilarServices() {
       return n;
     });
   };
-  const selectableRows = filtered.filter((r) => !isOver5y(r));
+  const selectableRows = groupedFiltered.filter((r) => !isOver5y(r));
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
