@@ -364,7 +364,12 @@ export default function SimilarServices() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const { error } = await supabase.from("similar_services").delete().eq("id", deleteId);
+    let ids: string[] = [deleteId];
+    if (deleteId.startsWith("group:")) {
+      const g = groupedFiltered.find((r) => r.id === deleteId);
+      if (g) ids = g._childIds;
+    }
+    const { error } = await supabase.from("similar_services").delete().in("id", ids);
     if (error) toast.error(error.message);
     else { toast.success("삭제 완료"); load(); }
     setDeleteId(null);
