@@ -736,8 +736,8 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                   {r.entry.specialty}
                   {excludePrivate && specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
                 </TableCell>
-                <TableCell>{r.entry.duties}</TableCell>
-                <TableCell><Badge variant={r.evalGroup === "환경" ? "default" : "secondary"}>{r.evalGroup}</Badge></TableCell>
+                <TableCell className={r.envByProject ? "text-accent font-semibold" : ""} title={r.envByProject ? "사업명 기준으로 환경 평가로 인정 (가중치 1.0)" : undefined}>{r.entry.duties}{r.envByProject && <span className="ml-1 text-[10px]">(사업명 환경)</span>}</TableCell>
+                <TableCell><Badge variant={r.evalGroup === "환경" ? "default" : "secondary"}>{r.evalGroup}{r.envByProject && "*"}</Badge></TableCell>
                 <TableCell className="text-right">{r.weight.toFixed(1)}</TableCell>
                 <TableCell>{r.entry.participation_company}</TableCell>
                 <TableCell>{r.entry.participation_position}</TableCell>
