@@ -364,7 +364,12 @@ export default function SimilarServices() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const { error } = await supabase.from("similar_services").delete().eq("id", deleteId);
+    let ids: string[] = [deleteId];
+    if (deleteId.startsWith("group:")) {
+      const g = groupedFiltered.find((r) => r.id === deleteId);
+      if (g) ids = g._childIds;
+    }
+    const { error } = await supabase.from("similar_services").delete().in("id", ids);
     if (error) toast.error(error.message);
     else { toast.success("삭제 완료"); load(); }
     setDeleteId(null);
@@ -387,6 +392,94 @@ export default function SimilarServices() {
     if (!bv) return -1;
     return av.localeCompare(bv);
   });
+
+  // 사업명에서 "N차" 접미사 분리 (예: "사업명 1차", "사업명(2차)", "사업명-3차", "사업명 2-1차")
+  const parsePhase = (name: string): { base: string; label: string | null } => {
+    const s = (name || "").trim();
+    const m = s.match(/^(.*?)[\s\-_,·]*[(\[]?\s*(\d+(?:[-~]\d+)?\s*차)\s*[)\]]?\s*$/);
+    if (m && m[1].trim()) return { base: m[1].trim(), label: m[2].replace(/\s+/g, "") };
+    return { base: s, label: null };
+  };
+
+  // 같은 base 사업명 + 발주처로 차수 묶기
+  type GroupedRow = Row & { _childIds: string[]; _children: Row[] };
+  const groupedFiltered = useMemo<GroupedRow[]>(() => {
+    const groups = new Map<string, { base: string; client: string; items: { row: Row; label: string | null }[] }>();
+    for (const r of filtered) {
+      const { base, label } = parsePhase(r.project_name);
+      const key = `${base}__${r.client ?? ""}`;
+      const g = groups.get(key) ?? { base, client: r.client ?? "", items: [] };
+      g.items.push({ row: r, label });
+      groups.set(key, g);
+    }
+    const out: GroupedRow[] = [];
+    groups.forEach((g) => {
+      const items = g.items;
+      const anyLabel = items.some((it) => it.label);
+      if (items.length === 1 && !anyLabel) {
+        const r = items[0].row;
+        out.push({ ...r, _childIds: [r.id], _children: [r] });
+        return;
+      }
+      const sorted = [...items].sort((a, b) => {
+        const an = a.label ? parseInt(a.label, 10) : 9999;
+        const bn = b.label ? parseInt(b.label, 10) : 9999;
+        if (an !== bn) return an - bn;
+        return (a.row.start_date ?? "").localeCompare(b.row.start_date ?? "");
+      });
+      const head = sorted[0].row;
+      const childIds = sorted.map((s) => s.row.id);
+      const children = sorted.map((s) => s.row);
+      const phases: Phase[] = sorted.flatMap((s, i) => {
+        const cr = s.row;
+        const inner = Array.isArray(cr.phases) ? cr.phases : [];
+        if (inner.length > 0) {
+          return inner.map((ip) => ({ ...ip, label: ip.label || s.label || `${i + 1}차` }));
+        }
+        return [{
+          label: s.label || `${i + 1}차`,
+          amount: cr.share_amount,
+          contract_amount: cr.contract_amount,
+          share_rate: null,
+          contract_date: cr.contract_date,
+          start_date: cr.start_date,
+          end_date: cr.completion_date,
+          pdf_path: cr.cert_pdf_path,
+        }];
+      });
+      const sumContract = children.reduce((s, c) => s + (Number(c.contract_amount) || 0), 0);
+      const sumShare = children.reduce((s, c) => s + (Number(c.share_amount) || 0), 0);
+      const dates = (vs: (string | null)[]) => vs.filter((v): v is string => !!v).sort();
+      const starts = dates(children.map((c) => c.start_date));
+      const ends = dates(children.map((c) => c.completion_date));
+      out.push({
+        ...head,
+        id: `group:${g.base}::${g.client}`,
+        project_name: g.base,
+        contract_amount: sumContract || null,
+        share_amount: sumShare || null,
+        start_date: starts[0] ?? null,
+        completion_date: ends[ends.length - 1] ?? null,
+        phases,
+        cert_pdf_path: null,
+        is_private: children.some((c) => c.is_private),
+        is_under_90days: children.some((c) => c.is_under_90days),
+        is_lh_completion: children.some((c) => c.is_lh_completion),
+        is_progress: children.some((c) => c.is_progress),
+        _childIds: childIds,
+        _children: children,
+      });
+    });
+    out.sort((a, b) => {
+      const av = a.start_date ?? "";
+      const bv = b.start_date ?? "";
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return av.localeCompare(bv);
+    });
+    return out;
+  }, [filtered]);
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -414,7 +507,7 @@ export default function SimilarServices() {
     return a - c > 5 * 365.25 * 24 * 60 * 60 * 1000;
   };
   const toggleSelect = (id: string) => {
-    const row = filtered.find((r) => r.id === id);
+    const row = groupedFiltered.find((r) => r.id === id);
     if (row && isOver5y(row)) {
       toast.error("공고일 기준 5년 경과 사업은 선택할 수 없습니다");
       return;
@@ -425,7 +518,7 @@ export default function SimilarServices() {
       return n;
     });
   };
-  const selectableRows = filtered.filter((r) => !isOver5y(r));
+  const selectableRows = groupedFiltered.filter((r) => !isOver5y(r));
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
@@ -498,13 +591,13 @@ export default function SimilarServices() {
     return evalCoef(r) * serviceCoef(r) * Number(r.share_amount ?? 0);
   };
 
-  const totalAppliedCount = filtered.reduce((s, r) => s + appliedCount(r), 0);
-  const totalAppliedAmount = filtered.reduce((s, r) => s + appliedAmount(r), 0);
+  const totalAppliedCount = groupedFiltered.reduce((s, r) => s + appliedCount(r), 0);
+  const totalAppliedAmount = groupedFiltered.reduce((s, r) => s + appliedAmount(r), 0);
 
   const handleExportExcel = async () => {
     const targets = (selectedIds.size > 0
-      ? filtered.filter((r) => selectedIds.has(r.id))
-      : filtered);
+      ? groupedFiltered.filter((r) => selectedIds.has(r.id))
+      : groupedFiltered);
     if (targets.length === 0) { toast.error("보낼 데이터가 없습니다"); return; }
 
     const data: Record<string, any>[] = [];
@@ -558,8 +651,8 @@ export default function SimilarServices() {
 
   const handleExportPdf = async () => {
     const targets = (selectedIds.size > 0
-      ? filtered.filter((r) => selectedIds.has(r.id))
-      : filtered);
+      ? groupedFiltered.filter((r) => selectedIds.has(r.id))
+      : groupedFiltered);
     if (targets.length === 0) { toast.error("보낼 데이터가 없습니다"); return; }
 
     try {
@@ -937,11 +1030,11 @@ export default function SimilarServices() {
                   <TableRow><TableCell colSpan={17} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
-                ) : filtered.length === 0 ? (
+                ) : groupedFiltered.length === 0 ? (
                   <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
                     실적 데이터베이스에서 동기화된 데이터가 없습니다.
                   </TableCell></TableRow>
-                ) : filtered.map((r) => {
+                ) : groupedFiltered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
                   const over5 = isOver5y(r);
@@ -983,9 +1076,9 @@ export default function SimilarServices() {
           <div className="md:hidden divide-y">
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
-            ) : filtered.length === 0 ? (
+            ) : groupedFiltered.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground text-sm px-4">실적 데이터베이스에서 동기화된 데이터가 없습니다.</div>
-            ) : filtered.map((r) => {
+            ) : groupedFiltered.map((r) => {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
@@ -1032,7 +1125,7 @@ export default function SimilarServices() {
           </div>
 
           <div className="px-4 py-2 text-xs text-muted-foreground border-t flex flex-col sm:flex-row gap-1 sm:justify-between">
-            <span>총 {filtered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
+            <span>총 {groupedFiltered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
