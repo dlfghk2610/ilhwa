@@ -322,6 +322,7 @@ export default function Performances() {
         row["참여기간"] = periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n");
         row["참여기간일수"] = part ? partDays : "";
         row["전문분야"] = part?.specialty ?? "";
+        row["소속업체"] = (r as any).is_external_company ? ((r as any).external_company_name ?? "") : myCompany;
         row["직위"] = part?.position ?? "";
         row["책임정도"] = part?.responsibility ?? "";
       }
