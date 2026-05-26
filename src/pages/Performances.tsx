@@ -83,7 +83,7 @@ type Row = {
   participant_file_path: string | null;
   cert_pdf_path: string | null;
   is_private: boolean;
-  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null }>;
+  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null; cert_pdf_path?: string | null; participant_file_path?: string | null }>;
 };
 
 // 사후 + phases 입력시: 마지막 차수의 참여자 정보만 사용 (제일 마지막 차수만 건수 집계)
@@ -345,8 +345,21 @@ export default function Performances() {
       for (const r of targets) {
         pdfSeq++;
         const paths: { path: string; bucket: "performance-certs" | "participant-lists" }[] = [];
-        if (r.cert_pdf_path) paths.push({ path: r.cert_pdf_path, bucket: "performance-certs" });
-        if (includeParticipants && r.participant_file_path) paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
+        const isPost = (r.evaluation_types || []).includes("사후");
+        const phases = Array.isArray(r.phases) ? r.phases : [];
+        if (isPost && phases.length > 0) {
+          for (const ph of phases) {
+            if (ph.cert_pdf_path) paths.push({ path: ph.cert_pdf_path, bucket: "performance-certs" });
+            if (includeParticipants && ph.participant_file_path) paths.push({ path: ph.participant_file_path, bucket: "participant-lists" });
+          }
+          if (paths.length === 0) {
+            if (r.cert_pdf_path) paths.push({ path: r.cert_pdf_path, bucket: "performance-certs" });
+            if (includeParticipants && r.participant_file_path) paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
+          }
+        } else {
+          if (r.cert_pdf_path) paths.push({ path: r.cert_pdf_path, bucket: "performance-certs" });
+          if (includeParticipants && r.participant_file_path) paths.push({ path: r.participant_file_path, bucket: "participant-lists" });
+        }
         let stamped = false;
         const tech = selectedTech.trim();
         for (const { path, bucket } of paths) {
