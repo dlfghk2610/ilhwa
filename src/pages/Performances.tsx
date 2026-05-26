@@ -852,7 +852,7 @@ export default function Performances() {
                 const dispRatio = blockUnder90 ? 0 : t.ratio;
                 const dispPeriod = blockUnder90 ? 0 : t.periodCount;
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
