@@ -1205,12 +1205,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
               ))}
             </div>
 
-            {/* 차수/분담사업 단계 */}
-            {(form.is_dual_participation || form.evaluation_types.includes("사후")) && (
+            {/* 분담사업 단계 (2종 분담참여 시에만) */}
+            {form.is_dual_participation && (
               <div className="space-y-2 p-3 rounded-md bg-background border">
                 <div className="flex items-center justify-between">
-                  <Label>{form.evaluation_types.includes("사후") ? "사후 차수별 정보" : "분담사업 단계"}</Label>
-                  <Button type="button" size="sm" variant="outline" onClick={addPhase}><Plus className="h-3 w-3 mr-1" />{form.evaluation_types.includes("사후") ? "차수 추가" : "단계 추가"}</Button>
+                  <Label>분담사업 단계</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addPhase}><Plus className="h-3 w-3 mr-1" />단계 추가</Button>
                 </div>
                 {form.phases.map((p, i) => (
                   <div key={i} className="border rounded p-2 space-y-2 bg-muted/20">
