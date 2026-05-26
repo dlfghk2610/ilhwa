@@ -83,7 +83,7 @@ type Row = {
   participant_file_path: string | null;
   cert_pdf_path: string | null;
   is_private: boolean;
-  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null }>;
+  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null; cert_pdf_path?: string | null; participant_file_path?: string | null }>;
 };
 
 // 사후 + phases 입력시: 마지막 차수의 참여자 정보만 사용 (제일 마지막 차수만 건수 집계)
