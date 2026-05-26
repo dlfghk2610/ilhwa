@@ -198,8 +198,17 @@ export default function Performances() {
   const [tab, setTab] = useState<string>("single");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
   const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" }>>(new Map());
+  const [myCompany, setMyCompany] = useState<string>("");
 
-  useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
+  useEffect(() => { fetchRows(); fetchTechMeta(); fetchMyCompany(); }, []);
+
+  async function fetchMyCompany() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("company").eq("id", user.id).maybeSingle();
+    setMyCompany((data as any)?.company ?? "");
+  }
+
 
   async function fetchRows() {
     setLoading(true);
