@@ -198,8 +198,17 @@ export default function Performances() {
   const [tab, setTab] = useState<string>("single");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
   const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" }>>(new Map());
+  const [myCompany, setMyCompany] = useState<string>("");
 
-  useEffect(() => { fetchRows(); fetchTechMeta(); }, []);
+  useEffect(() => { fetchRows(); fetchTechMeta(); fetchMyCompany(); }, []);
+
+  async function fetchMyCompany() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("company").eq("id", user.id).maybeSingle();
+    setMyCompany((data as any)?.company ?? "");
+  }
+
 
   async function fetchRows() {
     setLoading(true);
@@ -313,6 +322,7 @@ export default function Performances() {
         row["참여기간"] = periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n");
         row["참여기간일수"] = part ? partDays : "";
         row["전문분야"] = part?.specialty ?? "";
+        row["소속업체"] = (r as any).is_external_company ? ((r as any).external_company_name ?? "") : myCompany;
         row["직위"] = part?.position ?? "";
         row["책임정도"] = part?.responsibility ?? "";
       }
