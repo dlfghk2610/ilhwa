@@ -321,8 +321,19 @@ export default function Performances() {
   }
 
   function exportExcel() {
-    const sorted = getTargets();
     const tech = selectedTech.trim();
+    let sorted = getTargets();
+    if (tech) {
+      sorted = sorted.sort((a, b) => {
+        const aPart = a.participants?.find((p) => p.name === tech);
+        const bPart = b.participants?.find((p) => p.name === tech);
+        const aPeriods = aPart ? getPeriods(aPart) : [];
+        const bPeriods = bPart ? getPeriods(bPart) : [];
+        const aStart = aPeriods.find((p) => p.start)?.start ?? "";
+        const bStart = bPeriods.find((p) => p.start)?.start ?? "";
+        return aStart.localeCompare(bStart);
+      });
+    }
     if (sorted.length === 0) { toast.error("선택된 사업이 없습니다"); return; }
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
@@ -552,7 +563,14 @@ export default function Performances() {
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
-    return computeForTech(selectedTech);
+    const rows = computeForTech(selectedTech);
+    return rows.sort((a, b) => {
+      const aPeriods = getPeriods(a.part);
+      const bPeriods = getPeriods(b.part);
+      const aStart = aPeriods.find((p) => p.start)?.start ?? "";
+      const bStart = bPeriods.find((p) => p.start)?.start ?? "";
+      return aStart.localeCompare(bStart);
+    });
   }, [computeForTech, selectedTech]);
 
   const isDefaultSelected = (t: typeof techRows[number]) => {
@@ -747,7 +765,7 @@ export default function Performances() {
           <span className="text-xs text-muted-foreground">선택 항목 내보내기</span>
           <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
             <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
-            <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+            <span className="text-xs">연번 기입 (참여기간 오름차순)</span>
           </label>
           <Button variant="outline" onClick={exportExcel}><Download className="h-4 w-4 mr-1" /> 엑셀</Button>
           <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
