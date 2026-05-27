@@ -745,6 +745,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
               <TableHead>참여직위</TableHead>
               <TableHead className="text-right">환산일수</TableHead>
               <TableHead>민간</TableHead>
+              <TableHead className="text-center">수기 민간</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
