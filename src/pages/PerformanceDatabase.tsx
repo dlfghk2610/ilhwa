@@ -712,6 +712,21 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           continue;
         }
 
+        const initialPhases: any[] = [];
+        if (phaseLabel) {
+          initialPhases.push({
+            label: phaseLabel,
+            amount: null,
+            contract_amount,
+            share_rate,
+            share_amount,
+            contract_date,
+            start_date: earliestStart,
+            end_date: latestEnd,
+            pdf_path: null,
+            participants: [],
+          });
+        }
         recordMap.set(groupKey, {
           created_by: user.id,
           project_name,
@@ -730,7 +745,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           service_types: splitList(r["사업종류"]),
           participation_rate: null,
           participants: [],
-          phases: [],
+          phases: initialPhases,
           is_private: false,
           is_under_90days: false,
           is_lh_completion: false,
