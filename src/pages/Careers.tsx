@@ -795,7 +795,10 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
                     );
                   })()}
                 </TableCell>
-                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
+                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{r.manualPrivate && "(수기)"}</Badge>}</TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
+                </TableCell>
               </TableRow>
               );
             })}
