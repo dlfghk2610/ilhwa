@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type Period = { start?: string; end?: string };
@@ -527,6 +527,22 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setDeleteId(null);
   }
 
+  async function handleCopy(r: Row) {
+    if (!user) return;
+    const { id, ...rest } = r as any;
+    const payload = {
+      ...rest,
+      project_name: `${r.project_name} (복사)`,
+      created_by: user.id,
+    };
+    delete (payload as any).created_at;
+    delete (payload as any).updated_at;
+    const { error } = await supabase.from("performance_records").insert(payload);
+    if (error) { toast.error(error.message); return; }
+    toast.success("복사 완료");
+    fetchRows();
+  }
+
   function toggleRowSelection(id: string, checked: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -712,6 +728,21 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           continue;
         }
 
+        const initialPhases: any[] = [];
+        if (phaseLabel) {
+          initialPhases.push({
+            label: phaseLabel,
+            amount: null,
+            contract_amount,
+            share_rate,
+            share_amount,
+            contract_date,
+            start_date: earliestStart,
+            end_date: latestEnd,
+            pdf_path: null,
+            participants: [],
+          });
+        }
         recordMap.set(groupKey, {
           created_by: user.id,
           project_name,
@@ -730,7 +761,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           service_types: splitList(r["사업종류"]),
           participation_rate: null,
           participants: [],
-          phases: [],
+          phases: initialPhases,
           is_private: false,
           is_under_90days: false,
           is_lh_completion: false,
@@ -878,8 +909,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="수정"><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleCopy(r)} title="복사"><Copy className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} title="삭제"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>
                 </TableRow>
                 );
@@ -950,6 +982,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                         )}
                         <div className="flex gap-2 pt-2">
                           <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleCopy(r)}><Copy className="h-3 w-3 mr-1" />복사</Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
                         </div>
                       </div>
