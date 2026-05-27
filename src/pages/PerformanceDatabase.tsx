@@ -982,6 +982,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                         )}
                         <div className="flex gap-2 pt-2">
                           <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleCopy(r)}><Copy className="h-3 w-3 mr-1" />복사</Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
                         </div>
                       </div>
