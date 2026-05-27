@@ -812,9 +812,9 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
+function OverlapView({ entries, tech, excludePrivate, manualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string> }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
