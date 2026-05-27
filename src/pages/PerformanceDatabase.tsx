@@ -725,7 +725,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
         const existing = recordMap.get(groupKey);
         if (existing) {
-          const isPost = phaseKind === "차" || (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
+          const isPost = (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
           const label = phaseLabel || (isPost ? `${existing.phases.length + 1}차` : `${existing.phases.length + 1}단계`);
 
           existing.phases.push({
