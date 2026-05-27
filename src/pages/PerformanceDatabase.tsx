@@ -527,6 +527,22 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     setDeleteId(null);
   }
 
+  async function handleCopy(r: Row) {
+    if (!user) return;
+    const { id, ...rest } = r as any;
+    const payload = {
+      ...rest,
+      project_name: `${r.project_name} (복사)`,
+      created_by: user.id,
+    };
+    delete (payload as any).created_at;
+    delete (payload as any).updated_at;
+    const { error } = await supabase.from("performance_records").insert(payload);
+    if (error) { toast.error(error.message); return; }
+    toast.success("복사 완료");
+    fetchRows();
+  }
+
   function toggleRowSelection(id: string, checked: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
