@@ -581,8 +581,10 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     const targetNames = rows.filter((r) => bulkDeletableIds.includes(r.id)).map((r) => r.project_name).filter(Boolean);
     const { error } = await supabase.from("performance_records").delete().in("id", bulkDeletableIds);
     if (error) { toast.error(error.message); setBulkDeleteOpen(false); return; }
-    if (targetNames.length > 0) {
-      await supabase.from("similar_services").delete().in("project_name", targetNames);
+    if (!external && targetNames.length > 0 && user) {
+      await supabase.from("similar_services").delete()
+        .eq("created_by", user.id)
+        .in("project_name", targetNames);
     }
     toast.success(`${bulkDeletableIds.length}건 삭제 완료`);
     setSelectedIds(new Set());
