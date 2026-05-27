@@ -202,7 +202,27 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       .eq("is_external_company", external)
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
-    else setRows((data as any[]).map(normalize));
+    else {
+      const list = (data as any[]).map(normalize);
+      setRows(list);
+      // 고아 유사용역 정리: 자사 실적 화면에서만 수행
+      if (!external && user) {
+        const { data: allOwn } = await supabase
+          .from("performance_records")
+          .select("project_name")
+          .eq("created_by", user.id)
+          .eq("is_external_company", false);
+        const validNames = new Set((allOwn || []).map((r: any) => r.project_name).filter(Boolean));
+        const { data: sims } = await supabase
+          .from("similar_services")
+          .select("id,project_name")
+          .eq("created_by", user.id);
+        const orphanIds = (sims || []).filter((s: any) => !validNames.has(s.project_name)).map((s: any) => s.id);
+        if (orphanIds.length > 0) {
+          await supabase.from("similar_services").delete().in("id", orphanIds);
+        }
+      }
+    }
     setLoading(false);
   }
 
