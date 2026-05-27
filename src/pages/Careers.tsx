@@ -682,11 +682,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} toggleManualPrivate={toggleManualPrivate} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} />}
         </TabsContent>
       </Tabs>
     </div>
