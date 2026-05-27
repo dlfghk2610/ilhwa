@@ -1024,14 +1024,29 @@ export default function SimilarServices() {
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
                   const over5 = isOver5y(r);
                   const isPrivate = r.is_private;
+                  const isDual = r.is_dual_participation;
+                  const isLh = (r as any).is_lh_completion;
+                  const isProgress = (r as any).is_progress;
+                  const rowBg = over5
+                    ? "bg-destructive/5"
+                    : isDual
+                    ? "bg-blue-100/60"
+                    : (isLh || isProgress)
+                    ? "bg-orange-100/60"
+                    : isPrivate
+                    ? "bg-lime-100/60"
+                    : undefined;
                   return (
-                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={over5 ? "bg-destructive/5" : isPrivate ? "bg-lime-100/60" : undefined}>
+                  <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined} className={rowBg}>
                     <TableCell className="align-middle">
                       <Checkbox checked={selectedIds.has(r.id)} disabled={over5} onCheckedChange={() => toggleSelect(r.id)} aria-label="선택" />
                     </TableCell>
                     <TableCell className="font-medium min-w-[160px] max-w-[220px] whitespace-normal break-words align-middle">
                       {r.project_name}{phaseSuffix(r)}
                       {isPrivate && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-lime-200 text-lime-800 border border-lime-300 align-middle">민간</span>}
+                      {isDual && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-blue-200 text-blue-800 border border-blue-300 align-middle">분담</span>}
+                      {isLh && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-orange-200 text-orange-800 border border-orange-300 align-middle">LH기성</span>}
+                      {isProgress && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-orange-200 text-orange-800 border border-orange-300 align-middle">기성</span>}
                       {over5 && <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] rounded bg-destructive/15 text-destructive border border-destructive/30 align-middle">5년 경과</span>}
                     </TableCell>
                     <TableCell className="min-w-[140px] max-w-[200px] whitespace-normal break-words align-middle">{r.client ?? "-"}</TableCell>
