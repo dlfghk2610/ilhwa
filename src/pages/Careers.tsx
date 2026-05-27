@@ -696,8 +696,17 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
-  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
+function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
+  r: R, manualPrivate: Set<string>, excludePrivate: boolean,
+): R & { manualPrivate: boolean } {
+  const isManual = manualPrivate.has(r.entry.id);
+  if (!isManual) return { ...r, manualPrivate: false };
+  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true };
+  return { ...r, isPrivate: true, manualPrivate: true };
+}
+
+function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleManualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; toggleManualPrivate: (id: string) => void }) {
+  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)), [entries, tech.specialty, excludePrivate, manualPrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
