@@ -826,7 +826,7 @@ function OverlapView({ entries, tech, excludePrivate, manualPrivate }: { entries
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty, excludePrivate]);
+  }, [entries, tech.specialty, excludePrivate, manualPrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
