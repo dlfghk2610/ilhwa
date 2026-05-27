@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
+import { Plus, Pencil, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
@@ -82,7 +82,6 @@ export default function SimilarServices() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [shareAmountTouched, setShareAmountTouched] = useState(false);
   const [contractAmountTouched, setContractAmountTouched] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // 적용 계수 필터
@@ -360,19 +359,6 @@ export default function SimilarServices() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    let ids: string[] = [deleteId];
-    if (deleteId.startsWith("group:")) {
-      const g = groupedFiltered.find((r) => r.id === deleteId);
-      if (g) ids = g._childIds;
-    }
-    const { error } = await supabase.from("similar_services").delete().in("id", ids);
-    if (error) toast.error(error.message);
-    else { toast.success("삭제 완료"); load(); }
-    setDeleteId(null);
   };
 
   const filtered = rows.filter((r) => {
@@ -1022,16 +1008,15 @@ export default function SimilarServices() {
                   <TableHead className="whitespace-nowrap text-right">적용건수</TableHead>
                   <TableHead className="whitespace-nowrap text-right">적용금액</TableHead>
                   <TableHead className="whitespace-nowrap text-center">PDF</TableHead>
-                  <TableHead className="text-right w-[60px]">삭제</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={17} className="text-center py-12">
+                  <TableRow><TableCell colSpan={15} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
                 ) : groupedFiltered.length === 0 ? (
-                  <TableRow><TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
                     실적 데이터베이스에서 동기화된 데이터가 없습니다.
                   </TableCell></TableRow>
                 ) : groupedFiltered.map((r) => {
@@ -1061,9 +1046,6 @@ export default function SimilarServices() {
                     <TableCell className="whitespace-nowrap text-right align-middle font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
                       {hasPdf ? <FileText className="h-4 w-4 text-primary inline" /> : <span className="text-muted-foreground">-</span>}
-                    </TableCell>
-                    <TableCell className="text-right align-middle">
-                      <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
                   );
@@ -1114,9 +1096,6 @@ export default function SimilarServices() {
                         <span className="text-muted-foreground">적용금액</span><span className="font-medium">{Math.round(appliedAmount(r)).toLocaleString()}</span>
                         <span className="text-muted-foreground">PDF</span><span>{hasPdf ? <FileText className="h-3.5 w-3.5 text-primary inline" /> : "-"}</span>
                       </div>
-                      <div className="flex justify-end gap-1 pt-1">
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 mr-1 text-destructive" />삭제</Button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1129,19 +1108,6 @@ export default function SimilarServices() {
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
-
-        <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>삭제하시겠습니까?</AlertDialogTitle>
-              <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>삭제</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </AppLayout>
   );
