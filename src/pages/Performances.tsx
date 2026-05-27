@@ -552,7 +552,14 @@ export default function Performances() {
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
-    return computeForTech(selectedTech);
+    const rows = computeForTech(selectedTech);
+    return rows.sort((a, b) => {
+      const aPeriods = getPeriods(a.part);
+      const bPeriods = getPeriods(b.part);
+      const aStart = aPeriods.find((p) => p.start)?.start ?? "";
+      const bStart = bPeriods.find((p) => p.start)?.start ?? "";
+      return aStart.localeCompare(bStart);
+    });
   }, [computeForTech, selectedTech]);
 
   const isDefaultSelected = (t: typeof techRows[number]) => {
