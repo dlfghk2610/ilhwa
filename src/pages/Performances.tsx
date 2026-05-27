@@ -321,8 +321,19 @@ export default function Performances() {
   }
 
   function exportExcel() {
-    const sorted = getTargets();
     const tech = selectedTech.trim();
+    let sorted = getTargets();
+    if (tech) {
+      sorted = sorted.sort((a, b) => {
+        const aPart = a.participants?.find((p) => p.name === tech);
+        const bPart = b.participants?.find((p) => p.name === tech);
+        const aPeriods = aPart ? getPeriods(aPart) : [];
+        const bPeriods = bPart ? getPeriods(bPart) : [];
+        const aStart = aPeriods.find((p) => p.start)?.start ?? "";
+        const bStart = bPeriods.find((p) => p.start)?.start ?? "";
+        return aStart.localeCompare(bStart);
+      });
+    }
     if (sorted.length === 0) { toast.error("선택된 사업이 없습니다"); return; }
     const data = sorted.map((r, i) => {
       const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
