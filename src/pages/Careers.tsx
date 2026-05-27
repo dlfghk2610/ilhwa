@@ -283,6 +283,23 @@ function TechnicianDetail({
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
 
+  // 수기 민간 지정 (localStorage 영속화, technician별)
+  const manualKey = `career_manual_private_${tech.id}`;
+  const [manualPrivate, setManualPrivate] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(manualKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const toggleManualPrivate = (entryId: string) => {
+    setManualPrivate((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  };
+
   const saveCalcStandard = async (v: string) => {
     setCalcStandard(v);
     const { error } = await (supabase as any).from("technicians").update({ calc_standard: v }).eq("id", tech.id);
@@ -316,7 +333,7 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = computeRecognition(e, tech.specialty, excludePrivate);
+        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -665,11 +682,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} toggleManualPrivate={toggleManualPrivate} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -679,8 +696,17 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
-  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
+function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
+  r: R, manualPrivate: Set<string>, excludePrivate: boolean,
+): R & { manualPrivate: boolean } {
+  const isManual = manualPrivate.has(r.entry.id);
+  if (!isManual) return { ...r, manualPrivate: false };
+  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true };
+  return { ...r, isPrivate: true, manualPrivate: true };
+}
+
+function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleManualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; toggleManualPrivate: (id: string) => void }) {
+  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)), [entries, tech.specialty, excludePrivate, manualPrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -719,6 +745,7 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
               <TableHead>참여직위</TableHead>
               <TableHead className="text-right">환산일수</TableHead>
               <TableHead>민간</TableHead>
+              <TableHead className="text-center">수기 민간</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -768,7 +795,10 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
                     );
                   })()}
                 </TableCell>
-                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간</Badge>}</TableCell>
+                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{r.manualPrivate && "(수기)"}</Badge>}</TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
+                </TableCell>
               </TableRow>
               );
             })}
@@ -782,9 +812,9 @@ function RecognitionView({ entries, tech, excludePrivate }: { entries: CareerEnt
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
+function OverlapView({ entries, tech, excludePrivate, manualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string> }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
@@ -796,7 +826,7 @@ function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty, excludePrivate]);
+  }, [entries, tech.specialty, excludePrivate, manualPrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
