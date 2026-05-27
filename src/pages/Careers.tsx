@@ -283,6 +283,23 @@ function TechnicianDetail({
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
 
+  // 수기 민간 지정 (localStorage 영속화, technician별)
+  const manualKey = `career_manual_private_${tech.id}`;
+  const [manualPrivate, setManualPrivate] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(manualKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const toggleManualPrivate = (entryId: string) => {
+    setManualPrivate((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  };
+
   const saveCalcStandard = async (v: string) => {
     setCalcStandard(v);
     const { error } = await (supabase as any).from("technicians").update({ calc_standard: v }).eq("id", tech.id);
