@@ -765,7 +765,7 @@ export default function Performances() {
           <span className="text-xs text-muted-foreground">선택 항목 내보내기</span>
           <label className="flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background cursor-pointer">
             <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
-            <span className="text-xs">연번 기입 (착수일 오름차순)</span>
+            <span className="text-xs">연번 기입 (참여기간 오름차순)</span>
           </label>
           <Button variant="outline" onClick={exportExcel}><Download className="h-4 w-4 mr-1" /> 엑셀</Button>
           <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
