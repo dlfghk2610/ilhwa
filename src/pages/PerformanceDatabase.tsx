@@ -694,9 +694,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         const rawName = String(r["사업명"] ?? "").trim();
         if (!rawName) continue;
         const phaseMatch = rawName.match(/[\(\[（【]\s*(\d+)\s*(차|단계)\s*[\)\]）】]\s*$/);
-        const project_name = phaseMatch ? rawName.replace(phaseMatch[0], "").trim() : rawName;
+        // 차수/단계가 표기된 행은 각각 별도의 사업으로 등록 (사업명 그대로 유지)
+        const project_name = rawName;
         const phaseLabel = phaseMatch ? `${phaseMatch[1]}${phaseMatch[2]}` : null;
-        const phaseKind = phaseMatch ? phaseMatch[2] : null;
         const periodsRaw = String(r["계약기간"] ?? "").trim();
         const periods = periodsRaw
           ? periodsRaw.split(/[|\n]/).map((s) => s.trim()).filter(Boolean).map((s) => {
@@ -718,11 +718,14 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         const contract_date = dateExcelToIso(r["계약일자"]);
         const evaluation_types = splitList(r["평가종류"]);
         const externalName = external ? (String(r["타회사명"] ?? "").trim() || null) : null;
-        const groupKey = `${externalName ?? ""}|${project_name}`;
+        // 차수가 있으면 사업명에 이미 차수가 포함되어 있으므로 항상 고유 키로 처리하여 별도 레코드로 등록
+        const groupKey = phaseLabel
+          ? `${externalName ?? ""}|${project_name}|__row${recordMap.size}__`
+          : `${externalName ?? ""}|${project_name}`;
 
         const existing = recordMap.get(groupKey);
         if (existing) {
-          const isPost = phaseKind === "차" || (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
+          const isPost = (existing.evaluation_types || []).includes("사후") || evaluation_types.includes("사후");
           const label = phaseLabel || (isPost ? `${existing.phases.length + 1}차` : `${existing.phases.length + 1}단계`);
 
           existing.phases.push({
