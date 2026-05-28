@@ -92,6 +92,10 @@ export const isPrivateClient = (clientName?: string | null): boolean => {
   if (/국군|군수사령부|방위사업청|병참|보충대|훈련소|군병원|군악대|국방시설|국방과학|군수지원|기지사령부|함대|비행단|사령부|군단|사단|여단|연대|대대|중대|소대|공군|육군|해군|해병대|특전사|헌병대|정비창|군수처|보병|기갑|포병|공병|통신단|수송단|항공단|군수단|보급창|탄약창|예비군|향토사단|미사일사령부|특수전사령부|작전사령부|군수사|교육사|동원사|군수학교|육군사관학교|해군사관학교|공군사관학교|국방대학교|국군병원|국군수도병원|제[0-9]+(군단|사단|여단|연대|대대|함대|비행단|기지|군|사령부)/.test(name)) return false;
   // 한국토지주택공사/수자원공사/도로공사/철도공사/공항공사 등 명확한 공기업 (과거 명칭 포함)
   if (/한국토지주택|대한주택공사|대한주택|한국토지공사|주택도시보증|수자원공사|도로공사|철도공사|공항공사|한국전력|한국가스|한국수력|한국철도|한국농어촌|농어촌공사|한국환경공단|환경관리공단|한국산업단지|한국감정원|한국부동산원|한국교통안전|교통안전공단|한국시설안전|시설안전공단|건설기술연구원|한국건설기술/.test(name)) return false;
+  // 건설기술 진흥법 시행령 §3 — 발주청에 해당하는 시행자/공사 (전기·항만·신항만·새만금·발전 등)
+  if (/인천국제공항|인천항만|부산항만|울산항만|여수광양항만|평택지방해양수산|신항만건설|새만금개발|남동발전|남부발전|동서발전|서부발전|중부발전|한국수력원자력|한전KDN|한전KPS|한국전력기술|한국지역난방|한국석유공사|한국가스기술|한국광해광업|한국광물자원|한국에너지공단|국가철도공단|한국공항공사/.test(name)) return false;
+  // 출연기관·위탁사업 시행자 키워드 (국가/지자체/공기업 출연·위탁)
+  if (/출연기관|출연연구|국가출연|지방출연|공공기관위탁|위탁사업시행자/.test(name)) return false;
   // 띄어쓰기 없는 행정구역 결합 (예: 강원특별자치도춘천시, 경기도수원시, 서울특별시강남구)
   if (/(특별시|광역시|특별자치시|특별자치도|[가-힣]{1,3}도)[가-힣]{1,6}(시|군|구)/.test(name)) return false;
   if (/^[가-힣]{1,4}(시|군|구|도)[가-힣]{1,6}(과|국|실|부|처|청|소|단|원|관)/.test(name)) return false;
@@ -145,6 +149,14 @@ export type CareerEntry = {
   period_end_text?: string | null;
   recognized_days?: number | null;
   notes?: string | null;
+  manual_private_override?: boolean | null; // null=자동, true=강제 민간, false=강제 비민간
+};
+
+// 발주청(공공) 여부의 최종 판정: 수기 override가 있으면 우선 적용
+export const effectiveIsPrivate = (entry: CareerEntry): boolean => {
+  if (entry.manual_private_override === true) return true;
+  if (entry.manual_private_override === false) return false;
+  return isPrivateClient(entry.client);
 };
 
 export type RecognitionRow = {
@@ -174,7 +186,7 @@ export const computeRecognition = (
     !!entry.specialty &&
     entry.specialty.trim() === techSpecialty.trim();
   
-  const isPrivate = isPrivateClient(entry.client);
+  const isPrivate = effectiveIsPrivate(entry);
 
   // 민간 제외가 체크되어 있고, 해당 발주처가 민간이면 인정일을 0으로 처리
   if (excludePrivate && isPrivate) {

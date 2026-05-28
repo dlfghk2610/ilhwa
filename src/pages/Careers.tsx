@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
-  isWorkingNow, isPrivateClient,
+  isWorkingNow, isPrivateClient, effectiveIsPrivate,
   type CalcStandard,
 } from "@/lib/career-calc";
 
@@ -283,52 +283,21 @@ function TechnicianDetail({
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
 
-  // 수기 민간 지정 (localStorage 영속화, technician별)
-  const manualKey = `career_manual_private_${tech.id}`;
-  const manualNonKey = `career_manual_nonprivate_${tech.id}`;
-  const [manualPrivate, setManualPrivate] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(manualKey);
-      return new Set(raw ? JSON.parse(raw) : []);
-    } catch { return new Set(); }
-  });
-  const [manualNonPrivate, setManualNonPrivate] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(manualNonKey);
-      return new Set(raw ? JSON.parse(raw) : []);
-    } catch { return new Set(); }
-  });
-  const toggleManualPrivate = (entryId: string) => {
-    setManualPrivate((prev) => {
-      const next = new Set(prev);
-      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
-      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
-      return next;
-    });
-    // 상호 배타: 민간O 체크 시 민간X 해제
-    setManualNonPrivate((prev) => {
-      if (!prev.has(entryId)) return prev;
-      const next = new Set(prev);
-      next.delete(entryId);
-      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
-      return next;
-    });
+  // 수기 민간 지정 (DB의 career_entries.manual_private_override에 저장 → 모든 디바이스에서 공유)
+  const setPrivateOverride = async (entryId: string, value: boolean | null) => {
+    // optimistic update
+    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, manual_private_override: value } : e)));
+    const { error } = await (supabase as any)
+      .from("career_entries")
+      .update({ manual_private_override: value })
+      .eq("id", entryId);
+    if (error) {
+      toast.error(error.message);
+      // rollback
+      load();
+    }
   };
-  const toggleManualNonPrivate = (entryId: string) => {
-    setManualNonPrivate((prev) => {
-      const next = new Set(prev);
-      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
-      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
-      return next;
-    });
-    setManualPrivate((prev) => {
-      if (!prev.has(entryId)) return prev;
-      const next = new Set(prev);
-      next.delete(entryId);
-      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
-      return next;
-    });
-  };
+
 
   const saveCalcStandard = async (v: string) => {
     setCalcStandard(v);
@@ -363,8 +332,9 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const eff = excludePrivate && !manualNonPrivate.has(e.id);
-        const r = applyManualPrivate(computeRecognition(e, tech.specialty, eff), manualPrivate, excludePrivate, manualNonPrivate);
+        const r = computeRecognition(e, tech.specialty, excludePrivate);
+
+
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -690,7 +660,7 @@ function TechnicianDetail({
       <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Checkbox id="exclude-private" checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
-          <Label htmlFor="exclude-private" className="cursor-pointer">민간 제외 (발주처 기준 AI 판독: 대학교·개인이름·주식회사·(주))</Label>
+          <Label htmlFor="exclude-private" className="cursor-pointer">민간 제외 (건설기술 진흥법 시행령 §3 발주청 기준 자동 판독 · 우측 체크박스로 수기 수정 가능, Shift+클릭 시 자동판정 복원)</Label>
         </div>
         <div className="flex items-center gap-3">
           <Label className="text-sm">계산 기준:</Label>
@@ -713,11 +683,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} manualNonPrivate={manualNonPrivate} toggleManualPrivate={toggleManualPrivate} toggleManualNonPrivate={toggleManualNonPrivate} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} setPrivateOverride={setPrivateOverride} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} manualNonPrivate={manualNonPrivate} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -727,22 +697,8 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
-  r: R, manualPrivate: Set<string>, excludePrivate: boolean, manualNonPrivate?: Set<string>,
-): R & { manualPrivate: boolean; manualNonPrivate: boolean } {
-  const isManualNon = !!manualNonPrivate?.has(r.entry.id);
-  if (isManualNon) {
-    // 민간X: 발주처 기반 자동판정을 무시하고 민간 아님으로 처리
-    return { ...r, isPrivate: false, manualPrivate: false, manualNonPrivate: true };
-  }
-  const isManual = manualPrivate.has(r.entry.id);
-  if (!isManual) return { ...r, manualPrivate: false, manualNonPrivate: false };
-  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true, manualNonPrivate: false };
-  return { ...r, isPrivate: true, manualPrivate: true, manualNonPrivate: false };
-}
-
-function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate, toggleManualPrivate, toggleManualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string>; toggleManualPrivate: (id: string) => void; toggleManualNonPrivate: (id: string) => void }) {
-  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
+function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; setPrivateOverride: (entryId: string, value: boolean | null) => void }) {
+  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -767,8 +723,8 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
-            {excludePrivate && <TableHead className="text-center w-[120px]">민간 지정</TableHead>}
-            <TableHead>참여시작</TableHead>
+              {excludePrivate && <TableHead className="text-center w-[80px]">민간</TableHead>}
+              <TableHead>참여시작</TableHead>
               <TableHead>참여종료</TableHead>
               <TableHead className="text-right">인정일</TableHead>
               <TableHead>사업명</TableHead>
@@ -789,20 +745,23 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
               const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
               const working = isWorkingNow(r.entry.period_end_text);
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
+              const override = r.entry.manual_private_override;
+              const isManual = override === true || override === false;
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
                 {excludePrivate && (
                 <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-2 text-[11px]">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <Checkbox checked={manualNonPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualNonPrivate(r.entry.id)} />
-                      <span>민간X</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
-                      <span>민간O</span>
-                    </label>
-                  </div>
+                  <Checkbox
+                    checked={r.isPrivate}
+                    onCheckedChange={(v) => setPrivateOverride(r.entry.id, !!v)}
+                    title={isManual ? "수기 지정됨 (Shift+클릭으로 자동판정 복원)" : "자동 판정"}
+                    onClick={(e) => {
+                      if ((e as any).shiftKey) {
+                        e.preventDefault();
+                        setPrivateOverride(r.entry.id, null);
+                      }
+                    }}
+                  />
                 </TableCell>
                 )}
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
@@ -845,7 +804,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
                     );
                   })()}
                 </TableCell>
-                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{r.manualPrivate && "(수기)"}</Badge>}</TableCell>
+                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{isManual && "(수기)"}</Badge>}</TableCell>
               </TableRow>
               );
             })}
@@ -856,12 +815,13 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
   );
 }
 
+
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string> }) {
+function OverlapView({ entries, tech, excludePrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
@@ -873,7 +833,7 @@ function OverlapView({ entries, tech, excludePrivate, manualPrivate, manualNonPr
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
+  }, [entries, tech.specialty, excludePrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
