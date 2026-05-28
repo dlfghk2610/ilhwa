@@ -767,8 +767,8 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
-              <TableHead className="text-center w-[120px]">민간 지정</TableHead>
-              <TableHead>참여시작</TableHead>
+            {excludePrivate && <TableHead className="text-center w-[120px]">민간 지정</TableHead>}
+            <TableHead>참여시작</TableHead>
               <TableHead>참여종료</TableHead>
               <TableHead className="text-right">인정일</TableHead>
               <TableHead>사업명</TableHead>
@@ -791,6 +791,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
+                {excludePrivate && (
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-2 text-[11px]">
                     <label className="flex items-center gap-1 cursor-pointer">
@@ -803,6 +804,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
                     </label>
                   </div>
                 </TableCell>
+                )}
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
