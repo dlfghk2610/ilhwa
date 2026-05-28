@@ -790,6 +790,18 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
+                <TableCell className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-[11px]">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <Checkbox checked={manualNonPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualNonPrivate(r.entry.id)} />
+                      <span>민간X</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
+                      <span>민간O</span>
+                    </label>
+                  </div>
+                </TableCell>
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
