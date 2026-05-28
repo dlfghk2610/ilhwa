@@ -98,22 +98,12 @@ export default function Careers() {
     const stats: Record<string, TechStat> = {};
     for (const t of techList) {
       const list = byTech.get(t.id) || [];
-      let rec = 0;
-      const recRows = list
-        .map((e) => computeRecognition(e as any, t.specialty, false))
-        .filter((r) => r.convertedDays > 0);
-      for (const r of recRows) rec += r.recognizedDays;
-      // 상세화면 OverlapView와 동일한 방식: 전문분야별로 겹치지 않게 선택한 환산일수 합계
-      const map = new Map<string, typeof recRows>();
+      // 상세화면 ① 인정일 계산 탭과 동일: 모든 행의 인정일/환산일수 단순 합계
+      const recRows = list.map((e) => computeRecognition(e as any, t.specialty, false));
+      let rec = 0, conv = 0;
       for (const r of recRows) {
-        const key = (r.entry.specialty || "").trim() || "(미지정)";
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(r);
-      }
-      let conv = 0;
-      for (const [, arr] of map) {
-        const chosen = selectOptimal(arr);
-        for (const it of chosen) conv += it.participationDays * it.row.weight;
+        rec += r.recognizedDays;
+        conv += r.convertedDays;
       }
       stats[t.id] = { recognizedDays: rec, convertedDays: +conv.toFixed(2), count: list.length };
     }
