@@ -65,7 +65,7 @@ export default function PersonalHistory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTech, setEditingTech] = useState<string | null>(null);
   const [techName, setTechName] = useState("");
-  const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "" }]);
+  const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
