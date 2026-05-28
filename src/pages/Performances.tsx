@@ -1058,11 +1058,12 @@ export default function Performances() {
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select value={t.status} onValueChange={(v: "active" | "retired") => updateTechStatus(t.name, v)}>
+                      <Select value={t.status} onValueChange={(v: "active" | "retired" | "pq") => updateTechStatus(t.name, v)}>
                         <SelectTrigger className="w-28 h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="pq">PQ</SelectItem>
                           <SelectItem value="active">재직중</SelectItem>
                           <SelectItem value="retired">퇴사자</SelectItem>
                         </SelectContent>
