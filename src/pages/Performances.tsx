@@ -1012,17 +1012,16 @@ export default function Performances() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">재직 상태</Label>
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    <SelectItem value="active">재직중</SelectItem>
-                    <SelectItem value="retired">퇴사자</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Tabs value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)} className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-4">
+                  <TabsTrigger value="all">전체</TabsTrigger>
+                  <TabsTrigger value="pq">PQ</TabsTrigger>
+                  <TabsTrigger value="active">재직중</TabsTrigger>
+                  <TabsTrigger value="retired">퇴사자</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
               <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                 <Checkbox checked={includeUnder90} onCheckedChange={(c) => setIncludeUnder90(!!c)} />
                 참여일수 90일 미만 포함
