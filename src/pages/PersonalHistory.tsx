@@ -162,7 +162,7 @@ export default function PersonalHistory() {
       department: p.department.trim() || null,
       position: p.position.trim() || null,
       hire_date: p.hire_date || null,
-      resign_date: null,
+      resign_date: p.is_current ? null : (p.resign_date || null),
       duties: null,
       notes: null,
       created_by: user.id,
