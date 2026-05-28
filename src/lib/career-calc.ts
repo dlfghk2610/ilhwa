@@ -186,7 +186,7 @@ export const computeRecognition = (
     !!entry.specialty &&
     entry.specialty.trim() === techSpecialty.trim();
   
-  const isPrivate = isPrivateClient(entry.client);
+  const isPrivate = effectiveIsPrivate(entry);
 
   // 민간 제외가 체크되어 있고, 해당 발주처가 민간이면 인정일을 0으로 처리
   if (excludePrivate && isPrivate) {
