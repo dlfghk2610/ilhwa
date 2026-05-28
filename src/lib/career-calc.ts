@@ -149,6 +149,14 @@ export type CareerEntry = {
   period_end_text?: string | null;
   recognized_days?: number | null;
   notes?: string | null;
+  manual_private_override?: boolean | null; // null=자동, true=강제 민간, false=강제 비민간
+};
+
+// 발주청(공공) 여부의 최종 판정: 수기 override가 있으면 우선 적용
+export const effectiveIsPrivate = (entry: CareerEntry): boolean => {
+  if (entry.manual_private_override === true) return true;
+  if (entry.manual_private_override === false) return false;
+  return isPrivateClient(entry.client);
 };
 
 export type RecognitionRow = {
