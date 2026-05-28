@@ -604,6 +604,7 @@ export default function Performances() {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
     if (excludePrivate && (t.row as any).is_private) return false;
+    if (t.belowAmount) return false;
     if (t.isPhase) {
       if (excludeLhPhases) return false;
       if (!t.isLastPhase) return false;
