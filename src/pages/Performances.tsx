@@ -998,6 +998,16 @@ export default function Performances() {
                 </div>
               </div>
             </div>
+            <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+              <div>
+                <Label className="text-sm">용역금액(계약금액) 최소 (원)</Label>
+                <AmountInput value={minContractAmount} onChange={setMinContractAmount} placeholder="예: 20,000,000" />
+              </div>
+              <div>
+                <Label className="text-sm">지분금액 최소 (원)</Label>
+                <AmountInput value={minShareAmount} onChange={setMinShareAmount} placeholder="예: 20,000,000" />
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
               <div className="flex items-center gap-2">
                 <Label className="text-sm">재직 상태</Label>
