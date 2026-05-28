@@ -257,7 +257,7 @@ export default function Performances() {
   async function fetchTechMeta() {
     // 경력관리(technicians/personal_careers)와 연동하지 않음 — 실적 데이터에 등장한 이름만 사용
     const stored = loadLocalStatus();
-    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" }>();
+    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" | "pq" }>();
     Object.entries(stored).forEach(([name, status]) => {
       map.set(name, { company: "", status });
     });
