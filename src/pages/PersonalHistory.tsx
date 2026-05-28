@@ -351,11 +351,21 @@ export default function PersonalHistory() {
                     <div><Label className="text-xs">부서</Label><Input value={p.department} onChange={(e) => updatePeriod(i, { department: e.target.value })} /></div>
                     <div><Label className="text-xs">직급</Label><Input value={p.position} onChange={(e) => updatePeriod(i, { position: e.target.value })} /></div>
                   </div>
-                  <div><Label className="text-xs">입사일</Label><Input type="date" value={p.hire_date} onChange={(e) => updatePeriod(i, { hire_date: e.target.value })} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">입사일</Label><Input type="date" value={p.hire_date} onChange={(e) => updatePeriod(i, { hire_date: e.target.value })} /></div>
+                    <div>
+                      <Label className="text-xs">퇴사일</Label>
+                      <Input type="date" value={p.resign_date} disabled={p.is_current} onChange={(e) => updatePeriod(i, { resign_date: e.target.value })} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <Checkbox checked={p.is_current} onCheckedChange={(c) => updatePeriod(i, { is_current: !!c, resign_date: c ? "" : p.resign_date })} />
+                    재직중 (체크 시 근무기간을 공고일 기준으로 산정)
+                  </label>
                 </div>
               ))}
               <div className="text-xs text-muted-foreground">
-                각 근무처의 퇴사일은 다음 근무처의 입사일로 자동 계산됩니다. 마지막 근무처는 공고일 기준으로 근무기간이 계산됩니다.
+                입사일 기준으로 자동 정렬됩니다. 퇴사일을 비워두면 다음 근무처의 입사일이, 재직중이면 공고일이 종료일로 사용됩니다.
               </div>
             </div>
           </div>
