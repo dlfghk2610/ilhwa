@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight } from "lucide-react";
 
 type PersonalCareer = {
   id: string;
@@ -64,6 +64,14 @@ export default function PersonalHistory() {
   const [techName, setTechName] = useState("");
   const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "" }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
+  const expandAll = () => setCollapsed({});
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    filtered.forEach(([n]) => { next[n] = true; });
+    setCollapsed(next);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -190,68 +198,115 @@ export default function PersonalHistory() {
         </div>
 
         <Card className="p-3">
-          <div className="text-xs text-muted-foreground mb-2">
-            기술자별로 근무처 이력을 시간 순으로 입력하세요. 마지막 근무처가 현재 재직중이라면 입사일만 입력하면 공고일 기준으로 근무기간이 계산됩니다.
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <div className="text-xs text-muted-foreground">
+              기술자별로 근무처 이력을 시간 순으로 입력하세요. 마지막 근무처가 현재 재직중이라면 입사일만 입력하면 공고일 기준으로 근무기간이 계산됩니다.
+            </div>
+            {filtered.length > 0 && (
+              <div className="flex gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={expandAll}>모두 펼치기</Button>
+                <Button size="sm" variant="outline" onClick={collapseAll}>모두 접기</Button>
+              </div>
+            )}
           </div>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">등록된 이력이 없습니다</div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filtered.map(([name, list]) => {
                 const firstHire = list[0]?.hire_date;
                 const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
                 const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
+                const isCollapsed = !!collapsed[name];
                 return (
                   <div key={name} className="border rounded-md p-3 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div>
-                        <div className="font-semibold text-base">{name}</div>
-                        {announcementDate && firstHire && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
-                            {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 mr-1" />수정</Button>
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggle(name)}
+                        className="flex items-start gap-2 text-left flex-1 min-w-0"
+                      >
+                        {isCollapsed ? <ChevronRight className="h-4 w-4 mt-1 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-1 shrink-0" />}
+                        <div className="min-w-0">
+                          <div className="font-semibold text-base">{name} <span className="text-xs text-muted-foreground font-normal">({list.length}곳)</span></div>
+                          {announcementDate && firstHire && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
+                              {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">수정</span></Button>
                         <Button size="sm" variant="ghost" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
-                    <div className="overflow-auto">
-                      <Table className="min-w-[700px] text-sm">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-12">순번</TableHead>
-                            <TableHead>근무처(회사)</TableHead>
-                            <TableHead>부서</TableHead>
-                            <TableHead>직위</TableHead>
-                            <TableHead>입사일</TableHead>
-                            <TableHead>근무기간</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                    {!isCollapsed && (
+                      <>
+                        {/* Desktop: table */}
+                        <div className="hidden md:block overflow-auto">
+                          <Table className="min-w-[700px] text-sm">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-12">순번</TableHead>
+                                <TableHead>근무처(회사)</TableHead>
+                                <TableHead>부서</TableHead>
+                                <TableHead>직위</TableHead>
+                                <TableHead>입사일</TableHead>
+                                <TableHead>근무기간</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {list.map((r, idx) => {
+                                const isLast = idx === list.length - 1;
+                                const next = list[idx + 1];
+                                const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                                const period = diffYM(r.hire_date, endDate);
+                                return (
+                                  <TableRow key={r.id}>
+                                    <TableCell>{idx + 1}</TableCell>
+                                    <TableCell className="font-medium">{r.company}{isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}</TableCell>
+                                    <TableCell>{r.department || ""}</TableCell>
+                                    <TableCell>{r.position || ""}</TableCell>
+                                    <TableCell>{r.hire_date || ""}</TableCell>
+                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isLast && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        {/* Mobile: cards */}
+                        <div className="md:hidden space-y-2">
                           {list.map((r, idx) => {
                             const isLast = idx === list.length - 1;
                             const next = list[idx + 1];
                             const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
                             const period = diffYM(r.hire_date, endDate);
                             return (
-                              <TableRow key={r.id}>
-                                <TableCell>{idx + 1}</TableCell>
-                                <TableCell className="font-medium">{r.company}{isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}</TableCell>
-                                <TableCell>{r.department || ""}</TableCell>
-                                <TableCell>{r.position || ""}</TableCell>
-                                <TableCell>{r.hire_date || ""}</TableCell>
-                                <TableCell>{period || <span className="text-muted-foreground text-xs">{isLast && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
-                              </TableRow>
+                              <div key={r.id} className="rounded-md border bg-muted/30 p-2.5 text-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="font-medium truncate">
+                                    <span className="text-xs text-muted-foreground mr-1">#{idx + 1}</span>
+                                    {r.company}
+                                    {isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}
+                                  </div>
+                                </div>
+                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                                  {r.department && <div>부서: <span className="text-foreground">{r.department}</span></div>}
+                                  {r.position && <div>직위: <span className="text-foreground">{r.position}</span></div>}
+                                  {r.hire_date && <div>입사: <span className="text-foreground">{r.hire_date}</span></div>}
+                                  <div>기간: <span className="text-foreground">{period || (isLast && !announcementDate ? "공고일 필요" : "-")}</span></div>
+                                </div>
+                              </div>
                             );
                           })}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
