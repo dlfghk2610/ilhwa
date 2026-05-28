@@ -767,8 +767,8 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
-              <TableHead className="text-center w-[120px]">민간 지정</TableHead>
-              <TableHead>참여시작</TableHead>
+            {excludePrivate && <TableHead className="text-center w-[120px]">민간 지정</TableHead>}
+            <TableHead>참여시작</TableHead>
               <TableHead>참여종료</TableHead>
               <TableHead className="text-right">인정일</TableHead>
               <TableHead>사업명</TableHead>
