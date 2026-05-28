@@ -264,7 +264,7 @@ export default function Performances() {
     setTechCompanyMap(map);
   }
 
-  async function updateTechStatus(name: string, status: "active" | "retired") {
+  async function updateTechStatus(name: string, status: "active" | "retired" | "pq") {
     const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
     setTechCompanyMap((m) => {
       const next = new Map(m);
@@ -274,7 +274,8 @@ export default function Performances() {
     const stored = loadLocalStatus();
     stored[name] = status;
     saveLocalStatus(stored);
-    toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
+    const label = status === "active" ? "재직중" : status === "pq" ? "PQ" : "퇴사자";
+    toast.success(`${label}로 변경됨`);
   }
 
 
