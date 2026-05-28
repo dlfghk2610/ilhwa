@@ -244,13 +244,13 @@ export default function Performances() {
     setLoading(false);
   }
 
-  // 재직/퇴사 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
-  const STATUS_LS_KEY = "perf_emp_status.v1";
-  const loadLocalStatus = (): Record<string, "active" | "retired"> => {
+  // 재직/퇴사/PQ 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
+  const STATUS_LS_KEY = "perf_emp_status.v2";
+  const loadLocalStatus = (): Record<string, "active" | "retired" | "pq"> => {
     try { return JSON.parse(localStorage.getItem(STATUS_LS_KEY) || "{}"); }
     catch { return {}; }
   };
-  const saveLocalStatus = (m: Record<string, "active" | "retired">) => {
+  const saveLocalStatus = (m: Record<string, "active" | "retired" | "pq">) => {
     try { localStorage.setItem(STATUS_LS_KEY, JSON.stringify(m)); } catch {}
   };
 
