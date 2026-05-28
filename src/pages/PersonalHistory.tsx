@@ -253,7 +253,7 @@ export default function PersonalHistory() {
                       <>
                         {/* Desktop: table */}
                         <div className="hidden md:block overflow-auto">
-                          <Table className="min-w-[700px] text-sm">
+                          <Table className="min-w-[780px] text-sm">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-12">순번</TableHead>
@@ -261,6 +261,7 @@ export default function PersonalHistory() {
                                 <TableHead>부서</TableHead>
                                 <TableHead>직위</TableHead>
                                 <TableHead>입사일</TableHead>
+                                <TableHead>퇴사일</TableHead>
                                 <TableHead>근무기간</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -268,16 +269,18 @@ export default function PersonalHistory() {
                               {list.map((r, idx) => {
                                 const isLast = idx === list.length - 1;
                                 const next = list[idx + 1];
-                                const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                                const isCurrent = !r.resign_date && isLast;
+                                const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
                                 const period = diffYM(r.hire_date, endDate);
                                 return (
                                   <TableRow key={r.id}>
                                     <TableCell>{idx + 1}</TableCell>
-                                    <TableCell className="font-medium">{r.company}{isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}</TableCell>
+                                    <TableCell className="font-medium">{r.company}{isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}</TableCell>
                                     <TableCell>{r.department || ""}</TableCell>
                                     <TableCell>{r.position || ""}</TableCell>
                                     <TableCell>{r.hire_date || ""}</TableCell>
-                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isLast && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
+                                    <TableCell>{r.resign_date || (isCurrent ? <span className="text-xs text-primary">재직중</span> : "")}</TableCell>
+                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isCurrent && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
                                   </TableRow>
                                 );
                               })}
@@ -289,7 +292,8 @@ export default function PersonalHistory() {
                           {list.map((r, idx) => {
                             const isLast = idx === list.length - 1;
                             const next = list[idx + 1];
-                            const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                            const isCurrent = !r.resign_date && isLast;
+                            const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
                             const period = diffYM(r.hire_date, endDate);
                             return (
                               <div key={r.id} className="rounded-md border bg-muted/30 p-2.5 text-sm">
@@ -297,14 +301,15 @@ export default function PersonalHistory() {
                                   <div className="font-medium truncate">
                                     <span className="text-xs text-muted-foreground mr-1">#{idx + 1}</span>
                                     {r.company}
-                                    {isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}
+                                    {isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}
                                   </div>
                                 </div>
                                 <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                                   {r.department && <div>부서: <span className="text-foreground">{r.department}</span></div>}
                                   {r.position && <div>직위: <span className="text-foreground">{r.position}</span></div>}
                                   {r.hire_date && <div>입사: <span className="text-foreground">{r.hire_date}</span></div>}
-                                  <div>기간: <span className="text-foreground">{period || (isLast && !announcementDate ? "공고일 필요" : "-")}</span></div>
+                                  <div>퇴사: <span className="text-foreground">{r.resign_date || (isCurrent ? "재직중" : "-")}</span></div>
+                                  <div className="col-span-2">기간: <span className="text-foreground">{period || (isCurrent && !announcementDate ? "공고일 필요" : "-")}</span></div>
                                 </div>
                               </div>
                             );
