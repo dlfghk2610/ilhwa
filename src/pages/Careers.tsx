@@ -86,12 +86,23 @@ export default function Careers() {
   };
 
   const loadAllStats = async (techList: Technician[]) => {
-    const { data, error } = await supabase
-      .from("career_entries")
-      .select("technician_id,specialty,evaluation_category,period_start,period_end_text,recognized_days,client,project_name");
-    if (error) return;
+    // 페이징으로 전체 행 가져오기 (Supabase 기본 1000행 제한 회피)
+    const pageSize = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("career_entries")
+        .select("technician_id,specialty,evaluation_category,period_start,period_end_text,recognized_days,client,project_name,manual_private_override")
+        .range(from, from + pageSize - 1);
+      if (error) return;
+      const chunk = (data || []) as any[];
+      all.push(...chunk);
+      if (chunk.length < pageSize) break;
+      from += pageSize;
+    }
     const byTech = new Map<string, any[]>();
-    for (const e of (data || []) as any[]) {
+    for (const e of all) {
       if (!byTech.has(e.technician_id)) byTech.set(e.technician_id, []);
       byTech.get(e.technician_id)!.push(e);
     }
