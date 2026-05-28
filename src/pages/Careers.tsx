@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
-  isWorkingNow, isPrivateClient,
+  isWorkingNow, isPrivateClient, effectiveIsPrivate,
   type CalcStandard,
 } from "@/lib/career-calc";
 
