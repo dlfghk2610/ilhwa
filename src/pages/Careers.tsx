@@ -680,6 +680,28 @@ function TechnicianDetail({
             : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
+
+      {/* 최상단/최하단 스크롤 버튼 */}
+      <div className="fixed right-3 bottom-3 sm:right-6 sm:bottom-6 z-50 flex flex-col gap-2">
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-10 w-10 rounded-full shadow-lg border"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="최상단으로"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </Button>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-10 w-10 rounded-full shadow-lg border"
+          onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })}
+          aria-label="최하단으로"
+        >
+          <ChevronDown className="h-5 w-5" />
+        </Button>
+      </div>
     </div>
   );
 }
