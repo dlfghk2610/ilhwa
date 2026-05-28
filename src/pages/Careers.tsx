@@ -363,7 +363,7 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate);
+        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
