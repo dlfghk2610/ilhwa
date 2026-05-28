@@ -697,22 +697,8 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
-function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
-  r: R, manualPrivate: Set<string>, excludePrivate: boolean, manualNonPrivate?: Set<string>,
-): R & { manualPrivate: boolean; manualNonPrivate: boolean } {
-  const isManualNon = !!manualNonPrivate?.has(r.entry.id);
-  if (isManualNon) {
-    // 민간X: 발주처 기반 자동판정을 무시하고 민간 아님으로 처리
-    return { ...r, isPrivate: false, manualPrivate: false, manualNonPrivate: true };
-  }
-  const isManual = manualPrivate.has(r.entry.id);
-  if (!isManual) return { ...r, manualPrivate: false, manualNonPrivate: false };
-  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true, manualNonPrivate: false };
-  return { ...r, isPrivate: true, manualPrivate: true, manualNonPrivate: false };
-}
-
-function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate, toggleManualPrivate, toggleManualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string>; toggleManualPrivate: (id: string) => void; toggleManualNonPrivate: (id: string) => void }) {
-  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
+function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; setPrivateOverride: (entryId: string, value: boolean | null) => void }) {
+  const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -737,8 +723,8 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
-            {excludePrivate && <TableHead className="text-center w-[120px]">민간 지정</TableHead>}
-            <TableHead>참여시작</TableHead>
+              {excludePrivate && <TableHead className="text-center w-[80px]">민간</TableHead>}
+              <TableHead>참여시작</TableHead>
               <TableHead>참여종료</TableHead>
               <TableHead className="text-right">인정일</TableHead>
               <TableHead>사업명</TableHead>
@@ -759,20 +745,23 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
               const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
               const working = isWorkingNow(r.entry.period_end_text);
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
+              const override = r.entry.manual_private_override;
+              const isManual = override === true || override === false;
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
                 {excludePrivate && (
                 <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-2 text-[11px]">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <Checkbox checked={manualNonPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualNonPrivate(r.entry.id)} />
-                      <span>민간X</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
-                      <span>민간O</span>
-                    </label>
-                  </div>
+                  <Checkbox
+                    checked={r.isPrivate}
+                    onCheckedChange={(v) => setPrivateOverride(r.entry.id, !!v)}
+                    title={isManual ? "수기 지정됨 (Shift+클릭으로 자동판정 복원)" : "자동 판정"}
+                    onClick={(e) => {
+                      if ((e as any).shiftKey) {
+                        e.preventDefault();
+                        setPrivateOverride(r.entry.id, null);
+                      }
+                    }}
+                  />
                 </TableCell>
                 )}
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
@@ -815,7 +804,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
                     );
                   })()}
                 </TableCell>
-                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{r.manualPrivate && "(수기)"}</Badge>}</TableCell>
+                <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{isManual && "(수기)"}</Badge>}</TableCell>
               </TableRow>
               );
             })}
@@ -825,6 +814,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
     </div>
   );
 }
+
 
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
