@@ -58,6 +58,26 @@ function DateInput({ value, onChange, className, placeholder = "YYYY.MM.DD" }: {
   );
 }
 
+const parseAmt = (s: string): number => {
+  const n = Number((s || "").replace(/[^\d]/g, ""));
+  return isNaN(n) ? 0 : n;
+};
+const formatAmt = (n: number): string => n.toLocaleString("ko-KR");
+
+function AmountInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <Input
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d]/g, "");
+        onChange(raw ? Number(raw).toLocaleString("ko-KR") : "");
+      }}
+    />
+  );
+}
+
 const getPeriods = (p: Participant): Period[] => {
   if (Array.isArray(p.periods) && p.periods.length > 0) return p.periods;
   if (p.period_start || p.period_end) return [{ start: p.period_start, end: p.period_end }];
