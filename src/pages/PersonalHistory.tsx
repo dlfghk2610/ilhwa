@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -30,6 +31,8 @@ type PeriodForm = {
   department: string;
   position: string;
   hire_date: string;
+  resign_date: string;
+  is_current: boolean;
 };
 
 const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
@@ -62,7 +65,7 @@ export default function PersonalHistory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTech, setEditingTech] = useState<string | null>(null);
   const [techName, setTechName] = useState("");
-  const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "" }]);
+  const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
@@ -114,7 +117,7 @@ export default function PersonalHistory() {
   const openNew = () => {
     setEditingTech(null);
     setTechName("");
-    setPeriods([{ company: "", department: "", position: "", hire_date: "" }]);
+    setPeriods([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
     setDialogOpen(true);
   };
 
@@ -127,6 +130,8 @@ export default function PersonalHistory() {
       department: r.department || "",
       position: r.position || "",
       hire_date: r.hire_date || "",
+      resign_date: r.resign_date || "",
+      is_current: !r.resign_date,
     })));
     setDialogOpen(true);
   };
@@ -134,7 +139,7 @@ export default function PersonalHistory() {
   const updatePeriod = (i: number, patch: Partial<PeriodForm>) => {
     setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   };
-  const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "" }]);
+  const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: false }]);
   const removePeriod = (i: number) => setPeriods((p) => p.filter((_, idx) => idx !== i));
 
   const save = async () => {
@@ -157,7 +162,7 @@ export default function PersonalHistory() {
       department: p.department.trim() || null,
       position: p.position.trim() || null,
       hire_date: p.hire_date || null,
-      resign_date: null,
+      resign_date: p.is_current ? null : (p.resign_date || null),
       duties: null,
       notes: null,
       created_by: user.id,
@@ -248,7 +253,7 @@ export default function PersonalHistory() {
                       <>
                         {/* Desktop: table */}
                         <div className="hidden md:block overflow-auto">
-                          <Table className="min-w-[700px] text-sm">
+                          <Table className="min-w-[780px] text-sm">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-12">순번</TableHead>
@@ -256,6 +261,7 @@ export default function PersonalHistory() {
                                 <TableHead>부서</TableHead>
                                 <TableHead>직위</TableHead>
                                 <TableHead>입사일</TableHead>
+                                <TableHead>퇴사일</TableHead>
                                 <TableHead>근무기간</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -263,16 +269,18 @@ export default function PersonalHistory() {
                               {list.map((r, idx) => {
                                 const isLast = idx === list.length - 1;
                                 const next = list[idx + 1];
-                                const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                                const isCurrent = !r.resign_date && isLast;
+                                const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
                                 const period = diffYM(r.hire_date, endDate);
                                 return (
                                   <TableRow key={r.id}>
                                     <TableCell>{idx + 1}</TableCell>
-                                    <TableCell className="font-medium">{r.company}{isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}</TableCell>
+                                    <TableCell className="font-medium">{r.company}{isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}</TableCell>
                                     <TableCell>{r.department || ""}</TableCell>
                                     <TableCell>{r.position || ""}</TableCell>
                                     <TableCell>{r.hire_date || ""}</TableCell>
-                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isLast && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
+                                    <TableCell>{r.resign_date || (isCurrent ? <span className="text-xs text-primary">재직중</span> : "")}</TableCell>
+                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isCurrent && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
                                   </TableRow>
                                 );
                               })}
@@ -284,7 +292,8 @@ export default function PersonalHistory() {
                           {list.map((r, idx) => {
                             const isLast = idx === list.length - 1;
                             const next = list[idx + 1];
-                            const endDate = isLast ? (announcementDate || null) : (next?.hire_date || null);
+                            const isCurrent = !r.resign_date && isLast;
+                            const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
                             const period = diffYM(r.hire_date, endDate);
                             return (
                               <div key={r.id} className="rounded-md border bg-muted/30 p-2.5 text-sm">
@@ -292,14 +301,15 @@ export default function PersonalHistory() {
                                   <div className="font-medium truncate">
                                     <span className="text-xs text-muted-foreground mr-1">#{idx + 1}</span>
                                     {r.company}
-                                    {isLast && announcementDate ? <span className="ml-1 text-xs text-primary">(현재)</span> : null}
+                                    {isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}
                                   </div>
                                 </div>
                                 <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                                   {r.department && <div>부서: <span className="text-foreground">{r.department}</span></div>}
                                   {r.position && <div>직위: <span className="text-foreground">{r.position}</span></div>}
                                   {r.hire_date && <div>입사: <span className="text-foreground">{r.hire_date}</span></div>}
-                                  <div>기간: <span className="text-foreground">{period || (isLast && !announcementDate ? "공고일 필요" : "-")}</span></div>
+                                  <div>퇴사: <span className="text-foreground">{r.resign_date || (isCurrent ? "재직중" : "-")}</span></div>
+                                  <div className="col-span-2">기간: <span className="text-foreground">{period || (isCurrent && !announcementDate ? "공고일 필요" : "-")}</span></div>
                                 </div>
                               </div>
                             );
@@ -341,11 +351,21 @@ export default function PersonalHistory() {
                     <div><Label className="text-xs">부서</Label><Input value={p.department} onChange={(e) => updatePeriod(i, { department: e.target.value })} /></div>
                     <div><Label className="text-xs">직급</Label><Input value={p.position} onChange={(e) => updatePeriod(i, { position: e.target.value })} /></div>
                   </div>
-                  <div><Label className="text-xs">입사일</Label><Input type="date" value={p.hire_date} onChange={(e) => updatePeriod(i, { hire_date: e.target.value })} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">입사일</Label><Input type="date" value={p.hire_date} onChange={(e) => updatePeriod(i, { hire_date: e.target.value })} /></div>
+                    <div>
+                      <Label className="text-xs">퇴사일</Label>
+                      <Input type="date" value={p.resign_date} disabled={p.is_current} onChange={(e) => updatePeriod(i, { resign_date: e.target.value })} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <Checkbox checked={p.is_current} onCheckedChange={(c) => updatePeriod(i, { is_current: !!c, resign_date: c ? "" : p.resign_date })} />
+                    재직중 (체크 시 근무기간을 공고일 기준으로 산정)
+                  </label>
                 </div>
               ))}
               <div className="text-xs text-muted-foreground">
-                각 근무처의 퇴사일은 다음 근무처의 입사일로 자동 계산됩니다. 마지막 근무처는 공고일 기준으로 근무기간이 계산됩니다.
+                입사일 기준으로 자동 정렬됩니다. 퇴사일을 비워두면 다음 근무처의 입사일이, 재직중이면 공고일이 종료일로 사용됩니다.
               </div>
             </div>
           </div>
