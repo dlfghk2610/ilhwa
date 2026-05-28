@@ -363,7 +363,8 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate);
+        const eff = excludePrivate && !manualNonPrivate.has(e.id);
+        const r = applyManualPrivate(computeRecognition(e, tech.specialty, eff), manualPrivate, excludePrivate, manualNonPrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -741,7 +742,7 @@ function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolea
 }
 
 function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate, toggleManualPrivate, toggleManualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string>; toggleManualPrivate: (id: string) => void; toggleManualNonPrivate: (id: string) => void }) {
-  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
+  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -858,7 +859,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
 // ─────────────────────────────────────────────────────────
 function OverlapView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string> }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
