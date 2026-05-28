@@ -130,6 +130,8 @@ export default function PersonalHistory() {
       department: r.department || "",
       position: r.position || "",
       hire_date: r.hire_date || "",
+      resign_date: r.resign_date || "",
+      is_current: !r.resign_date,
     })));
     setDialogOpen(true);
   };
