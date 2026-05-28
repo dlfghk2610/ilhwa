@@ -414,6 +414,9 @@ export type Database = {
           display_name: string | null
           id: string
           position: string | null
+          theme_background: string | null
+          theme_primary: string | null
+          theme_sidebar: string | null
           updated_at: string
         }
         Insert: {
@@ -423,6 +426,9 @@ export type Database = {
           display_name?: string | null
           id: string
           position?: string | null
+          theme_background?: string | null
+          theme_primary?: string | null
+          theme_sidebar?: string | null
           updated_at?: string
         }
         Update: {
@@ -432,6 +438,9 @@ export type Database = {
           display_name?: string | null
           id?: string
           position?: string | null
+          theme_background?: string | null
+          theme_primary?: string | null
+          theme_sidebar?: string | null
           updated_at?: string
         }
         Relationships: []
