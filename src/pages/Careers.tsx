@@ -859,7 +859,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
 // ─────────────────────────────────────────────────────────
 function OverlapView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string> }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
