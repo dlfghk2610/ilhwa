@@ -709,6 +709,121 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
+function MobileRecognitionList({
+  rows, tech, excludePrivate, setPrivateOverride,
+}: {
+  rows: ReturnType<typeof computeRecognition>[];
+  tech: Technician;
+  excludePrivate: boolean;
+  setPrivateOverride: (id: string, v: boolean | null) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [allOpen, setAllOpen] = useState(false);
+
+  const toggleAll = () => {
+    const next = !allOpen;
+    setAllOpen(next);
+    if (next) {
+      const map: Record<string, boolean> = {};
+      rows.forEach((r) => { map[r.entry.id] = true; });
+      setExpanded(map);
+    } else {
+      setExpanded({});
+    }
+  };
+
+  return (
+    <div className="md:hidden space-y-2">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" onClick={toggleAll}>
+          {allOpen ? "전체 접기" : "전체 펼치기"}
+        </Button>
+      </div>
+      {rows.map((r, i) => {
+        const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
+        const working = isWorkingNow(r.entry.period_end_text);
+        const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
+        const override = r.entry.manual_private_override;
+        const isManual = override === true || override === false;
+        const isOpen = !!expanded[r.entry.id];
+        return (
+          <Card key={r.entry.id || i} className={`p-3 ${flagged ? "border-destructive/50 bg-destructive/5" : ""}`}>
+            <button
+              type="button"
+              className="w-full text-left"
+              onClick={() => setExpanded((p) => ({ ...p, [r.entry.id]: !p[r.entry.id] }))}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm break-words">{r.entry.project_name || "(사업명 없음)"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground break-words">
+                    발주처: <span className="text-foreground">{r.entry.client || "-"}</span>
+                    {excludePrivate && r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간{isManual && "(수기)"}</Badge>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                    <span>인정일 <b>{r.recognizedDays}</b>일</span>
+                    <span>환산 <b>{r.convertedDays}</b>일</span>
+                    <Badge variant={r.evalGroup === "환경" ? "default" : "secondary"} className="text-[10px]">{r.evalGroup}</Badge>
+                  </div>
+                </div>
+                {isOpen ? <ChevronUp className="h-4 w-4 shrink-0 mt-0.5" /> : <ChevronDown className="h-4 w-4 shrink-0 mt-0.5" />}
+              </div>
+            </button>
+            {isOpen && (
+              <div className="mt-3 pt-3 border-t space-y-1.5 text-xs">
+                <DetailRow label="참여기간">{formatIso(r.entry.period_start)} ~ {r.entry.period_end_text || ""}</DetailRow>
+                <DetailRow label="사업공종">{r.entry.service_field || "-"}</DetailRow>
+                <DetailRow label="전문분야">
+                  {r.entry.specialty || "-"}
+                  {excludePrivate && specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
+                </DetailRow>
+                <DetailRow label="담당업무">{r.entry.duties || "-"}{r.envByProject && <span className="ml-1 text-[10px] text-accent">(사업명 환경)</span>}</DetailRow>
+                <DetailRow label="가중치">{r.weight.toFixed(1)}</DetailRow>
+                <DetailRow label="참여회사">{r.entry.participation_company || "-"}</DetailRow>
+                <DetailRow label="참여직위">{r.entry.participation_position || "-"}</DetailRow>
+                {excludePrivate && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox
+                      id={`m-priv-${r.entry.id}`}
+                      checked={r.isPrivate}
+                      onCheckedChange={(v) => setPrivateOverride(r.entry.id, !!v)}
+                      onClick={(e) => {
+                        if ((e as any).shiftKey) {
+                          e.preventDefault();
+                          setPrivateOverride(r.entry.id, null);
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`m-priv-${r.entry.id}`} className="text-xs cursor-pointer">
+                      민간 {isManual && <span className="text-muted-foreground">(수기)</span>}
+                    </Label>
+                  </div>
+                )}
+                {flagged && (
+                  <div className="pt-2 flex flex-wrap gap-1 text-[10px] font-semibold">
+                    {specialtyMismatch && <span className="text-destructive">⚠ 전문분야 불일치</span>}
+                    {r.isPrivate && <span className="text-destructive">⚠ 민간사업</span>}
+                    {working && <span className="text-destructive">⚠ 근무중</span>}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-muted-foreground shrink-0 w-20">{label}</span>
+      <span className="flex-1 break-words">{children}</span>
+    </div>
+  );
+}
+
 function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; setPrivateOverride: (entryId: string, value: boolean | null) => void }) {
   const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
