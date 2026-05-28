@@ -139,7 +139,7 @@ export default function PersonalHistory() {
   const updatePeriod = (i: number, patch: Partial<PeriodForm>) => {
     setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   };
-  const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "" }]);
+  const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: false }]);
   const removePeriod = (i: number) => setPeriods((p) => p.filter((_, idx) => idx !== i));
 
   const save = async () => {
