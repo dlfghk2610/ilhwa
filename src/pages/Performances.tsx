@@ -189,6 +189,8 @@ export default function Performances() {
   const [includeUnder90, setIncludeUnder90] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
+  const [minContractAmount, setMinContractAmount] = useState<string>("");
+  const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
