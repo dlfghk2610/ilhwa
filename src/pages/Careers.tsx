@@ -650,7 +650,7 @@ function TechnicianDetail({
       <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Checkbox id="exclude-private" checked={excludePrivate} onCheckedChange={(v) => setExcludePrivate(!!v)} />
-          <Label htmlFor="exclude-private" className="cursor-pointer">민간 제외 (건설기술 진흥법 시행령 §3 발주청 기준 자동 판독 · 우측 체크박스로 수기 수정 가능, Shift+클릭 시 자동판정 복원)</Label>
+          <Label htmlFor="exclude-private" className="cursor-pointer">민간제외(민간 자동판독, 체크박스로 민간여부 반영가능)</Label>
         </div>
         <div className="flex items-center gap-3">
           <Label className="text-sm">계산 기준:</Label>
