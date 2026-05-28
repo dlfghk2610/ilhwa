@@ -791,6 +791,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
+                {excludePrivate && (
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-2 text-[11px]">
                     <label className="flex items-center gap-1 cursor-pointer">
@@ -803,6 +804,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualN
                     </label>
                   </div>
                 </TableCell>
+                )}
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
