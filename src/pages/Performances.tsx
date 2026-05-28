@@ -620,6 +620,7 @@ export default function Performances() {
           if (t.expired) next.delete(t.row.id);
           if (!includeUnder90 && t.under90) next.delete(t.row.id);
           if (excludePrivate && (t.row as any).is_private) next.delete(t.row.id);
+          if (t.belowAmount) next.delete(t.row.id);
           if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
         });
         return next;
@@ -628,10 +629,10 @@ export default function Performances() {
     }
     setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
+  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const techTotals = useMemo(() => {
-    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && techSelectedRowIds.has(t.row.id));
+    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && !t.belowAmount && techSelectedRowIds.has(t.row.id));
     const simple = active.reduce((a, b) => a + b.simple, 0);
     const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
@@ -640,7 +641,7 @@ export default function Performances() {
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [techRows, includeUnder90, excludeLhPhases, excludePrivate]
+    [techRows, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
