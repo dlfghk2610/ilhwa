@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Download, Loader2, X, FileText, Trash2 } from "lucide-react";
+import { Download, Loader2, X, FileText, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -220,6 +220,10 @@ export default function Performances() {
   const [tab, setTab] = useState<string>("single");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired" | "pq">("all");
   const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" | "pq" }>>(new Map());
+  const [expandedAllRows, setExpandedAllRows] = useState<Set<string>>(new Set());
+  const toggleAllRow = (name: string) => setExpandedAllRows((prev) => {
+    const next = new Set(prev); if (next.has(name)) next.delete(name); else next.add(name); return next;
+  });
 
   const [myCompany, setMyCompany] = useState<string>("");
 
@@ -1037,7 +1041,7 @@ export default function Performances() {
             </div>
           </Card>
 
-          <Card className="overflow-x-auto">
+          <Card className="overflow-x-auto hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1078,6 +1082,55 @@ export default function Performances() {
               </TableBody>
             </Table>
           </Card>
+
+          {/* 모바일 카드 뷰 */}
+          <div className="md:hidden space-y-2">
+            {filteredAllTechStats.length === 0 ? (
+              <Card className="p-6 text-center text-muted-foreground text-sm">표시할 기술자가 없습니다</Card>
+            ) : filteredAllTechStats.map((t) => {
+              const open = expandedAllRows.has(t.name);
+              return (
+                <Card key={t.name} className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleAllRow(t.name)}
+                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                    >
+                      {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                      <span className="font-semibold truncate">{t.name}</span>
+                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <div className="text-[10px] text-muted-foreground leading-none">단순/기간</div>
+                        <div className="text-sm font-semibold">{t.simple.toFixed(2)} / {t.period.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {open && (
+                    <div className="mt-3 pt-3 border-t space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">회사</span><span>{t.company || "-"}</span></div>
+                      <div className="flex justify-between items-center"><span className="text-muted-foreground">상태</span>
+                        <Select value={t.status} onValueChange={(v: "active" | "retired" | "pq") => updateTechStatus(t.name, v)}>
+                          <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pq">PQ</SelectItem>
+                            <SelectItem value="active">재직중</SelectItem>
+                            <SelectItem value="retired">퇴사자</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">참여사업수</span><span>{t.count}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">집계대상</span><span>{t.activeCount}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">단순건수</span><span className="font-semibold">{t.simple.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">기간대비건수</span><span className="font-semibold">{t.period.toFixed(2)}</span></div>
+                      <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => { setSelectedTech(t.name); setTechSelectionTouched(false); setTab("single"); }}>상세 보기</Button>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         </TabsContent>
       </Tabs>
     </AppLayout>
