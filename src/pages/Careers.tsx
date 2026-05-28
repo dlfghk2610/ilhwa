@@ -727,12 +727,17 @@ function TechnicianDetail({
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
 function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
-  r: R, manualPrivate: Set<string>, excludePrivate: boolean,
-): R & { manualPrivate: boolean } {
+  r: R, manualPrivate: Set<string>, excludePrivate: boolean, manualNonPrivate?: Set<string>,
+): R & { manualPrivate: boolean; manualNonPrivate: boolean } {
+  const isManualNon = !!manualNonPrivate?.has(r.entry.id);
+  if (isManualNon) {
+    // 민간X: 발주처 기반 자동판정을 무시하고 민간 아님으로 처리
+    return { ...r, isPrivate: false, manualPrivate: false, manualNonPrivate: true };
+  }
   const isManual = manualPrivate.has(r.entry.id);
-  if (!isManual) return { ...r, manualPrivate: false };
-  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true };
-  return { ...r, isPrivate: true, manualPrivate: true };
+  if (!isManual) return { ...r, manualPrivate: false, manualNonPrivate: false };
+  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true, manualNonPrivate: false };
+  return { ...r, isPrivate: true, manualPrivate: true, manualNonPrivate: false };
 }
 
 function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleManualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; toggleManualPrivate: (id: string) => void }) {
