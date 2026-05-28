@@ -5,14 +5,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const PRIMARY_BASE = "app_theme_color";
 const SIDEBAR_BASE = "app_sidebar_color";
+const BACKGROUND_BASE = "app_background_color";
 const DEFAULT_PRIMARY = "#1d4ed8";
 const DEFAULT_SIDEBAR = "#15233d";
+const DEFAULT_BACKGROUND = "#f6f8fb";
 
 const primaryKey = (uid?: string | null) => (uid ? `${PRIMARY_BASE}:${uid}` : PRIMARY_BASE);
 const sidebarKey = (uid?: string | null) => (uid ? `${SIDEBAR_BASE}:${uid}` : SIDEBAR_BASE);
+const backgroundKey = (uid?: string | null) => (uid ? `${BACKGROUND_BASE}:${uid}` : BACKGROUND_BASE);
 
 const PRESETS = [
   { name: "기본 블루", hex: "#1d4ed8" },
@@ -34,6 +38,17 @@ const SIDEBAR_PRESETS = [
   { name: "인디고", hex: "#1e1b4b" },
   { name: "라이트 그레이", hex: "#f1f5f9" },
   { name: "웜 화이트", hex: "#faf8f5" },
+];
+
+const BACKGROUND_PRESETS = [
+  { name: "기본", hex: "#f6f8fb" },
+  { name: "순백", hex: "#ffffff" },
+  { name: "웜 화이트", hex: "#faf8f5" },
+  { name: "쿨 그레이", hex: "#eef2f7" },
+  { name: "민트", hex: "#eef7f3" },
+  { name: "라벤더", hex: "#f1eef9" },
+  { name: "차콜", hex: "#1f2937" },
+  { name: "딥 블랙", hex: "#0a0a0a" },
 ];
 
 function hexToHsl(hex: string): { hsl: string; l: number } {
@@ -81,12 +96,27 @@ function applySidebar(hex: string) {
   root.style.setProperty("--sidebar-border", border);
 }
 
+function applyBackground(hex: string) {
+  const { hsl, l } = hexToHsl(hex);
+  const root = document.documentElement;
+  const isDark = l < 50;
+  const fg = isDark ? "210 30% 95%" : "215 30% 15%";
+  const h = hsl.split(" ")[0];
+  const subtleTop = hsl;
+  const subtleBottom = isDark ? `${h} 25% ${Math.max(l - 4, 4)}%` : `${h} 30% ${Math.max(l - 4, 70)}%`;
+  root.style.setProperty("--background", hsl);
+  root.style.setProperty("--foreground", fg);
+  root.style.setProperty("--gradient-subtle", `linear-gradient(180deg, hsl(${subtleTop}), hsl(${subtleBottom}))`);
+}
+
 /** Pre-auth init: applies the unscoped (legacy) saved theme if present, else defaults. */
 export function initTheme() {
   const saved = localStorage.getItem(PRIMARY_BASE);
   if (saved) applyPrimary(saved);
   const sb = localStorage.getItem(SIDEBAR_BASE);
   if (sb) applySidebar(sb);
+  const bg = localStorage.getItem(BACKGROUND_BASE);
+  if (bg) applyBackground(bg);
 }
 
 function ColorEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -117,33 +147,65 @@ export function ThemeSettings() {
   const uid = user?.id;
   const [color, setColor] = useState<string>(DEFAULT_PRIMARY);
   const [sidebarColor, setSidebarColor] = useState<string>(DEFAULT_SIDEBAR);
-  // Track which uid the current state was loaded for; persist effects must
-  // not run with values from a previous user against a new user's keys.
+  const [backgroundColor, setBackgroundColor] = useState<string>(DEFAULT_BACKGROUND);
   const loadedUidRef = useRef<string | null | undefined>(undefined);
 
-  // Load when user (scope) changes
+  // Load when user (scope) changes — try DB first for signed-in users, fall back to localStorage
   useEffect(() => {
-    const c = localStorage.getItem(primaryKey(uid)) || (uid ? DEFAULT_PRIMARY : (localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY));
-    const s = localStorage.getItem(sidebarKey(uid)) || (uid ? DEFAULT_SIDEBAR : (localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR));
-    setColor(c);
-    setSidebarColor(s);
-    applyPrimary(c);
-    applySidebar(s);
-    loadedUidRef.current = uid ?? null;
+    let cancelled = false;
+    (async () => {
+      const lsP = localStorage.getItem(primaryKey(uid));
+      const lsS = localStorage.getItem(sidebarKey(uid));
+      const lsB = localStorage.getItem(backgroundKey(uid));
+      let c = lsP || (uid ? DEFAULT_PRIMARY : (localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY));
+      let s = lsS || (uid ? DEFAULT_SIDEBAR : (localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR));
+      let b = lsB || (uid ? DEFAULT_BACKGROUND : (localStorage.getItem(BACKGROUND_BASE) || DEFAULT_BACKGROUND));
+
+      if (uid) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("theme_primary, theme_sidebar, theme_background")
+          .eq("id", uid)
+          .maybeSingle();
+        if (cancelled) return;
+        if (data?.theme_primary) c = data.theme_primary;
+        if (data?.theme_sidebar) s = data.theme_sidebar;
+        if (data?.theme_background) b = data.theme_background;
+      }
+
+      if (cancelled) return;
+      setColor(c);
+      setSidebarColor(s);
+      setBackgroundColor(b);
+      applyPrimary(c);
+      applySidebar(s);
+      applyBackground(b);
+      loadedUidRef.current = uid ?? null;
+    })();
+    return () => { cancelled = true; };
   }, [uid]);
 
-  // Persist + apply on change — only after load for THIS uid completed.
+  // Persist + apply on change
   useEffect(() => {
     if (loadedUidRef.current !== (uid ?? null)) return;
     applyPrimary(color);
     try { localStorage.setItem(primaryKey(uid), color); } catch {}
+    if (uid) supabase.from("profiles").update({ theme_primary: color }).eq("id", uid).then(() => {});
   }, [color, uid]);
 
   useEffect(() => {
     if (loadedUidRef.current !== (uid ?? null)) return;
     applySidebar(sidebarColor);
     try { localStorage.setItem(sidebarKey(uid), sidebarColor); } catch {}
+    if (uid) supabase.from("profiles").update({ theme_sidebar: sidebarColor }).eq("id", uid).then(() => {});
   }, [sidebarColor, uid]);
+
+  useEffect(() => {
+    if (loadedUidRef.current !== (uid ?? null)) return;
+    applyBackground(backgroundColor);
+    try { localStorage.setItem(backgroundKey(uid), backgroundColor); } catch {}
+    if (uid) supabase.from("profiles").update({ theme_background: backgroundColor }).eq("id", uid).then(() => {});
+  }, [backgroundColor, uid]);
 
   return (
     <Popover>
@@ -186,7 +248,23 @@ export function ThemeSettings() {
             <ColorEditor value={sidebarColor} onChange={setSidebarColor} />
           </div>
 
-          <Button variant="outline" size="sm" className="w-full" onClick={() => { setColor(DEFAULT_PRIMARY); setSidebarColor(DEFAULT_SIDEBAR); }}>
+          <div className="border-t pt-4">
+            <Label className="text-sm font-semibold">배경 색상 (Background)</Label>
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              {BACKGROUND_PRESETS.map((p) => (
+                <button
+                  key={p.hex}
+                  onClick={() => setBackgroundColor(p.hex)}
+                  className="h-10 rounded-md border-2 transition-all hover:scale-105"
+                  style={{ backgroundColor: p.hex, borderColor: backgroundColor.toLowerCase() === p.hex.toLowerCase() ? "hsl(var(--foreground))" : "transparent" }}
+                  title={p.name}
+                />
+              ))}
+            </div>
+            <ColorEditor value={backgroundColor} onChange={setBackgroundColor} />
+          </div>
+
+          <Button variant="outline" size="sm" className="w-full" onClick={() => { setColor(DEFAULT_PRIMARY); setSidebarColor(DEFAULT_SIDEBAR); setBackgroundColor(DEFAULT_BACKGROUND); }}>
             기본값으로 초기화
           </Button>
         </div>
