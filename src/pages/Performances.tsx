@@ -910,15 +910,20 @@ export default function Performances() {
               ) : techRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
                 const blockUnder90 = !includeUnder90 && t.under90;
-                const dispSimple = blockUnder90 ? 0 : t.simple;
-                const dispRatio = blockUnder90 ? 0 : t.ratio;
-                const dispPeriod = blockUnder90 ? 0 : t.periodCount;
+                const zeroOut = blockUnder90 || t.belowAmount;
+                const dispSimple = zeroOut ? 0 : t.simple;
+                const dispRatio = zeroOut ? 0 : t.ratio;
+                const dispPeriod = zeroOut ? 0 : t.periodCount;
+                const cAmt = Number(t.row.contract_amount || 0);
+                const sAmt = Number(t.row.share_amount || 0);
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
-                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">{t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">용역 {formatAmt(cAmt)} / 지분 {formatAmt(sAmt)}</div>
+                        {t.belowAmount && <div className="text-[11px] text-orange-600 font-semibold mt-0.5">⚠ 금액미달 - 집계 제외</div>}
                       </button>
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="text-xs px-2 py-1 rounded border bg-background shrink-0">
                         {expanded ? "접기" : "펼치기"}
