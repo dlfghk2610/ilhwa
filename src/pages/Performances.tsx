@@ -848,22 +848,26 @@ export default function Performances() {
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => {
                     const blockUnder90 = !includeUnder90 && t.under90;
-                    const zeroOut = blockUnder90;
+                    const zeroOut = blockUnder90 || t.belowAmount;
                     const dispSimple = zeroOut ? 0 : t.simple;
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
+                    const cAmt = Number(t.row.contract_amount || 0);
+                    const sAmt = Number(t.row.share_amount || 0);
                     return (
-                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                       <TableCell>
                         {(() => {
-                          const disabled = t.expired || blockUnder90;
+                          const disabled = t.expired || blockUnder90 || t.belowAmount;
                           return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                        <div className="text-xs text-muted-foreground mt-0.5">용역금액 {formatAmt(cAmt)}원 / 지분금액 {formatAmt(sAmt)}원</div>
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
+                        {!t.expired && t.belowAmount && <div className="text-xs text-orange-600 font-semibold mt-1">⚠ 금액미달 - 집계 제외</div>}
                         {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-amber-700 mt-1">⚠ 최근차수({t.lastPhaseLabel}차)가 있어 집계 제외</div>}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>}
                         {!t.expired && excludePrivate && (t.row as any).is_private && <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>}
