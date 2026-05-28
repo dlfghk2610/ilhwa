@@ -731,7 +731,16 @@ function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: 
           ⚠️ 기술자의 전문분야가 지정되지 않아 모든 인정일이 0으로 처리됩니다. 위에서 전문분야를 입력해 주세요.
         </div>
       )}
-      <div className="overflow-auto">
+      {/* 모바일: 카드 리스트 (사업명/발주처/인정일 + 펼치기/숨김) */}
+      <MobileRecognitionList
+        rows={rows}
+        tech={tech}
+        excludePrivate={excludePrivate}
+        setPrivateOverride={setPrivateOverride}
+      />
+
+      {/* 데스크탑: 전체 테이블 */}
+      <div className="overflow-auto hidden md:block">
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
