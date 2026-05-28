@@ -106,6 +106,7 @@ export type Database = {
           duties: string | null
           evaluation_category: string | null
           id: string
+          manual_private_override: boolean | null
           notes: string | null
           participation_company: string | null
           participation_position: string | null
@@ -125,6 +126,7 @@ export type Database = {
           duties?: string | null
           evaluation_category?: string | null
           id?: string
+          manual_private_override?: boolean | null
           notes?: string | null
           participation_company?: string | null
           participation_position?: string | null
@@ -144,6 +146,7 @@ export type Database = {
           duties?: string | null
           evaluation_category?: string | null
           id?: string
+          manual_private_override?: boolean | null
           notes?: string | null
           participation_company?: string | null
           participation_position?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.career_entries ADD COLUMN IF NOT EXISTS manual_private_override boolean;
