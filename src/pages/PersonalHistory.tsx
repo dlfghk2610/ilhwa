@@ -117,7 +117,7 @@ export default function PersonalHistory() {
   const openNew = () => {
     setEditingTech(null);
     setTechName("");
-    setPeriods([{ company: "", department: "", position: "", hire_date: "" }]);
+    setPeriods([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
     setDialogOpen(true);
   };
 
