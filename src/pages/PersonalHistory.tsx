@@ -64,6 +64,14 @@ export default function PersonalHistory() {
   const [techName, setTechName] = useState("");
   const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "" }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
+  const expandAll = () => setCollapsed({});
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    filtered.forEach(([n]) => { next[n] = true; });
+    setCollapsed(next);
+  };
 
   const load = async () => {
     setLoading(true);
