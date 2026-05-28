@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import * as XLSX from "xlsx";
 import {
@@ -98,22 +98,12 @@ export default function Careers() {
     const stats: Record<string, TechStat> = {};
     for (const t of techList) {
       const list = byTech.get(t.id) || [];
-      let rec = 0;
-      const recRows = list
-        .map((e) => computeRecognition(e as any, t.specialty, false))
-        .filter((r) => r.convertedDays > 0);
-      for (const r of recRows) rec += r.recognizedDays;
-      // 상세화면 OverlapView와 동일한 방식: 전문분야별로 겹치지 않게 선택한 환산일수 합계
-      const map = new Map<string, typeof recRows>();
+      // 상세화면 ① 인정일 계산 탭과 동일: 모든 행의 인정일/환산일수 단순 합계
+      const recRows = list.map((e) => computeRecognition(e as any, t.specialty, false));
+      let rec = 0, conv = 0;
       for (const r of recRows) {
-        const key = (r.entry.specialty || "").trim() || "(미지정)";
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(r);
-      }
-      let conv = 0;
-      for (const [, arr] of map) {
-        const chosen = selectOptimal(arr);
-        for (const it of chosen) conv += it.participationDays * it.row.weight;
+        rec += r.recognizedDays;
+        conv += r.convertedDays;
       }
       stats[t.id] = { recognizedDays: rec, convertedDays: +conv.toFixed(2), count: list.length };
     }
@@ -690,6 +680,28 @@ function TechnicianDetail({
             : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
+
+      {/* 최상단/최하단 스크롤 버튼 */}
+      <div className="fixed right-3 bottom-3 sm:right-6 sm:bottom-6 z-50 flex flex-col gap-2">
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-10 w-10 rounded-full shadow-lg border"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="최상단으로"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </Button>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-10 w-10 rounded-full shadow-lg border"
+          onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })}
+          aria-label="최하단으로"
+        >
+          <ChevronDown className="h-5 w-5" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -697,6 +709,121 @@ function TechnicianDetail({
 // ─────────────────────────────────────────────────────────
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
+function MobileRecognitionList({
+  rows, tech, excludePrivate, setPrivateOverride,
+}: {
+  rows: ReturnType<typeof computeRecognition>[];
+  tech: Technician;
+  excludePrivate: boolean;
+  setPrivateOverride: (id: string, v: boolean | null) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [allOpen, setAllOpen] = useState(false);
+
+  const toggleAll = () => {
+    const next = !allOpen;
+    setAllOpen(next);
+    if (next) {
+      const map: Record<string, boolean> = {};
+      rows.forEach((r) => { map[r.entry.id] = true; });
+      setExpanded(map);
+    } else {
+      setExpanded({});
+    }
+  };
+
+  return (
+    <div className="md:hidden space-y-2">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" onClick={toggleAll}>
+          {allOpen ? "전체 접기" : "전체 펼치기"}
+        </Button>
+      </div>
+      {rows.map((r, i) => {
+        const specialtyMismatch = !!r.entry.specialty && !!tech.specialty && r.entry.specialty.trim() !== tech.specialty.trim();
+        const working = isWorkingNow(r.entry.period_end_text);
+        const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
+        const override = r.entry.manual_private_override;
+        const isManual = override === true || override === false;
+        const isOpen = !!expanded[r.entry.id];
+        return (
+          <Card key={r.entry.id || i} className={`p-3 ${flagged ? "border-destructive/50 bg-destructive/5" : ""}`}>
+            <button
+              type="button"
+              className="w-full text-left"
+              onClick={() => setExpanded((p) => ({ ...p, [r.entry.id]: !p[r.entry.id] }))}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm break-words">{r.entry.project_name || "(사업명 없음)"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground break-words">
+                    발주처: <span className="text-foreground">{r.entry.client || "-"}</span>
+                    {excludePrivate && r.isPrivate && <Badge variant="destructive" className="ml-1 text-[10px]">민간{isManual && "(수기)"}</Badge>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                    <span>인정일 <b>{r.recognizedDays}</b>일</span>
+                    <span>환산 <b>{r.convertedDays}</b>일</span>
+                    <Badge variant={r.evalGroup === "환경" ? "default" : "secondary"} className="text-[10px]">{r.evalGroup}</Badge>
+                  </div>
+                </div>
+                {isOpen ? <ChevronUp className="h-4 w-4 shrink-0 mt-0.5" /> : <ChevronDown className="h-4 w-4 shrink-0 mt-0.5" />}
+              </div>
+            </button>
+            {isOpen && (
+              <div className="mt-3 pt-3 border-t space-y-1.5 text-xs">
+                <DetailRow label="참여기간">{formatIso(r.entry.period_start)} ~ {r.entry.period_end_text || ""}</DetailRow>
+                <DetailRow label="사업공종">{r.entry.service_field || "-"}</DetailRow>
+                <DetailRow label="전문분야">
+                  {r.entry.specialty || "-"}
+                  {excludePrivate && specialtyMismatch && <Badge variant="destructive" className="ml-1 text-[10px]">불일치</Badge>}
+                </DetailRow>
+                <DetailRow label="담당업무">{r.entry.duties || "-"}{r.envByProject && <span className="ml-1 text-[10px] text-accent">(사업명 환경)</span>}</DetailRow>
+                <DetailRow label="가중치">{r.weight.toFixed(1)}</DetailRow>
+                <DetailRow label="참여회사">{r.entry.participation_company || "-"}</DetailRow>
+                <DetailRow label="참여직위">{r.entry.participation_position || "-"}</DetailRow>
+                {excludePrivate && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox
+                      id={`m-priv-${r.entry.id}`}
+                      checked={r.isPrivate}
+                      onCheckedChange={(v) => setPrivateOverride(r.entry.id, !!v)}
+                      onClick={(e) => {
+                        if ((e as any).shiftKey) {
+                          e.preventDefault();
+                          setPrivateOverride(r.entry.id, null);
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`m-priv-${r.entry.id}`} className="text-xs cursor-pointer">
+                      민간 {isManual && <span className="text-muted-foreground">(수기)</span>}
+                    </Label>
+                  </div>
+                )}
+                {flagged && (
+                  <div className="pt-2 flex flex-wrap gap-1 text-[10px] font-semibold">
+                    {specialtyMismatch && <span className="text-destructive">⚠ 전문분야 불일치</span>}
+                    {r.isPrivate && <span className="text-destructive">⚠ 민간사업</span>}
+                    {working && <span className="text-destructive">⚠ 근무중</span>}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-muted-foreground shrink-0 w-20">{label}</span>
+      <span className="flex-1 break-words">{children}</span>
+    </div>
+  );
+}
+
 function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; setPrivateOverride: (entryId: string, value: boolean | null) => void }) {
   const rows = useMemo(() => entries.map((e) => computeRecognition(e, tech.specialty, excludePrivate)), [entries, tech.specialty, excludePrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
@@ -719,7 +846,16 @@ function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: 
           ⚠️ 기술자의 전문분야가 지정되지 않아 모든 인정일이 0으로 처리됩니다. 위에서 전문분야를 입력해 주세요.
         </div>
       )}
-      <div className="overflow-auto">
+      {/* 모바일: 카드 리스트 (사업명/발주처/인정일 + 펼치기/숨김) */}
+      <MobileRecognitionList
+        rows={rows}
+        tech={tech}
+        excludePrivate={excludePrivate}
+        setPrivateOverride={setPrivateOverride}
+      />
+
+      {/* 데스크탑: 전체 테이블 */}
+      <div className="overflow-auto hidden md:block">
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
