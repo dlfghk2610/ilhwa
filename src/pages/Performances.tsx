@@ -762,6 +762,16 @@ export default function Performances() {
               </div>
             </div>
           </div>
+          <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+            <div>
+              <Label className="text-sm">용역금액(계약금액) 최소 (원)</Label>
+              <AmountInput value={minContractAmount} onChange={(v) => { setMinContractAmount(v); setTechSelectionTouched(false); }} placeholder="예: 20,000,000" />
+            </div>
+            <div>
+              <Label className="text-sm">지분금액 최소 (원)</Label>
+              <AmountInput value={minShareAmount} onChange={(v) => { setMinShareAmount(v); setTechSelectionTouched(false); }} placeholder="예: 20,000,000" />
+            </div>
+          </div>
           <div className="flex flex-wrap gap-3 pt-2 border-t">
             <label className="flex items-center gap-1.5 text-sm cursor-pointer">
               <Checkbox checked={includeUnder90} onCheckedChange={(c) => { setIncludeUnder90(!!c); setTechSelectionTouched(false); }} />
