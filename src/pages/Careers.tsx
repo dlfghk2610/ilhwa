@@ -742,7 +742,7 @@ function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolea
 }
 
 function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate, toggleManualPrivate, toggleManualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string>; toggleManualPrivate: (id: string) => void; toggleManualNonPrivate: (id: string) => void }) {
-  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
+  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate && !manualNonPrivate.has(e.id)), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
