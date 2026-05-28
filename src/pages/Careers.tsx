@@ -285,9 +285,16 @@ function TechnicianDetail({
 
   // 수기 민간 지정 (localStorage 영속화, technician별)
   const manualKey = `career_manual_private_${tech.id}`;
+  const manualNonKey = `career_manual_nonprivate_${tech.id}`;
   const [manualPrivate, setManualPrivate] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem(manualKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const [manualNonPrivate, setManualNonPrivate] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(manualNonKey);
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
   });
@@ -295,6 +302,29 @@ function TechnicianDetail({
     setManualPrivate((prev) => {
       const next = new Set(prev);
       if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+    // 상호 배타: 민간O 체크 시 민간X 해제
+    setManualNonPrivate((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Set(prev);
+      next.delete(entryId);
+      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  };
+  const toggleManualNonPrivate = (entryId: string) => {
+    setManualNonPrivate((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+    setManualPrivate((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Set(prev);
+      next.delete(entryId);
       try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
       return next;
     });
