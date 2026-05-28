@@ -285,9 +285,16 @@ function TechnicianDetail({
 
   // 수기 민간 지정 (localStorage 영속화, technician별)
   const manualKey = `career_manual_private_${tech.id}`;
+  const manualNonKey = `career_manual_nonprivate_${tech.id}`;
   const [manualPrivate, setManualPrivate] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem(manualKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  });
+  const [manualNonPrivate, setManualNonPrivate] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(manualNonKey);
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
   });
@@ -295,6 +302,29 @@ function TechnicianDetail({
     setManualPrivate((prev) => {
       const next = new Set(prev);
       if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+    // 상호 배타: 민간O 체크 시 민간X 해제
+    setManualNonPrivate((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Set(prev);
+      next.delete(entryId);
+      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  };
+  const toggleManualNonPrivate = (entryId: string) => {
+    setManualNonPrivate((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId); else next.add(entryId);
+      try { localStorage.setItem(manualNonKey, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+    setManualPrivate((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Set(prev);
+      next.delete(entryId);
       try { localStorage.setItem(manualKey, JSON.stringify(Array.from(next))); } catch {}
       return next;
     });
@@ -333,7 +363,7 @@ function TechnicianDetail({
   const exportEntries = () => {
     if (activeTab === "recognition") {
       const rows = entries.map((e) => {
-        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate);
+        const r = applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate);
         return {
           참여시작일: formatIso(e.period_start),
           참여종료일: e.period_end_text || "",
@@ -682,11 +712,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} toggleManualPrivate={toggleManualPrivate} />}
+            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} manualNonPrivate={manualNonPrivate} toggleManualPrivate={toggleManualPrivate} toggleManualNonPrivate={toggleManualNonPrivate} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} />}
+            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} manualPrivate={manualPrivate} manualNonPrivate={manualNonPrivate} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -697,16 +727,21 @@ function TechnicianDetail({
 // ① 인정일 계산
 // ─────────────────────────────────────────────────────────
 function applyManualPrivate<R extends { entry: { id: string }; isPrivate: boolean; recognizedDays: number; convertedDays: number }>(
-  r: R, manualPrivate: Set<string>, excludePrivate: boolean,
-): R & { manualPrivate: boolean } {
+  r: R, manualPrivate: Set<string>, excludePrivate: boolean, manualNonPrivate?: Set<string>,
+): R & { manualPrivate: boolean; manualNonPrivate: boolean } {
+  const isManualNon = !!manualNonPrivate?.has(r.entry.id);
+  if (isManualNon) {
+    // 민간X: 발주처 기반 자동판정을 무시하고 민간 아님으로 처리
+    return { ...r, isPrivate: false, manualPrivate: false, manualNonPrivate: true };
+  }
   const isManual = manualPrivate.has(r.entry.id);
-  if (!isManual) return { ...r, manualPrivate: false };
-  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true };
-  return { ...r, isPrivate: true, manualPrivate: true };
+  if (!isManual) return { ...r, manualPrivate: false, manualNonPrivate: false };
+  if (excludePrivate) return { ...r, isPrivate: true, recognizedDays: 0, convertedDays: 0, manualPrivate: true, manualNonPrivate: false };
+  return { ...r, isPrivate: true, manualPrivate: true, manualNonPrivate: false };
 }
 
-function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleManualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; toggleManualPrivate: (id: string) => void }) {
-  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)), [entries, tech.specialty, excludePrivate, manualPrivate]);
+function RecognitionView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate, toggleManualPrivate, toggleManualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string>; toggleManualPrivate: (id: string) => void; toggleManualNonPrivate: (id: string) => void }) {
+  const rows = useMemo(() => entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)), [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
   const totalRecog = rows.reduce((s, r) => s + r.recognizedDays, 0);
   const totalConv = rows.reduce((s, r) => s + r.convertedDays, 0);
 
@@ -731,6 +766,7 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
         <Table className="min-w-[1100px] text-xs">
           <TableHeader>
             <TableRow>
+              <TableHead className="text-center w-[120px]">민간 지정</TableHead>
               <TableHead>참여시작</TableHead>
               <TableHead>참여종료</TableHead>
               <TableHead className="text-right">인정일</TableHead>
@@ -745,7 +781,6 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
               <TableHead>참여직위</TableHead>
               <TableHead className="text-right">환산일수</TableHead>
               <TableHead>민간</TableHead>
-              <TableHead className="text-center">수기 민간</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -755,6 +790,18 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
               const flagged = excludePrivate && (specialtyMismatch || r.isPrivate || working);
               return (
               <TableRow key={r.entry.id || i} className={flagged ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : ""}>
+                <TableCell className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-[11px]">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <Checkbox checked={manualNonPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualNonPrivate(r.entry.id)} />
+                      <span>민간X</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
+                      <span>민간O</span>
+                    </label>
+                  </div>
+                </TableCell>
                 <TableCell>{formatIso(r.entry.period_start)}</TableCell>
                 <TableCell>{r.entry.period_end_text || ""}</TableCell>
                 <TableCell className="text-right">{r.recognizedDays}</TableCell>
@@ -796,9 +843,6 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
                   })()}
                 </TableCell>
                 <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{r.manualPrivate && "(수기)"}</Badge>}</TableCell>
-                <TableCell className="text-center">
-                  <Checkbox checked={manualPrivate.has(r.entry.id)} onCheckedChange={() => toggleManualPrivate(r.entry.id)} />
-                </TableCell>
               </TableRow>
               );
             })}
@@ -812,9 +856,9 @@ function RecognitionView({ entries, tech, excludePrivate, manualPrivate, toggleM
 // ─────────────────────────────────────────────────────────
 // ② 중복일수 계산 (가중 구간 스케줄링)
 // ─────────────────────────────────────────────────────────
-function OverlapView({ entries, tech, excludePrivate, manualPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string> }) {
+function OverlapView({ entries, tech, excludePrivate, manualPrivate, manualNonPrivate }: { entries: CareerEntry[]; tech: Technician; excludePrivate: boolean; manualPrivate: Set<string>; manualNonPrivate: Set<string> }) {
   const groups = useMemo(() => {
-    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate)).filter((r) => r.convertedDays > 0);
+    const rows = entries.map((e) => applyManualPrivate(computeRecognition(e, tech.specialty, excludePrivate), manualPrivate, excludePrivate, manualNonPrivate)).filter((r) => r.convertedDays > 0);
     const map = new Map<string, typeof rows>();
     for (const r of rows) {
       const key = (r.entry.specialty || "").trim() || "(미지정)";
@@ -826,7 +870,7 @@ function OverlapView({ entries, tech, excludePrivate, manualPrivate }: { entries
       result.push({ specialty, chosen: selectOptimal(arr) });
     }
     return result;
-  }, [entries, tech.specialty, excludePrivate, manualPrivate]);
+  }, [entries, tech.specialty, excludePrivate, manualPrivate, manualNonPrivate]);
 
   const grandConv = +groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays * b.row.weight, 0), 0).toFixed(2);
   const grandPart = groups.reduce((s, g) => s + g.chosen.reduce((a, b) => a + b.participationDays, 0), 0);
