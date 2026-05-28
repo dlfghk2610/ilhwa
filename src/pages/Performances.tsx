@@ -58,6 +58,26 @@ function DateInput({ value, onChange, className, placeholder = "YYYY.MM.DD" }: {
   );
 }
 
+const parseAmt = (s: string): number => {
+  const n = Number((s || "").replace(/[^\d]/g, ""));
+  return isNaN(n) ? 0 : n;
+};
+const formatAmt = (n: number): string => n.toLocaleString("ko-KR");
+
+function AmountInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <Input
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d]/g, "");
+        onChange(raw ? Number(raw).toLocaleString("ko-KR") : "");
+      }}
+    />
+  );
+}
+
 const getPeriods = (p: Participant): Period[] => {
   if (Array.isArray(p.periods) && p.periods.length > 0) return p.periods;
   if (p.period_start || p.period_end) return [{ start: p.period_start, end: p.period_end }];
@@ -189,6 +209,8 @@ export default function Performances() {
   const [includeUnder90, setIncludeUnder90] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
+  const [minContractAmount, setMinContractAmount] = useState<string>("");
+  const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
@@ -539,10 +561,15 @@ export default function Performances() {
           const baseName = pm ? pm[1].trim() : (r.project_name || "");
           const groupKey = `${baseName}__${r.client || ""}`;
           const under90 = partDays > 0 && partDays < 90;
+          const minC = parseAmt(minContractAmount);
+          const minS = parseAmt(minShareAmount);
+          const contractAmt = Number(r.contract_amount || 0);
+          const shareAmt = Number(r.share_amount || 0);
+          const belowAmount = (minC > 0 && contractAmt < minC) || (minS > 0 && shareAmt < minS);
 
-          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, belowAmount, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
         })
-        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; belowAmount: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
 
       const lastPhaseByGroup = new Map<string, { num: number; label: string }>();
       base.forEach((t) => {
@@ -559,7 +586,7 @@ export default function Performances() {
         return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
     };
-  }, [rows, techEvalFilter, techServiceFilter, noticeDate]);
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount]);
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
@@ -577,6 +604,7 @@ export default function Performances() {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
     if (excludePrivate && (t.row as any).is_private) return false;
+    if (t.belowAmount) return false;
     if (t.isPhase) {
       if (excludeLhPhases) return false;
       if (!t.isLastPhase) return false;
@@ -592,6 +620,7 @@ export default function Performances() {
           if (t.expired) next.delete(t.row.id);
           if (!includeUnder90 && t.under90) next.delete(t.row.id);
           if (excludePrivate && (t.row as any).is_private) next.delete(t.row.id);
+          if (t.belowAmount) next.delete(t.row.id);
           if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
         });
         return next;
@@ -600,10 +629,10 @@ export default function Performances() {
     }
     setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate]);
+  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const techTotals = useMemo(() => {
-    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && techSelectedRowIds.has(t.row.id));
+    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && !t.belowAmount && techSelectedRowIds.has(t.row.id));
     const simple = active.reduce((a, b) => a + b.simple, 0);
     const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
@@ -612,7 +641,7 @@ export default function Performances() {
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [techRows, includeUnder90, excludeLhPhases, excludePrivate]
+    [techRows, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
@@ -652,6 +681,7 @@ export default function Performances() {
         if (t.expired) return false;
         if (!includeUnder90 && t.under90) return false;
         if (excludePrivate && (t.row as any).is_private) return false;
+        if (t.belowAmount) return false;
         if (t.isPhase) {
           if (excludeLhPhases) return false;
           if (!t.isLastPhase) return false;
@@ -662,7 +692,7 @@ export default function Performances() {
       const period = active.reduce((a, b) => a + b.periodCount, 0);
       return { name, company: meta.company, status: meta.status, count: items.length, activeCount: active.length, simple, period };
     });
-  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate]);
+  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const filteredAllTechStats = useMemo(() => {
     let arr = allTechStats;
@@ -730,6 +760,16 @@ export default function Performances() {
                   </Badge>
                 ))}
               </div>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+            <div>
+              <Label className="text-sm">용역금액(계약금액) 최소 (원)</Label>
+              <AmountInput value={minContractAmount} onChange={(v) => { setMinContractAmount(v); setTechSelectionTouched(false); }} placeholder="예: 20,000,000" />
+            </div>
+            <div>
+              <Label className="text-sm">지분금액 최소 (원)</Label>
+              <AmountInput value={minShareAmount} onChange={(v) => { setMinShareAmount(v); setTechSelectionTouched(false); }} placeholder="예: 20,000,000" />
             </div>
           </div>
           <div className="flex flex-wrap gap-3 pt-2 border-t">
@@ -808,22 +848,26 @@ export default function Performances() {
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => {
                     const blockUnder90 = !includeUnder90 && t.under90;
-                    const zeroOut = blockUnder90;
+                    const zeroOut = blockUnder90 || t.belowAmount;
                     const dispSimple = zeroOut ? 0 : t.simple;
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
+                    const cAmt = Number(t.row.contract_amount || 0);
+                    const sAmt = Number(t.row.share_amount || 0);
                     return (
-                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                       <TableCell>
                         {(() => {
-                          const disabled = t.expired || blockUnder90;
+                          const disabled = t.expired || blockUnder90 || t.belowAmount;
                           return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                        <div className="text-xs text-muted-foreground mt-0.5">용역금액 {formatAmt(cAmt)}원 / 지분금액 {formatAmt(sAmt)}원</div>
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
+                        {!t.expired && t.belowAmount && <div className="text-xs text-orange-600 font-semibold mt-1">⚠ 금액미달 - 집계 제외</div>}
                         {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-amber-700 mt-1">⚠ 최근차수({t.lastPhaseLabel}차)가 있어 집계 제외</div>}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>}
                         {!t.expired && excludePrivate && (t.row as any).is_private && <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>}
@@ -866,15 +910,20 @@ export default function Performances() {
               ) : techRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
                 const blockUnder90 = !includeUnder90 && t.under90;
-                const dispSimple = blockUnder90 ? 0 : t.simple;
-                const dispRatio = blockUnder90 ? 0 : t.ratio;
-                const dispPeriod = blockUnder90 ? 0 : t.periodCount;
+                const zeroOut = blockUnder90 || t.belowAmount;
+                const dispSimple = zeroOut ? 0 : t.simple;
+                const dispRatio = zeroOut ? 0 : t.ratio;
+                const dispPeriod = zeroOut ? 0 : t.periodCount;
+                const cAmt = Number(t.row.contract_amount || 0);
+                const sAmt = Number(t.row.share_amount || 0);
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
-                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">{t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">용역 {formatAmt(cAmt)} / 지분 {formatAmt(sAmt)}</div>
+                        {t.belowAmount && <div className="text-[11px] text-orange-600 font-semibold mt-0.5">⚠ 금액미달 - 집계 제외</div>}
                       </button>
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="text-xs px-2 py-1 rounded border bg-background shrink-0">
                         {expanded ? "접기" : "펼치기"}
@@ -947,6 +996,16 @@ export default function Performances() {
                     </Badge>
                   ))}
                 </div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+              <div>
+                <Label className="text-sm">용역금액(계약금액) 최소 (원)</Label>
+                <AmountInput value={minContractAmount} onChange={setMinContractAmount} placeholder="예: 20,000,000" />
+              </div>
+              <div>
+                <Label className="text-sm">지분금액 최소 (원)</Label>
+                <AmountInput value={minShareAmount} onChange={setMinShareAmount} placeholder="예: 20,000,000" />
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
