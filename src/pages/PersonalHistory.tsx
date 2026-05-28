@@ -31,6 +31,8 @@ type PeriodForm = {
   department: string;
   position: string;
   hire_date: string;
+  resign_date: string;
+  is_current: boolean;
 };
 
 const parseDate = (s?: string | null) => (s ? new Date(s + "T00:00:00") : null);
