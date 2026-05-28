@@ -218,8 +218,9 @@ export default function Performances() {
 
   // 전체보기 탭 상태
   const [tab, setTab] = useState<string>("single");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired">("all");
-  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" }>>(new Map());
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired" | "pq">("all");
+  const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" | "pq" }>>(new Map());
+
   const [myCompany, setMyCompany] = useState<string>("");
 
   useEffect(() => { fetchRows(); fetchTechMeta(); fetchMyCompany(); }, []);
@@ -243,27 +244,27 @@ export default function Performances() {
     setLoading(false);
   }
 
-  // 재직/퇴사 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
-  const STATUS_LS_KEY = "perf_emp_status.v1";
-  const loadLocalStatus = (): Record<string, "active" | "retired"> => {
+  // 재직/퇴사/PQ 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
+  const STATUS_LS_KEY = "perf_emp_status.v2";
+  const loadLocalStatus = (): Record<string, "active" | "retired" | "pq"> => {
     try { return JSON.parse(localStorage.getItem(STATUS_LS_KEY) || "{}"); }
     catch { return {}; }
   };
-  const saveLocalStatus = (m: Record<string, "active" | "retired">) => {
+  const saveLocalStatus = (m: Record<string, "active" | "retired" | "pq">) => {
     try { localStorage.setItem(STATUS_LS_KEY, JSON.stringify(m)); } catch {}
   };
 
   async function fetchTechMeta() {
     // 경력관리(technicians/personal_careers)와 연동하지 않음 — 실적 데이터에 등장한 이름만 사용
     const stored = loadLocalStatus();
-    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" }>();
+    const map = new Map<string, { id?: string; company: string; status: "active" | "retired" | "pq" }>();
     Object.entries(stored).forEach(([name, status]) => {
       map.set(name, { company: "", status });
     });
     setTechCompanyMap(map);
   }
 
-  async function updateTechStatus(name: string, status: "active" | "retired") {
+  async function updateTechStatus(name: string, status: "active" | "retired" | "pq") {
     const meta = techCompanyMap.get(name) ?? { company: "", status: "active" as const };
     setTechCompanyMap((m) => {
       const next = new Map(m);
@@ -273,7 +274,8 @@ export default function Performances() {
     const stored = loadLocalStatus();
     stored[name] = status;
     saveLocalStatus(stored);
-    toast.success(status === "active" ? "재직중으로 변경됨" : "퇴사자로 변경됨");
+    const label = status === "active" ? "재직중" : status === "pq" ? "PQ" : "퇴사자";
+    toast.success(`${label}로 변경됨`);
   }
 
 
@@ -697,9 +699,10 @@ export default function Performances() {
   const filteredAllTechStats = useMemo(() => {
     let arr = allTechStats;
     if (statusFilter !== "all") arr = arr.filter((t) => t.status === statusFilter);
-    // 재직중 위 / 퇴사자 아래 (그 안에서는 이름순)
+    // PQ 위 / 재직중 중간 / 퇴사자 아래 (그 안에서는 이름순)
+    const statusOrder = { pq: 0, active: 1, retired: 2 };
     return [...arr].sort((a, b) => {
-      if (a.status !== b.status) return a.status === "active" ? -1 : 1;
+      if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
       return a.name.localeCompare(b.name);
     });
   }, [allTechStats, statusFilter]);
@@ -1009,17 +1012,16 @@ export default function Performances() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">재직 상태</Label>
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    <SelectItem value="active">재직중</SelectItem>
-                    <SelectItem value="retired">퇴사자</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Tabs value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)} className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-4">
+                  <TabsTrigger value="all">전체</TabsTrigger>
+                  <TabsTrigger value="pq">PQ</TabsTrigger>
+                  <TabsTrigger value="active">재직중</TabsTrigger>
+                  <TabsTrigger value="retired">퇴사자</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
               <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                 <Checkbox checked={includeUnder90} onCheckedChange={(c) => setIncludeUnder90(!!c)} />
                 참여일수 90일 미만 포함
@@ -1056,11 +1058,12 @@ export default function Performances() {
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{t.company || "-"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select value={t.status} onValueChange={(v: "active" | "retired") => updateTechStatus(t.name, v)}>
+                      <Select value={t.status} onValueChange={(v: "active" | "retired" | "pq") => updateTechStatus(t.name, v)}>
                         <SelectTrigger className="w-28 h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="pq">PQ</SelectItem>
                           <SelectItem value="active">재직중</SelectItem>
                           <SelectItem value="retired">퇴사자</SelectItem>
                         </SelectContent>
