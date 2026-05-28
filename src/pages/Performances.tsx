@@ -586,7 +586,7 @@ export default function Performances() {
         return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
     };
-  }, [rows, techEvalFilter, techServiceFilter, noticeDate]);
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount]);
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
