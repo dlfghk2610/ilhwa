@@ -35,6 +35,9 @@ type PersonalProfile = {
   technician_name: string;
   birth_date: string | null;
   specialty: string | null;
+  address: string | null;
+  grade_kepa: string | null;
+  grade_eval: string | null;
   educations: Education[];
   certifications: Certification[];
 };
