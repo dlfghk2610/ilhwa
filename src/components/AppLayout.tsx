@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { ThemeSettings } from "./ThemeSettings";
+import { ScrollButtons } from "./ScrollButtons";
 
 export const AppLayout = ({ children, title }: { children: React.ReactNode; title: string }) => {
   return (
@@ -15,6 +16,7 @@ export const AppLayout = ({ children, title }: { children: React.ReactNode; titl
           </header>
           <main className="flex-1 p-6">{children}</main>
         </div>
+        <ScrollButtons />
       </div>
     </SidebarProvider>
   );
