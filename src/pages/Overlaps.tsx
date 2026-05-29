@@ -603,11 +603,8 @@ export default function Overlaps() {
           )}
         </Card>
 
-        {printSeq && (
-          <div className="hidden print:block fixed top-2 left-2 text-xs font-semibold">
-            {selectedTech !== "__all__" ? `${selectedTech} 기술자 업무중첩도 (착수일 오름차순)` : "업무중첩도 (착수일 오름차순)"}
-          </div>
-        )}
+
+
 
 
         {/* Desktop table */}
