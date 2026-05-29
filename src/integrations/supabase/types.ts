@@ -578,22 +578,28 @@ export type Database = {
         Row: {
           absolute_period_days: number | null
           agreement_date: string | null
+          agreement_pdf_path: string | null
           client: string | null
           contract_amount: number | null
           contract_amount_change_date: string | null
           contract_amount_new: number | null
+          contract_change_pdf_path: string | null
           created_at: string
           created_by: string
           end_date: string | null
           end_date_change_date: string | null
+          end_date_change_pdf_path: string | null
           end_date_new: string | null
           id: string
           notes: string | null
+          original_contract_pdf_path: string | null
+          participant_list_pdf_path: string | null
           participants: Json
           participation_rate: number | null
           project_name: string
           start_date: string | null
           suspension_date: string | null
+          suspension_pdf_path: string | null
           suspension_reason: string | null
           technician_name: string | null
           updated_at: string
@@ -601,22 +607,28 @@ export type Database = {
         Insert: {
           absolute_period_days?: number | null
           agreement_date?: string | null
+          agreement_pdf_path?: string | null
           client?: string | null
           contract_amount?: number | null
           contract_amount_change_date?: string | null
           contract_amount_new?: number | null
+          contract_change_pdf_path?: string | null
           created_at?: string
           created_by: string
           end_date?: string | null
           end_date_change_date?: string | null
+          end_date_change_pdf_path?: string | null
           end_date_new?: string | null
           id?: string
           notes?: string | null
+          original_contract_pdf_path?: string | null
+          participant_list_pdf_path?: string | null
           participants?: Json
           participation_rate?: number | null
           project_name: string
           start_date?: string | null
           suspension_date?: string | null
+          suspension_pdf_path?: string | null
           suspension_reason?: string | null
           technician_name?: string | null
           updated_at?: string
@@ -624,22 +636,28 @@ export type Database = {
         Update: {
           absolute_period_days?: number | null
           agreement_date?: string | null
+          agreement_pdf_path?: string | null
           client?: string | null
           contract_amount?: number | null
           contract_amount_change_date?: string | null
           contract_amount_new?: number | null
+          contract_change_pdf_path?: string | null
           created_at?: string
           created_by?: string
           end_date?: string | null
           end_date_change_date?: string | null
+          end_date_change_pdf_path?: string | null
           end_date_new?: string | null
           id?: string
           notes?: string | null
+          original_contract_pdf_path?: string | null
+          participant_list_pdf_path?: string | null
           participants?: Json
           participation_rate?: number | null
           project_name?: string
           start_date?: string | null
           suspension_date?: string | null
+          suspension_pdf_path?: string | null
           suspension_reason?: string | null
           technician_name?: string | null
           updated_at?: string
