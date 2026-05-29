@@ -394,6 +394,118 @@ export default function Overlaps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, announcementDate, useAbsolute, unit]);
 
+  // ===== PDF 업로드/다운로드/병합 & 엑셀 추출 =====
+  const PDF_FIELDS: { key: keyof OverlapRow; label: string }[] = [
+    { key: "original_contract_pdf_path", label: "당초 계약서" },
+    { key: "contract_change_pdf_path", label: "계약금액 변경 계약서" },
+    { key: "end_date_change_pdf_path", label: "준공예정일 변경 계약서" },
+    { key: "suspension_pdf_path", label: "과업중지 공문" },
+    { key: "agreement_pdf_path", label: "협의완료 공문" },
+  ];
+
+  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
+    if (!user) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("PDF 파일만 업로드 가능합니다"); return;
+    }
+    setUploadingField(field as string);
+    const path = `${user.id}/${Date.now()}_${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("overlap-documents").upload(path, file, { contentType: "application/pdf" });
+    setUploadingField(null);
+    if (error) { toast.error(error.message); return; }
+    setForm((f) => ({ ...f, [field]: path }));
+    toast.success("업로드 완료");
+  };
+
+  const downloadPdf = async (path: string) => {
+    const { data, error } = await supabase.storage.from("overlap-documents").download(path);
+    if (error || !data) { toast.error("다운로드 실패"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = path.split("/").pop() || "file.pdf"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const fetchPdfBytes = async (path: string): Promise<Uint8Array | null> => {
+    const { data, error } = await supabase.storage.from("overlap-documents").download(path);
+    if (error || !data) return null;
+    return new Uint8Array(await data.arrayBuffer());
+  };
+
+  const sortedForExport = useMemo(() => {
+    return [...filtered].sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
+  }, [filtered]);
+
+  const mergeProofPdfs = async (includeParticipantList: boolean) => {
+    setDownloadingPdf(true);
+    try {
+      const merged = await PDFDocument.create();
+      let added = 0;
+      for (const r of sortedForExport) {
+        const paths: string[] = [];
+        if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
+        for (const f of PDF_FIELDS.slice(1)) {
+          const p = r[f.key] as string | null;
+          if (p) paths.push(p);
+        }
+        if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
+        for (const p of paths) {
+          const bytes = await fetchPdfBytes(p);
+          if (!bytes) continue;
+          try {
+            const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg) => merged.addPage(pg));
+            added += 1;
+          } catch { /* skip */ }
+        }
+      }
+      if (added === 0) { toast.error("병합할 PDF가 없습니다"); return; }
+      const out = await merged.save();
+      const blob = new Blob([out], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const tech = selectedTech !== "__all__" ? `_${selectedTech}` : "";
+      a.href = url; a.download = `업무중첩도_증빙${includeParticipantList ? "+참여자명단" : ""}${tech}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${added}개 PDF 병합 완료`);
+    } catch (e: any) {
+      toast.error("병합 실패: " + (e?.message || ""));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const exportOverlapExcel = () => {
+    if (sortedForExport.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+    const data = sortedForExport.map((r, i) => {
+      const info = remainInfo(r);
+      const o = overlapAmount(r);
+      const eEnd = effectiveEndDate(r);
+      const eContract = effectiveContract(r);
+      return {
+        연번: i + 1,
+        사업명: r.project_name,
+        발주처: r.client || "",
+        계약금액: eContract ?? "",
+        착수일: r.start_date || "",
+        준공예정일: eEnd || "",
+        "총계약기간(일)": diffDays(r.start_date, eEnd),
+        "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
+        중복금액: o.label ?? (o.value === null ? "" : o.value),
+        과업중지일: effectiveSuspensionDate(r) || "",
+        중지사유: r.suspension_reason || "",
+        협의완료일: effectiveAgreementDate(r) || "",
+        참여인력: (r.participants || []).map((p) => p.name).join(", "),
+        비고: r.notes || "",
+      };
+    });
+    const tech = selectedTech !== "__all__" ? `_${selectedTech}` : "";
+    exportToExcel(data, `업무중첩도${tech}`);
+  };
+
+
+
   return (
     <AppLayout title="PQ 기술자별 업무중첩도 관리">
       <Tabs defaultValue="projects" className="space-y-4">
