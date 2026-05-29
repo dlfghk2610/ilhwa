@@ -693,6 +693,7 @@ export default function Performances() {
       const active = items.filter((t) => {
         if (t.expired) return false;
         if (!includeUnder90 && t.under90) return false;
+        if (excludeUnder120 && t.under120) return false;
         if (excludePrivate && (t.row as any).is_private) return false;
         if (t.belowAmount) return false;
         if (t.isPhase) {
@@ -705,7 +706,7 @@ export default function Performances() {
       const period = active.reduce((a, b) => a + b.periodCount, 0);
       return { name, company: meta.company, status: meta.status, count: items.length, activeCount: active.length, simple, period };
     });
-  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
+  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeUnder120, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const filteredAllTechStats = useMemo(() => {
     let arr = allTechStats;
