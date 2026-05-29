@@ -207,6 +207,7 @@ export default function Performances() {
   const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
   const [includeUnder90, setIncludeUnder90] = useState(false);
+  const [excludeUnder120, setExcludeUnder120] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
