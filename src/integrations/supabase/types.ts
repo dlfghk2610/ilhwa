@@ -408,33 +408,42 @@ export type Database = {
       }
       personal_profiles: {
         Row: {
+          address: string | null
           birth_date: string | null
           certifications: Json
           created_at: string
           created_by: string
           educations: Json
+          grade_eval: string | null
+          grade_kepa: string | null
           id: string
           specialty: string | null
           technician_name: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           birth_date?: string | null
           certifications?: Json
           created_at?: string
           created_by: string
           educations?: Json
+          grade_eval?: string | null
+          grade_kepa?: string | null
           id?: string
           specialty?: string | null
           technician_name: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           birth_date?: string | null
           certifications?: Json
           created_at?: string
           created_by?: string
           educations?: Json
+          grade_eval?: string | null
+          grade_kepa?: string | null
           id?: string
           specialty?: string | null
           technician_name?: string

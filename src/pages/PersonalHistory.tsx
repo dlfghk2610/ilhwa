@@ -35,6 +35,9 @@ type PersonalProfile = {
   technician_name: string;
   birth_date: string | null;
   specialty: string | null;
+  address: string | null;
+  grade_kepa: string | null;
+  grade_eval: string | null;
   educations: Education[];
   certifications: Certification[];
 };
@@ -99,6 +102,9 @@ export default function PersonalHistory() {
   const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
   const [birthDate, setBirthDate] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [address, setAddress] = useState("");
+  const [gradeKepa, setGradeKepa] = useState("");
+  const [gradeEval, setGradeEval] = useState("");
   const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
   const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
@@ -125,6 +131,9 @@ export default function PersonalHistory() {
       technician_name: p.technician_name,
       birth_date: p.birth_date,
       specialty: p.specialty,
+      address: p.address ?? null,
+      grade_kepa: p.grade_kepa ?? null,
+      grade_eval: p.grade_eval ?? null,
       educations: Array.isArray(p.educations) ? p.educations : [],
       certifications: Array.isArray(p.certifications) ? p.certifications : [],
     })));
@@ -169,6 +178,9 @@ export default function PersonalHistory() {
     setPeriods([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
     setBirthDate("");
     setSpecialty("");
+    setAddress("");
+    setGradeKepa("");
+    setGradeEval("");
     setEducations([{ school: "", major: "", degree: "학사" }]);
     setCertifications([{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
@@ -189,6 +201,9 @@ export default function PersonalHistory() {
     const prof = profileMap.get(name);
     setBirthDate(prof?.birth_date || "");
     setSpecialty(prof?.specialty || "");
+    setAddress(prof?.address || "");
+    setGradeKepa(prof?.grade_kepa || "");
+    setGradeEval(prof?.grade_eval || "");
     setEducations(prof?.educations?.length ? prof.educations : [{ school: "", major: "", degree: "학사" }]);
     setCertifications(prof?.certifications?.length ? prof.certifications : [{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
@@ -244,6 +259,9 @@ export default function PersonalHistory() {
       technician_name: techName.trim(),
       birth_date: birthDate || null,
       specialty: specialty.trim() || null,
+      address: address.trim() || null,
+      grade_kepa: gradeKepa.trim() || null,
+      grade_eval: gradeEval.trim() || null,
       educations: cleanedEdu,
       certifications: cleanedCert,
     };
@@ -458,7 +476,21 @@ export default function PersonalHistory() {
               </div>
               <div>
                 <Label className="text-xs">전문분야</Label>
-                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="예: 도시계획" />
+                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">주소</Label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="예: 서울특별시 강남구 ..." />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">건기협 등급</Label>
+                <Input value={gradeKepa} onChange={(e) => setGradeKepa(e.target.value)} placeholder="예: 특급" />
+              </div>
+              <div>
+                <Label className="text-xs">평가협회 등급</Label>
+                <Input value={gradeEval} onChange={(e) => setGradeEval(e.target.value)} placeholder="예: 고급" />
               </div>
             </div>
 
