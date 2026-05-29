@@ -110,6 +110,9 @@ export default function Overlaps() {
   const [useAbsolute, setUseAbsolute] = useState(false);
   const [selectedTech, setSelectedTech] = useState<string>("__all__");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [printSeq, setPrintSeq] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
   const [open, setOpen] = useState(false);
