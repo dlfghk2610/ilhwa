@@ -339,6 +339,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     return { participants, completion: completionFromExcel };
   }
 
+  async function autoExtractFromExcel(file: File) {
+    setExtracting(true);
+    try {
+      const { participants, completion } = await parseParticipantsFromExcel(file);
+      if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
+      setForm((f) => ({ ...f, participants, completion_date: completion || f.completion_date }));
+      toast.success(`${participants.length}명 자동 추출 완료`);
+    } catch (e: any) { toast.error(e?.message || "추출 실패"); }
+    finally { setExtracting(false); }
+  }
+
+  function handleParticipantFileChange(file: File | null) {
+    setForm((f) => ({ ...f, participant_file: file }));
+    if (!file) return;
+    const n = file.name.toLowerCase();
+    if (n.endsWith(".xlsx") || n.endsWith(".xls")) {
+      autoExtractFromExcel(file);
+    }
+  }
+
   async function handleExtractParticipants() {
     if (!form.participant_file) { toast.error("먼저 파일을 선택하세요"); return; }
     setExtracting(true);
@@ -367,12 +387,16 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const participants: Participant[] = data?.participants ?? [];
+      const participants: Participant[] = (data?.participants ?? []).map((p: Participant) => ({
+        ...p,
+        name: (p.name || "").replace(/\s+/g, ""),
+      }));
       setForm((f) => ({ ...f, participants }));
       toast.success(`${participants.length}명 추출 완료`);
     } catch (e: any) { toast.error(e.message || "추출 실패"); }
     finally { setExtracting(false); }
   }
+
 
   async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string) {
     try {
