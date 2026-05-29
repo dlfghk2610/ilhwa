@@ -102,6 +102,9 @@ export default function PersonalHistory() {
   const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
   const [birthDate, setBirthDate] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [address, setAddress] = useState("");
+  const [gradeKepa, setGradeKepa] = useState("");
+  const [gradeEval, setGradeEval] = useState("");
   const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
   const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
