@@ -364,18 +364,43 @@ export default function PersonalHistory() {
                     {!isCollapsed && (
                       <>
                         {/* Profile details */}
-                        {(prof?.educations?.length || prof?.certifications?.length) ? (
-                          <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5">
-                            {prof?.educations?.length ? (
+                        {prof && (prof.specialty || prof.address || prof.grade_kepa || prof.grade_eval || prof.educations?.length || prof.certifications?.length) ? (
+                          <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5 break-words">
+                            {prof.specialty && (
+                              <div><span className="text-muted-foreground">전문분야: </span><span className="text-foreground">{prof.specialty}</span></div>
+                            )}
+                            {prof.address && (
+                              <div><span className="text-muted-foreground">주소: </span><span className="text-foreground">{prof.address}</span></div>
+                            )}
+                            {(prof.grade_kepa || prof.grade_eval) && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                {prof.grade_kepa && <div><span className="text-muted-foreground">건기협 등급: </span><span className="text-foreground">{prof.grade_kepa}</span></div>}
+                                {prof.grade_eval && <div><span className="text-muted-foreground">평가협회 등급: </span><span className="text-foreground">{prof.grade_eval}</span></div>}
+                              </div>
+                            )}
+                            {prof.educations?.length ? (
                               <div>
-                                <span className="text-muted-foreground">학력: </span>
-                                <span>{prof.educations.map((e, i) => `${e.school || ""}${e.major ? ` ${e.major}` : ""}${e.degree ? ` (${e.degree})` : ""}`).filter((s) => s.trim()).join(" / ")}</span>
+                                <div className="text-muted-foreground">학력</div>
+                                <ul className="list-disc list-inside space-y-0.5">
+                                  {prof.educations.map((e, i) => (
+                                    <li key={i}>{[e.school, e.major, e.degree].filter(Boolean).join(" · ")}</li>
+                                  ))}
+                                </ul>
                               </div>
                             ) : null}
-                            {prof?.certifications?.length ? (
+                            {prof.certifications?.length ? (
                               <div>
-                                <span className="text-muted-foreground">자격증: </span>
-                                <span>{prof.certifications.map((c) => `${c.is_primary ? "★ " : ""}${c.name}${c.number ? `(${c.number})` : ""}${c.acquired_date ? ` ${c.acquired_date}` : ""}`).filter((s) => s.trim()).join(" / ")}</span>
+                                <div className="text-muted-foreground">자격증</div>
+                                <ul className="space-y-0.5">
+                                  {prof.certifications.map((c, i) => (
+                                    <li key={i}>
+                                      {c.is_primary && <Star className="inline h-3 w-3 -mt-0.5 mr-0.5 text-amber-500" />}
+                                      <span className="text-foreground">{c.name}</span>
+                                      {c.number && <span className="text-muted-foreground"> ({c.number})</span>}
+                                      {c.acquired_date && <span className="text-muted-foreground"> · {c.acquired_date}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
                             ) : null}
                           </div>
