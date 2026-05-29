@@ -113,6 +113,36 @@ export default function Careers() {
   const [deleteTech, setDeleteTech] = useState<Technician | null>(null);
 
   const [techStats, setTechStats] = useState<Record<string, TechStat>>({});
+  const [profilesByName, setProfilesByName] = useState<Record<string, PersonalProfile>>({});
+  const [careersByName, setCareersByName] = useState<Record<string, PersonalCareerRow[]>>({});
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+
+  const loadPersonalData = async () => {
+    const [{ data: pData }, { data: cData }] = await Promise.all([
+      (supabase as any).from("personal_profiles").select("*"),
+      supabase.from("personal_careers").select("*").order("hire_date", { ascending: true }),
+    ]);
+    const pMap: Record<string, PersonalProfile> = {};
+    ((pData as any[]) || []).forEach((p) => {
+      pMap[p.technician_name] = {
+        technician_name: p.technician_name,
+        birth_date: p.birth_date,
+        specialty: p.specialty,
+        address: p.address ?? null,
+        grade_kepa: p.grade_kepa ?? null,
+        grade_eval: p.grade_eval ?? null,
+        educations: Array.isArray(p.educations) ? p.educations : [],
+        certifications: Array.isArray(p.certifications) ? p.certifications : [],
+      };
+    });
+    const cMap: Record<string, PersonalCareerRow[]> = {};
+    ((cData as any[]) || []).forEach((c) => {
+      if (!cMap[c.technician_name]) cMap[c.technician_name] = [];
+      cMap[c.technician_name].push(c);
+    });
+    setProfilesByName(pMap);
+    setCareersByName(cMap);
+  };
 
   const loadTechs = async () => {
     setLoading(true);
