@@ -476,7 +476,21 @@ export default function PersonalHistory() {
               </div>
               <div>
                 <Label className="text-xs">전문분야</Label>
-                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="예: 도시계획" />
+                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">주소</Label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="예: 서울특별시 강남구 ..." />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">건기협 등급</Label>
+                <Input value={gradeKepa} onChange={(e) => setGradeKepa(e.target.value)} placeholder="예: 특급" />
+              </div>
+              <div>
+                <Label className="text-xs">평가협회 등급</Label>
+                <Input value={gradeEval} onChange={(e) => setGradeEval(e.target.value)} placeholder="예: 고급" />
               </div>
             </div>
 
