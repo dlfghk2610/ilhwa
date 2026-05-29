@@ -568,19 +568,23 @@ export default function Performances() {
           const baseName = pm ? pm[1].trim() : (r.project_name || "");
           const groupKey = `${baseName}__${r.client || ""}`;
           const under90 = partDays > 0 && partDays < 90;
+          const under120 = partDays > 0 && partDays < 120;
           const minC = parseAmt(minContractAmount);
           const minS = parseAmt(minShareAmount);
           const contractAmt = Number(r.contract_amount || 0);
           const shareAmt = Number(r.share_amount || 0);
           const belowAmount = (minC > 0 && contractAmt < minC) || (minS > 0 && shareAmt < minS);
 
-          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, belowAmount, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, under120, belowAmount, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
         })
-        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; belowAmount: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; under120: boolean; belowAmount: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
 
       const lastPhaseByGroup = new Map<string, { num: number; label: string }>();
       base.forEach((t) => {
         if (t.isPostEval && t.phaseNum != null && t.phaseLabel) {
+          // 90일 미만 차수는 후보에서 제외(자동으로 이전 차수로 폴백)
+          if (t.under90) return;
+          if (excludeUnder120 && t.under120) return;
           const cur = lastPhaseByGroup.get(t.groupKey);
           if (!cur || t.phaseNum > cur.num) lastPhaseByGroup.set(t.groupKey, { num: t.phaseNum, label: t.phaseLabel });
         }
@@ -593,7 +597,7 @@ export default function Performances() {
         return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
     };
-  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount]);
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount, excludeUnder120]);
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
