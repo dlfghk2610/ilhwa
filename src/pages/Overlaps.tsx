@@ -94,6 +94,9 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   absolute_period_days: null, participants: [], notes: "",
   contract_amount_change_date: "", contract_amount_new: null,
   end_date_change_date: "", end_date_new: "",
+  original_contract_pdf_path: null, contract_change_pdf_path: null,
+  end_date_change_pdf_path: null, suspension_pdf_path: null,
+  agreement_pdf_path: null, participant_list_pdf_path: null,
 });
 
 export default function Overlaps() {
