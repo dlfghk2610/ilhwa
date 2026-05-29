@@ -17,8 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload } from "lucide-react";
-import { importFromExcel } from "@/lib/excel";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, FileText as FileTextIcon } from "lucide-react";
+import { importFromExcel, exportToExcel } from "@/lib/excel";
+import { PDFDocument } from "pdf-lib";
 
 type Participant = { name: string; role?: string };
 
