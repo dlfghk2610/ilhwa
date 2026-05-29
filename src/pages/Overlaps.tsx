@@ -40,6 +40,12 @@ type OverlapRow = {
   contract_amount_new: number | null;
   end_date_change_date: string | null;
   end_date_new: string | null;
+  original_contract_pdf_path: string | null;
+  contract_change_pdf_path: string | null;
+  end_date_change_pdf_path: string | null;
+  suspension_pdf_path: string | null;
+  agreement_pdf_path: string | null;
+  participant_list_pdf_path: string | null;
 };
 
 type Unit = "won" | "k" | "m";
