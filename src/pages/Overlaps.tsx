@@ -946,6 +946,47 @@ export default function Overlaps() {
               <Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
 
+            {/* PDF 증빙서류 업로드 */}
+            <div className="border-t pt-3 space-y-2">
+              <Label className="text-sm font-semibold">증빙서류 (PDF)</Label>
+              <div className="text-[11px] text-muted-foreground">당초 계약서는 PDF 병합 시 무조건 출력됩니다.</div>
+              {[
+                ...PDF_FIELDS,
+                { key: "participant_list_pdf_path" as keyof OverlapRow, label: "참여자 명단 (수시 변경)" },
+              ].map((f) => {
+                const path = form[f.key] as string | null;
+                const filename = path ? path.split("/").pop() : null;
+                return (
+                  <div key={f.key as string} className="flex items-center gap-2 flex-wrap">
+                    <div className="text-xs w-[180px] shrink-0">{f.label}</div>
+                    <input
+                      id={`pdf-${String(f.key)}`}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadPdf(f.key, file); e.target.value = ""; }}
+                    />
+                    <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(`pdf-${String(f.key)}`)?.click()} disabled={uploadingField === f.key}>
+                      {uploadingField === f.key ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                      {path ? "교체" : "업로드"}
+                    </Button>
+                    {path && (
+                      <>
+                        <button type="button" onClick={() => downloadPdf(path)} className="text-xs text-primary underline truncate max-w-[200px]" title={filename || ""}>
+                          <FileTextIcon className="inline h-3 w-3 mr-0.5" />{filename}
+                        </button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm((s) => ({ ...s, [f.key]: null }))}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button>
               <Button type="submit" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
