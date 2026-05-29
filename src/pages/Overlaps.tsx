@@ -17,8 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload } from "lucide-react";
-import { importFromExcel } from "@/lib/excel";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, FileText as FileTextIcon } from "lucide-react";
+import { importFromExcel, exportToExcel } from "@/lib/excel";
+import { PDFDocument } from "pdf-lib";
 
 type Participant = { name: string; role?: string };
 
@@ -39,6 +40,12 @@ type OverlapRow = {
   contract_amount_new: number | null;
   end_date_change_date: string | null;
   end_date_new: string | null;
+  original_contract_pdf_path: string | null;
+  contract_change_pdf_path: string | null;
+  end_date_change_pdf_path: string | null;
+  suspension_pdf_path: string | null;
+  agreement_pdf_path: string | null;
+  participant_list_pdf_path: string | null;
 };
 
 type Unit = "won" | "k" | "m";
@@ -87,6 +94,9 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   absolute_period_days: null, participants: [], notes: "",
   contract_amount_change_date: "", contract_amount_new: null,
   end_date_change_date: "", end_date_new: "",
+  original_contract_pdf_path: null, contract_change_pdf_path: null,
+  end_date_change_pdf_path: null, suspension_pdf_path: null,
+  agreement_pdf_path: null, participant_list_pdf_path: null,
 });
 
 export default function Overlaps() {
@@ -100,6 +110,9 @@ export default function Overlaps() {
   const [useAbsolute, setUseAbsolute] = useState(false);
   const [selectedTech, setSelectedTech] = useState<string>("__all__");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [printSeq, setPrintSeq] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
   const [open, setOpen] = useState(false);
@@ -148,6 +161,12 @@ export default function Overlaps() {
       contract_amount_new: r.contract_amount_new,
       end_date_change_date: r.end_date_change_date || "",
       end_date_new: r.end_date_new || "",
+      original_contract_pdf_path: r.original_contract_pdf_path || null,
+      contract_change_pdf_path: r.contract_change_pdf_path || null,
+      end_date_change_pdf_path: r.end_date_change_pdf_path || null,
+      suspension_pdf_path: r.suspension_pdf_path || null,
+      agreement_pdf_path: r.agreement_pdf_path || null,
+      participant_list_pdf_path: r.participant_list_pdf_path || null,
     });
     setOpen(true);
   };
@@ -175,6 +194,12 @@ export default function Overlaps() {
       contract_amount_new: num(form.contract_amount_new),
       end_date_change_date: form.end_date_change_date || null,
       end_date_new: form.end_date_new || null,
+      original_contract_pdf_path: form.original_contract_pdf_path || null,
+      contract_change_pdf_path: form.contract_change_pdf_path || null,
+      end_date_change_pdf_path: form.end_date_change_pdf_path || null,
+      suspension_pdf_path: form.suspension_pdf_path || null,
+      agreement_pdf_path: form.agreement_pdf_path || null,
+      participant_list_pdf_path: form.participant_list_pdf_path || null,
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
@@ -369,6 +394,131 @@ export default function Overlaps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, announcementDate, useAbsolute, unit]);
 
+  // ===== PDF 업로드/다운로드/병합 & 엑셀 추출 =====
+  const PDF_FIELDS: { key: keyof OverlapRow; label: string }[] = [
+    { key: "original_contract_pdf_path", label: "당초 계약서" },
+    { key: "contract_change_pdf_path", label: "계약금액 변경 계약서" },
+    { key: "end_date_change_pdf_path", label: "준공예정일 변경 계약서" },
+    { key: "suspension_pdf_path", label: "과업중지 공문" },
+    { key: "agreement_pdf_path", label: "협의완료 공문" },
+  ];
+
+  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
+    if (!user) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("PDF 파일만 업로드 가능합니다"); return;
+    }
+    setUploadingField(field as string);
+    const path = `${user.id}/${Date.now()}_${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("overlap-documents").upload(path, file, { contentType: "application/pdf" });
+    setUploadingField(null);
+    if (error) { toast.error(error.message); return; }
+    setForm((f) => ({ ...f, [field]: path }));
+    toast.success("업로드 완료");
+  };
+
+  const downloadPdf = async (path: string) => {
+    const { data, error } = await supabase.storage.from("overlap-documents").download(path);
+    if (error || !data) { toast.error("다운로드 실패"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = path.split("/").pop() || "file.pdf"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const fetchPdfBytes = async (path: string): Promise<Uint8Array | null> => {
+    const { data, error } = await supabase.storage.from("overlap-documents").download(path);
+    if (error || !data) return null;
+    return new Uint8Array(await data.arrayBuffer());
+  };
+
+  const sortedForExport = useMemo(() => {
+    return [...filtered].sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
+  }, [filtered]);
+
+  const mergeProofPdfs = async (includeParticipantList: boolean) => {
+    setDownloadingPdf(true);
+    try {
+      const { StandardFonts, rgb } = await import("pdf-lib");
+      const merged = await PDFDocument.create();
+      const font = await merged.embedFont(StandardFonts.HelveticaBold);
+      let added = 0;
+      let seq = 0;
+      for (const r of sortedForExport) {
+        const paths: string[] = [];
+        if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
+        for (const f of PDF_FIELDS.slice(1)) {
+          const p = r[f.key] as string | null;
+          if (p) paths.push(p);
+        }
+        if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
+        if (paths.length === 0) continue;
+        seq += 1;
+        let isFirstPageOfProject = true;
+        for (const p of paths) {
+          const bytes = await fetchPdfBytes(p);
+          if (!bytes) continue;
+          try {
+            const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+            const pages = await merged.copyPages(src, src.getPageIndices());
+            pages.forEach((pg, idx) => {
+              merged.addPage(pg);
+              if (printSeq && isFirstPageOfProject && idx === 0) {
+                const { height } = pg.getSize();
+                pg.drawText(`${seq}`, { x: 20, y: height - 30, size: 18, font, color: rgb(0, 0, 0) });
+              }
+            });
+            isFirstPageOfProject = false;
+            added += 1;
+          } catch { /* skip */ }
+        }
+      }
+      if (added === 0) { toast.error("병합할 PDF가 없습니다"); return; }
+      const out = await merged.save();
+      const blob = new Blob([out as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const tech = selectedTech !== "__all__" ? `_${selectedTech}` : "";
+      a.href = url; a.download = `업무중첩도_증빙${includeParticipantList ? "+참여자명단" : ""}${tech}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${added}개 PDF 병합 완료`);
+    } catch (e: any) {
+      toast.error("병합 실패: " + (e?.message || ""));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const exportOverlapExcel = () => {
+    if (sortedForExport.length === 0) { toast.error("내보낼 데이터가 없습니다"); return; }
+    const data = sortedForExport.map((r, i) => {
+      const info = remainInfo(r);
+      const o = overlapAmount(r);
+      const eEnd = effectiveEndDate(r);
+      const eContract = effectiveContract(r);
+      return {
+        연번: i + 1,
+        사업명: r.project_name,
+        발주처: r.client || "",
+        계약금액: eContract ?? "",
+        착수일: r.start_date || "",
+        준공예정일: eEnd || "",
+        "총계약기간(일)": diffDays(r.start_date, eEnd),
+        "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
+        중복금액: o.label ?? (o.value === null ? "" : o.value),
+        과업중지일: effectiveSuspensionDate(r) || "",
+        중지사유: r.suspension_reason || "",
+        협의완료일: effectiveAgreementDate(r) || "",
+        참여인력: (r.participants || []).map((p) => p.name).join(", "),
+        비고: r.notes || "",
+      };
+    });
+    const tech = selectedTech !== "__all__" ? `_${selectedTech}` : "";
+    exportToExcel(data, `업무중첩도${tech}`);
+  };
+
+
+
   return (
     <AppLayout title="PQ 기술자별 업무중첩도 관리">
       <Tabs defaultValue="projects" className="space-y-4">
@@ -429,6 +579,21 @@ export default function Overlaps() {
             </div>
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-2">
+              <Checkbox id="printseq" checked={printSeq} onCheckedChange={(v) => setPrintSeq(!!v)} />
+              <Label htmlFor="printseq" className="text-sm cursor-pointer whitespace-nowrap">PDF 병합시 연번 표시(착수일 오름차순, 첫장 좌측상단)</Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={exportOverlapExcel}>
+              <FileDown className="h-4 w-4 mr-1" />엑셀 추출
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => mergeProofPdfs(false)} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙PDF 병합
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => mergeProofPdfs(true)} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙+참여자명단 PDF
+            </Button>
+          </div>
           {selectedTech !== "__all__" && (
             <div className="mt-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
@@ -437,6 +602,10 @@ export default function Overlaps() {
             </div>
           )}
         </Card>
+
+
+
+
 
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
@@ -524,16 +693,17 @@ export default function Overlaps() {
             const isOpen = !!expanded[r.id];
             return (
               <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"}`}>
-                <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-center justify-between gap-2 p-3 text-left">
-                  <div className="flex items-start gap-2 min-w-0 flex-1">
-                    {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
-                    <div className="font-medium truncate">{r.project_name}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs text-muted-foreground">중복금액</div>
-                    <div className="font-semibold text-primary text-sm">{overlapText}</div>
+                <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-start gap-2 p-3 text-left">
+                  {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium break-words">{r.project_name}</div>
+                    <div className="mt-1 text-xs">
+                      <span className="text-muted-foreground">중복금액 </span>
+                      <span className="font-semibold text-primary">{overlapText}</span>
+                    </div>
                   </div>
                 </button>
+
                 {isOpen && (
                   <div className="px-3 pb-3 space-y-1.5 text-xs">
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1">
@@ -775,6 +945,47 @@ export default function Overlaps() {
               <Label>비고</Label>
               <Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
+
+            {/* PDF 증빙서류 업로드 */}
+            <div className="border-t pt-3 space-y-2">
+              <Label className="text-sm font-semibold">증빙서류 (PDF)</Label>
+              <div className="text-[11px] text-muted-foreground">당초 계약서는 PDF 병합 시 무조건 출력됩니다.</div>
+              {[
+                ...PDF_FIELDS,
+                { key: "participant_list_pdf_path" as keyof OverlapRow, label: "참여자 명단 (수시 변경)" },
+              ].map((f) => {
+                const path = form[f.key] as string | null;
+                const filename = path ? path.split("/").pop() : null;
+                return (
+                  <div key={f.key as string} className="flex items-center gap-2 flex-wrap">
+                    <div className="text-xs w-[180px] shrink-0">{f.label}</div>
+                    <input
+                      id={`pdf-${String(f.key)}`}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadPdf(f.key, file); e.target.value = ""; }}
+                    />
+                    <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(`pdf-${String(f.key)}`)?.click()} disabled={uploadingField === f.key}>
+                      {uploadingField === f.key ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                      {path ? "교체" : "업로드"}
+                    </Button>
+                    {path && (
+                      <>
+                        <button type="button" onClick={() => downloadPdf(path)} className="text-xs text-primary underline truncate max-w-[200px]" title={filename || ""}>
+                          <FileTextIcon className="inline h-3 w-3 mr-0.5" />{filename}
+                        </button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm((s) => ({ ...s, [f.key]: null }))}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button>
