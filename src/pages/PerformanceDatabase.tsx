@@ -302,7 +302,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     let completionFromExcel: string | null = null;
     const participants: Participant[] = rows
       .map((r) => {
-        const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+        const nmRaw = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+        const nm = nmRaw.replace(/\s+/g, "");
         if (!nm) return null;
         const birthRaw = r["생년월일"];
         const birth = typeof birthRaw === "number"
@@ -338,6 +339,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     return { participants, completion: completionFromExcel };
   }
 
+  async function autoExtractFromExcel(file: File) {
+    setExtracting(true);
+    try {
+      const { participants, completion } = await parseParticipantsFromExcel(file);
+      if (participants.length === 0) { toast.error("엑셀에서 참여자를 찾지 못했습니다"); return; }
+      setForm((f) => ({ ...f, participants, completion_date: completion || f.completion_date }));
+      toast.success(`${participants.length}명 자동 추출 완료`);
+    } catch (e: any) { toast.error(e?.message || "추출 실패"); }
+    finally { setExtracting(false); }
+  }
+
+  function handleParticipantFileChange(file: File | null) {
+    setForm((f) => ({ ...f, participant_file: file }));
+    if (!file) return;
+    const n = file.name.toLowerCase();
+    if (n.endsWith(".xlsx") || n.endsWith(".xls")) {
+      autoExtractFromExcel(file);
+    }
+  }
+
   async function handleExtractParticipants() {
     if (!form.participant_file) { toast.error("먼저 파일을 선택하세요"); return; }
     setExtracting(true);
@@ -366,12 +387,16 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const participants: Participant[] = data?.participants ?? [];
+      const participants: Participant[] = (data?.participants ?? []).map((p: Participant) => ({
+        ...p,
+        name: (p.name || "").replace(/\s+/g, ""),
+      }));
       setForm((f) => ({ ...f, participants }));
       toast.success(`${participants.length}명 추출 완료`);
     } catch (e: any) { toast.error(e.message || "추출 실패"); }
     finally { setExtracting(false); }
   }
+
 
   async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string) {
     try {
@@ -1142,7 +1167,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label>참여 기술자</Label>
                 <div className="flex gap-2 items-center flex-wrap">
-                  <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="max-w-xs" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                  <Input type="file" accept=".pdf,.docx,.xlsx,.xls" className="max-w-xs" onChange={(e) => handleParticipantFileChange(e.target.files?.[0] || null)} />
                   <Button type="button" size="sm" variant="outline" disabled={!form.participant_file || extracting} onClick={handleExtractParticipants}>
                     {extracting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}자동추출
                   </Button>
@@ -1194,7 +1219,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                 <div>
                   <Label>참여자명단 PDF</Label>
                   <div className="flex items-center gap-2">
-                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => handleParticipantFileChange(e.target.files?.[0] || null)} />
                     {form.participant_file_path && !form.participant_file && (
                       <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
                     )}
