@@ -793,6 +793,10 @@ export default function Performances() {
               참여일수 90일 미만 포함
             </label>
             <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+              <Checkbox checked={excludeUnder120} onCheckedChange={(c) => { setExcludeUnder120(!!c); setTechSelectionTouched(false); }} />
+              참여일수 120일 미만 제외
+            </label>
+            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
               <Checkbox checked={excludeLhPhases} onCheckedChange={(c) => { setExcludeLhPhases(!!c); setTechSelectionTouched(false); }} />
               LH사업의 경우 차수분 제외
             </label>
