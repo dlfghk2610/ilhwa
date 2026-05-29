@@ -863,7 +863,7 @@ export default function Performances() {
                     const sAmt = Number(t.row.share_amount || 0);
                     return (
                     <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${blockUnder90 ? "bg-red-100 hover:bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
-                      {blockUnder90 && <></>}
+
                       <TableCell>
                         {(() => {
                           const disabled = t.expired || blockUnder90 || t.belowAmount;
