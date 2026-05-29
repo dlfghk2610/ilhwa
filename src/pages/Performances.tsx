@@ -871,6 +871,7 @@ export default function Performances() {
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
+                        {blockUnder90 && <Badge variant="destructive" className="mr-1">90일미만</Badge>}
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                         <div className="text-xs text-muted-foreground mt-0.5">용역금액 {formatAmt(cAmt)}원 / 지분금액 {formatAmt(sAmt)}원</div>
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
