@@ -686,16 +686,17 @@ export default function Overlaps() {
             const isOpen = !!expanded[r.id];
             return (
               <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"}`}>
-                <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-center justify-between gap-2 p-3 text-left">
-                  <div className="flex items-start gap-2 min-w-0 flex-1">
-                    {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
-                    <div className="font-medium truncate">{r.project_name}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs text-muted-foreground">중복금액</div>
-                    <div className="font-semibold text-primary text-sm">{overlapText}</div>
+                <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-start gap-2 p-3 text-left">
+                  {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium break-words">{r.project_name}</div>
+                    <div className="mt-1 text-xs">
+                      <span className="text-muted-foreground">중복금액 </span>
+                      <span className="font-semibold text-primary">{overlapText}</span>
+                    </div>
                   </div>
                 </button>
+
                 {isOpen && (
                   <div className="px-3 pb-3 space-y-1.5 text-xs">
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1">
