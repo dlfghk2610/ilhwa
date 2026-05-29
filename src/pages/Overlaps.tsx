@@ -462,7 +462,7 @@ export default function Overlaps() {
       }
       if (added === 0) { toast.error("병합할 PDF가 없습니다"); return; }
       const out = await merged.save();
-      const blob = new Blob([out], { type: "application/pdf" });
+      const blob = new Blob([out as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const tech = selectedTech !== "__all__" ? `_${selectedTech}` : "";
