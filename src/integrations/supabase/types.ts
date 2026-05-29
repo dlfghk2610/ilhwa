@@ -406,6 +406,42 @@ export type Database = {
         }
         Relationships: []
       }
+      personal_profiles: {
+        Row: {
+          birth_date: string | null
+          certifications: Json
+          created_at: string
+          created_by: string
+          educations: Json
+          id: string
+          specialty: string | null
+          technician_name: string
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          certifications?: Json
+          created_at?: string
+          created_by: string
+          educations?: Json
+          id?: string
+          specialty?: string | null
+          technician_name: string
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          certifications?: Json
+          created_at?: string
+          created_by?: string
+          educations?: Json
+          id?: string
+          specialty?: string | null
+          technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean

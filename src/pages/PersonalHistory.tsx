@@ -10,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight, Star } from "lucide-react";
 
 type PersonalCareer = {
   id: string;
@@ -23,6 +25,18 @@ type PersonalCareer = {
   resign_date: string | null;
   duties: string | null;
   notes: string | null;
+};
+
+type Education = { school: string; major: string; degree: "학사" | "석사" | "박사" | "" };
+type Certification = { name: string; number: string; acquired_date: string; is_primary: boolean };
+
+type PersonalProfile = {
+  id?: string;
+  technician_name: string;
+  birth_date: string | null;
+  specialty: string | null;
+  educations: Education[];
+  certifications: Certification[];
 };
 
 type PeriodForm = {
@@ -56,9 +70,26 @@ const diffDays = (start?: string | null, end?: string | null) => {
   return Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
 };
 
+const koreanAge = (birth?: string | null, ref?: string | null) => {
+  const b = parseDate(birth);
+  const r = parseDate(ref);
+  if (!b || !r) return "";
+  let age = r.getFullYear() - b.getFullYear();
+  const m = r.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && r.getDate() < b.getDate())) age -= 1;
+  return age >= 0 ? `${age}세` : "";
+};
+
+const formatBirth = (s?: string | null) => {
+  if (!s) return "";
+  const [y, m, d] = s.split("-");
+  return y && m && d ? `${y}.${m}.${d}` : s;
+};
+
 export default function PersonalHistory() {
   const { user } = useAuth();
   const [rows, setRows] = useState<PersonalCareer[]>([]);
+  const [profiles, setProfiles] = useState<PersonalProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
@@ -66,6 +97,10 @@ export default function PersonalHistory() {
   const [editingTech, setEditingTech] = useState<string | null>(null);
   const [techName, setTechName] = useState("");
   const [periods, setPeriods] = useState<PeriodForm[]>([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
+  const [birthDate, setBirthDate] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
+  const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
@@ -78,19 +113,32 @@ export default function PersonalHistory() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("personal_careers")
-      .select("*")
-      .order("technician_name", { ascending: true })
-      .order("hire_date", { ascending: true });
-    if (error) toast.error(error.message);
-    else setRows((data as PersonalCareer[]) || []);
+    const [{ data: cData, error: cErr }, { data: pData, error: pErr }] = await Promise.all([
+      supabase.from("personal_careers").select("*").order("technician_name", { ascending: true }).order("hire_date", { ascending: true }),
+      supabase.from("personal_profiles" as any).select("*"),
+    ]);
+    if (cErr) toast.error(cErr.message);
+    else setRows((cData as PersonalCareer[]) || []);
+    if (pErr) toast.error(pErr.message);
+    else setProfiles(((pData as any[]) || []).map((p) => ({
+      id: p.id,
+      technician_name: p.technician_name,
+      birth_date: p.birth_date,
+      specialty: p.specialty,
+      educations: Array.isArray(p.educations) ? p.educations : [],
+      certifications: Array.isArray(p.certifications) ? p.certifications : [],
+    })));
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  // Group by technician_name
+  const profileMap = useMemo(() => {
+    const m = new Map<string, PersonalProfile>();
+    profiles.forEach((p) => m.set(p.technician_name, p));
+    return m;
+  }, [profiles]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, PersonalCareer[]>();
     for (const r of rows) {
@@ -98,12 +146,13 @@ export default function PersonalHistory() {
       arr.push(r);
       map.set(r.technician_name, arr);
     }
-    // sort each group by hire_date asc
     for (const arr of map.values()) {
       arr.sort((a, b) => (a.hire_date || "").localeCompare(b.hire_date || ""));
     }
-    return Array.from(map.entries());
-  }, [rows]);
+    // Include techs that have profile only
+    profiles.forEach((p) => { if (!map.has(p.technician_name)) map.set(p.technician_name, []); });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows, profiles]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,13 +167,17 @@ export default function PersonalHistory() {
     setEditingTech(null);
     setTechName("");
     setPeriods([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
+    setBirthDate("");
+    setSpecialty("");
+    setEducations([{ school: "", major: "", degree: "학사" }]);
+    setCertifications([{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
   };
 
   const openEdit = (name: string, list: PersonalCareer[]) => {
     setEditingTech(name);
     setTechName(name);
-    setPeriods(list.map((r) => ({
+    setPeriods(list.length ? list.map((r) => ({
       id: r.id,
       company: r.company || "",
       department: r.department || "",
@@ -132,43 +185,73 @@ export default function PersonalHistory() {
       hire_date: r.hire_date || "",
       resign_date: r.resign_date || "",
       is_current: !r.resign_date,
-    })));
+    })) : [{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
+    const prof = profileMap.get(name);
+    setBirthDate(prof?.birth_date || "");
+    setSpecialty(prof?.specialty || "");
+    setEducations(prof?.educations?.length ? prof.educations : [{ school: "", major: "", degree: "학사" }]);
+    setCertifications(prof?.certifications?.length ? prof.certifications : [{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
   };
 
-  const updatePeriod = (i: number, patch: Partial<PeriodForm>) => {
-    setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
-  };
+  const updatePeriod = (i: number, patch: Partial<PeriodForm>) => setPeriods((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   const addPeriod = () => setPeriods((p) => [...p, { company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: false }]);
   const removePeriod = (i: number) => setPeriods((p) => p.filter((_, idx) => idx !== i));
+
+  const updateEdu = (i: number, patch: Partial<Education>) => setEducations((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  const addEdu = () => setEducations((p) => [...p, { school: "", major: "", degree: "학사" }]);
+  const removeEdu = (i: number) => setEducations((p) => p.filter((_, idx) => idx !== i));
+
+  const updateCert = (i: number, patch: Partial<Certification>) => setCertifications((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  const addCert = () => setCertifications((p) => [...p, { name: "", number: "", acquired_date: "", is_primary: p.length === 0 }]);
+  const removeCert = (i: number) => setCertifications((p) => p.filter((_, idx) => idx !== i));
+  const setPrimaryCert = (i: number) => setCertifications((p) => p.map((c, idx) => ({ ...c, is_primary: idx === i })));
 
   const save = async () => {
     if (!user) return;
     if (!techName.trim()) { toast.error("기술자명을 입력하세요"); return; }
-    const cleaned = periods.filter((p) => p.company.trim() || p.hire_date);
-    if (cleaned.length === 0) { toast.error("근무처를 1개 이상 입력하세요"); return; }
-    for (const p of cleaned) {
+    const cleanedPeriods = periods.filter((p) => p.company.trim() || p.hire_date);
+    for (const p of cleanedPeriods) {
       if (!p.company.trim()) { toast.error("근무처(회사명)을 입력하세요"); return; }
     }
 
-    // Delete existing rows for this technician (if editing), then insert all
     if (editingTech) {
       const { error: delErr } = await supabase.from("personal_careers").delete().eq("technician_name", editingTech);
       if (delErr) { toast.error(delErr.message); return; }
     }
-    const payload = cleaned.map((p) => ({
-      technician_name: techName.trim(),
-      company: p.company.trim(),
-      department: p.department.trim() || null,
-      position: p.position.trim() || null,
-      hire_date: p.hire_date || null,
-      resign_date: p.is_current ? null : (p.resign_date || null),
-      duties: null,
-      notes: null,
+    if (cleanedPeriods.length > 0) {
+      const payload = cleanedPeriods.map((p) => ({
+        technician_name: techName.trim(),
+        company: p.company.trim(),
+        department: p.department.trim() || null,
+        position: p.position.trim() || null,
+        hire_date: p.hire_date || null,
+        resign_date: p.is_current ? null : (p.resign_date || null),
+        duties: null,
+        notes: null,
+        created_by: user.id,
+      }));
+      const { error } = await supabase.from("personal_careers").insert(payload);
+      if (error) { toast.error(error.message); return; }
+    }
+
+    // Save profile (upsert)
+    const cleanedEdu = educations.filter((e) => e.school.trim() || e.major.trim());
+    const cleanedCert = certifications.filter((c) => c.name.trim() || c.number.trim());
+    if (cleanedCert.length > 0 && !cleanedCert.some((c) => c.is_primary)) cleanedCert[0].is_primary = true;
+    const profilePayload = {
       created_by: user.id,
-    }));
-    const { error } = await supabase.from("personal_careers").insert(payload);
-    if (error) { toast.error(error.message); return; }
+      technician_name: techName.trim(),
+      birth_date: birthDate || null,
+      specialty: specialty.trim() || null,
+      educations: cleanedEdu,
+      certifications: cleanedCert,
+    };
+    const { error: pErr } = await supabase
+      .from("personal_profiles" as any)
+      .upsert(profilePayload, { onConflict: "created_by,technician_name" });
+    if (pErr) { toast.error(pErr.message); return; }
+
     toast.success(editingTech ? "수정되었습니다" : "등록되었습니다");
     setDialogOpen(false);
     load();
@@ -176,8 +259,11 @@ export default function PersonalHistory() {
 
   const remove = async () => {
     if (!deleteTech) return;
-    const { error } = await supabase.from("personal_careers").delete().eq("technician_name", deleteTech);
-    if (error) toast.error(error.message);
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("personal_careers").delete().eq("technician_name", deleteTech),
+      supabase.from("personal_profiles" as any).delete().eq("technician_name", deleteTech),
+    ]);
+    if (e1 || e2) toast.error((e1 || e2)!.message);
     else { toast.success("삭제되었습니다"); load(); }
     setDeleteTech(null);
   };
@@ -205,7 +291,7 @@ export default function PersonalHistory() {
         <Card className="p-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <div className="text-xs text-muted-foreground">
-              기술자별로 근무처 이력을 시간 순으로 입력하세요. 마지막 근무처가 현재 재직중이라면 입사일만 입력하면 공고일 기준으로 근무기간이 계산됩니다.
+              기술자별로 인적사항·학력·자격증·근무처 이력을 입력하세요. 재직중인 경우 공고일 기준으로 근무기간이 계산됩니다.
             </div>
             {filtered.length > 0 && (
               <div className="flex gap-1 shrink-0">
@@ -225,17 +311,25 @@ export default function PersonalHistory() {
                 const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
                 const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
                 const isCollapsed = !!collapsed[name];
+                const prof = profileMap.get(name);
+                const age = koreanAge(prof?.birth_date, announcementDate);
+                const primaryCert = prof?.certifications?.find((c) => c.is_primary) || prof?.certifications?.[0];
                 return (
                   <div key={name} className="border rounded-md p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggle(name)}
-                        className="flex items-start gap-2 text-left flex-1 min-w-0"
-                      >
+                      <button type="button" onClick={() => toggle(name)} className="flex items-start gap-2 text-left flex-1 min-w-0">
                         {isCollapsed ? <ChevronRight className="h-4 w-4 mt-1 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-1 shrink-0" />}
                         <div className="min-w-0">
-                          <div className="font-semibold text-base">{name} <span className="text-xs text-muted-foreground font-normal">({list.length}곳)</span></div>
+                          <div className="font-semibold text-base">
+                            {name}
+                            {list.length > 0 && <span className="text-xs text-muted-foreground font-normal"> ({list.length}곳)</span>}
+                            {prof?.specialty && <span className="ml-2 text-xs text-muted-foreground font-normal">· {prof.specialty}</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                            {prof?.birth_date && <span>생년월일: <span className="font-medium text-foreground">{formatBirth(prof.birth_date)}</span></span>}
+                            {age && <span>만 {age}</span>}
+                            {primaryCert?.name && <span>· 대표자격: <span className="font-medium text-foreground">{primaryCert.name}</span></span>}
+                          </div>
                           {announcementDate && firstHire && (
                             <div className="text-xs text-muted-foreground mt-1">
                               이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
@@ -251,7 +345,25 @@ export default function PersonalHistory() {
                     </div>
                     {!isCollapsed && (
                       <>
+                        {/* Profile details */}
+                        {(prof?.educations?.length || prof?.certifications?.length) ? (
+                          <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5">
+                            {prof?.educations?.length ? (
+                              <div>
+                                <span className="text-muted-foreground">학력: </span>
+                                <span>{prof.educations.map((e, i) => `${e.school || ""}${e.major ? ` ${e.major}` : ""}${e.degree ? ` (${e.degree})` : ""}`).filter((s) => s.trim()).join(" / ")}</span>
+                              </div>
+                            ) : null}
+                            {prof?.certifications?.length ? (
+                              <div>
+                                <span className="text-muted-foreground">자격증: </span>
+                                <span>{prof.certifications.map((c) => `${c.is_primary ? "★ " : ""}${c.name}${c.number ? `(${c.number})` : ""}${c.acquired_date ? ` ${c.acquired_date}` : ""}`).filter((s) => s.trim()).join(" / ")}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {/* Desktop: table */}
+                        {list.length > 0 && (
                         <div className="hidden md:block overflow-auto">
                           <Table className="min-w-[780px] text-sm">
                             <TableHeader>
@@ -287,7 +399,9 @@ export default function PersonalHistory() {
                             </TableBody>
                           </Table>
                         </div>
+                        )}
                         {/* Mobile: cards */}
+                        {list.length > 0 && (
                         <div className="md:hidden space-y-2">
                           {list.map((r, idx) => {
                             const isLast = idx === list.length - 1;
@@ -315,6 +429,7 @@ export default function PersonalHistory() {
                             );
                           })}
                         </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -333,6 +448,81 @@ export default function PersonalHistory() {
               <Label>기술자명 *</Label>
               <Input value={techName} onChange={(e) => setTechName(e.target.value)} disabled={!!editingTech} />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">생년월일</Label>
+                <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                {birthDate && announcementDate && (
+                  <div className="text-xs text-muted-foreground mt-1">공고일 기준 만 {koreanAge(birthDate, announcementDate)}</div>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">전문분야</Label>
+                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="예: 도시계획" />
+              </div>
+            </div>
+
+            {/* Educations */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>학력</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addEdu}><Plus className="h-3.5 w-3.5 mr-1" />추가</Button>
+              </div>
+              {educations.map((e, i) => (
+                <div key={i} className="border rounded-md p-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium text-muted-foreground">학력 #{i + 1}</div>
+                    {educations.length > 1 && (
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeEdu(i)}><X className="h-3.5 w-3.5" /></Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">학교명</Label><Input value={e.school} onChange={(ev) => updateEdu(i, { school: ev.target.value })} /></div>
+                    <div><Label className="text-xs">학과</Label><Input value={e.major} onChange={(ev) => updateEdu(i, { major: ev.target.value })} /></div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">학위</Label>
+                    <Select value={e.degree || "학사"} onValueChange={(v) => updateEdu(i, { degree: v as Education["degree"] })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="학사">학사</SelectItem>
+                        <SelectItem value="석사">석사</SelectItem>
+                        <SelectItem value="박사">박사</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Certifications */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>자격증 <span className="text-xs text-muted-foreground font-normal">(★ 대표자격증 선택)</span></Label>
+                <Button type="button" size="sm" variant="outline" onClick={addCert}><Plus className="h-3.5 w-3.5 mr-1" />추가</Button>
+              </div>
+              <RadioGroup value={String(certifications.findIndex((c) => c.is_primary))} onValueChange={(v) => setPrimaryCert(Number(v))}>
+                {certifications.map((c, i) => (
+                  <div key={i} className="border rounded-md p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                        <RadioGroupItem value={String(i)} id={`cert-${i}`} />
+                        <span>자격증 #{i + 1} {c.is_primary && <Star className="inline h-3 w-3 text-primary fill-primary" />}</span>
+                      </label>
+                      {certifications.length > 1 && (
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeCert(i)}><X className="h-3.5 w-3.5" /></Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-xs">자격증명</Label><Input value={c.name} onChange={(ev) => updateCert(i, { name: ev.target.value })} /></div>
+                      <div><Label className="text-xs">자격증번호</Label><Input value={c.number} onChange={(ev) => updateCert(i, { number: ev.target.value })} /></div>
+                    </div>
+                    <div><Label className="text-xs">취득일</Label><Input type="date" value={c.acquired_date} onChange={(ev) => updateCert(i, { acquired_date: ev.target.value })} /></div>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>근무처 이력 (시간순)</Label>
@@ -341,7 +531,7 @@ export default function PersonalHistory() {
               {periods.map((p, i) => (
                 <div key={i} className="border rounded-md p-3 space-y-2 relative">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-medium text-muted-foreground">근무처 #{i + 1} {i === periods.length - 1 && <span className="text-primary">(가장 최근/현재)</span>}</div>
+                    <div className="text-xs font-medium text-muted-foreground">근무처 #{i + 1}</div>
                     {periods.length > 1 && (
                       <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removePeriod(i)}><X className="h-3.5 w-3.5" /></Button>
                     )}
@@ -379,8 +569,8 @@ export default function PersonalHistory() {
       <AlertDialog open={!!deleteTech} onOpenChange={(o) => !o && setDeleteTech(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{deleteTech}님의 모든 근무이력을 삭제하시겠어요?</AlertDialogTitle>
-            <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
+            <AlertDialogTitle>{deleteTech}님의 모든 이력 정보를 삭제하시겠어요?</AlertDialogTitle>
+            <AlertDialogDescription>인적사항·학력·자격증·근무이력이 모두 삭제됩니다. 되돌릴 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
