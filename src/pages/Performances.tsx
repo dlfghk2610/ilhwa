@@ -926,11 +926,14 @@ export default function Performances() {
                 const cAmt = Number(t.row.contract_amount || 0);
                 const sAmt = Number(t.row.share_amount || 0);
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${blockUnder90 ? "bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
-                        <div className="font-medium text-sm break-words">{t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}</div>
+                        <div className="font-medium text-sm break-words">
+                          {blockUnder90 && <Badge variant="destructive" className="mr-1">90일미만</Badge>}
+                          {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                        </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">용역 {formatAmt(cAmt)} / 지분 {formatAmt(sAmt)}</div>
                         {t.belowAmount && <div className="text-[11px] text-orange-600 font-semibold mt-0.5">⚠ 금액미달 - 집계 제외</div>}
                       </button>
