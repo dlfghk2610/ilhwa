@@ -931,8 +931,8 @@ export default function Performances() {
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">
-                          {blockUnder90 && <Badge variant="destructive" className="mr-1">90일미만</Badge>}
                           {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                          {blockUnder90 && <Badge variant="destructive" className="ml-1">90일미만</Badge>}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">용역 {formatAmt(cAmt)} / 지분 {formatAmt(sAmt)}</div>
                         {t.belowAmount && <div className="text-[11px] text-orange-600 font-semibold mt-0.5">⚠ 금액미달 - 집계 제외</div>}
