@@ -259,6 +259,9 @@ export default function PersonalHistory() {
       technician_name: techName.trim(),
       birth_date: birthDate || null,
       specialty: specialty.trim() || null,
+      address: address.trim() || null,
+      grade_kepa: gradeKepa.trim() || null,
+      grade_eval: gradeEval.trim() || null,
       educations: cleanedEdu,
       certifications: cleanedCert,
     };
