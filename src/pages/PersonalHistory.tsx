@@ -128,6 +128,9 @@ export default function PersonalHistory() {
       technician_name: p.technician_name,
       birth_date: p.birth_date,
       specialty: p.specialty,
+      address: p.address ?? null,
+      grade_kepa: p.grade_kepa ?? null,
+      grade_eval: p.grade_eval ?? null,
       educations: Array.isArray(p.educations) ? p.educations : [],
       certifications: Array.isArray(p.certifications) ? p.certifications : [],
     })));
