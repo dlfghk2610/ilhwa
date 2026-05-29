@@ -566,6 +566,24 @@ export default function Overlaps() {
             </div>
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-2">
+              <Checkbox id="printseq" checked={printSeq} onCheckedChange={(v) => setPrintSeq(!!v)} />
+              <Label htmlFor="printseq" className="text-sm cursor-pointer whitespace-nowrap">인쇄시 연번 표시(착수일 오름차순)</Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={exportOverlapExcel}>
+              <FileDown className="h-4 w-4 mr-1" />엑셀 추출
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => mergeProofPdfs(false)} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙PDF 병합
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => mergeProofPdfs(true)} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙+참여자명단 PDF
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-1" />인쇄
+            </Button>
+          </div>
           {selectedTech !== "__all__" && (
             <div className="mt-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
@@ -574,6 +592,13 @@ export default function Overlaps() {
             </div>
           )}
         </Card>
+
+        {printSeq && (
+          <div className="hidden print:block fixed top-2 left-2 text-xs font-semibold">
+            {selectedTech !== "__all__" ? `${selectedTech} 기술자 업무중첩도 (착수일 오름차순)` : "업무중첩도 (착수일 오름차순)"}
+          </div>
+        )}
+
 
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
