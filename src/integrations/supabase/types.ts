@@ -571,9 +571,13 @@ export type Database = {
           agreement_date: string | null
           client: string | null
           contract_amount: number | null
+          contract_amount_change_date: string | null
+          contract_amount_new: number | null
           created_at: string
           created_by: string
           end_date: string | null
+          end_date_change_date: string | null
+          end_date_new: string | null
           id: string
           notes: string | null
           participants: Json
@@ -581,6 +585,7 @@ export type Database = {
           project_name: string
           start_date: string | null
           suspension_date: string | null
+          suspension_reason: string | null
           technician_name: string | null
           updated_at: string
         }
@@ -589,9 +594,13 @@ export type Database = {
           agreement_date?: string | null
           client?: string | null
           contract_amount?: number | null
+          contract_amount_change_date?: string | null
+          contract_amount_new?: number | null
           created_at?: string
           created_by: string
           end_date?: string | null
+          end_date_change_date?: string | null
+          end_date_new?: string | null
           id?: string
           notes?: string | null
           participants?: Json
@@ -599,6 +608,7 @@ export type Database = {
           project_name: string
           start_date?: string | null
           suspension_date?: string | null
+          suspension_reason?: string | null
           technician_name?: string | null
           updated_at?: string
         }
@@ -607,9 +617,13 @@ export type Database = {
           agreement_date?: string | null
           client?: string | null
           contract_amount?: number | null
+          contract_amount_change_date?: string | null
+          contract_amount_new?: number | null
           created_at?: string
           created_by?: string
           end_date?: string | null
+          end_date_change_date?: string | null
+          end_date_new?: string | null
           id?: string
           notes?: string | null
           participants?: Json
@@ -617,6 +631,7 @@ export type Database = {
           project_name?: string
           start_date?: string | null
           suspension_date?: string | null
+          suspension_reason?: string | null
           technician_name?: string | null
           updated_at?: string
         }

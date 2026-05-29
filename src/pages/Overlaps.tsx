@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload } from "lucide-react";
+import { importFromExcel } from "@/lib/excel";
 
 type Participant = { name: string; role?: string };
 
@@ -29,22 +30,21 @@ type OverlapRow = {
   start_date: string | null;
   end_date: string | null;
   suspension_date: string | null;
+  suspension_reason: string | null;
   agreement_date: string | null;
   absolute_period_days: number | null;
   participants: Participant[];
   notes: string | null;
+  contract_amount_change_date: string | null;
+  contract_amount_new: number | null;
+  end_date_change_date: string | null;
+  end_date_new: string | null;
 };
 
-type Unit = "won" | "k" | "m"; // 원, 천원, 백만원
+type Unit = "won" | "k" | "m";
 
-const toDisplayDate = (iso?: string | null) => {
-  if (!iso) return "";
-  return iso.replace(/-/g, ".");
-};
-const toISODate = (display?: string | null) => {
-  if (!display) return "";
-  return display.replace(/\./g, "-");
-};
+const toDisplayDate = (iso?: string | null) => (!iso ? "" : iso.replace(/-/g, "."));
+const toISODate = (display?: string | null) => (!display ? "" : display.replace(/\./g, "-"));
 const formatDateInput = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 8);
   if (d.length <= 4) return d;
@@ -75,6 +75,20 @@ const isCivilianLike = (r: OverlapRow) => {
 };
 const fmtDateCell = (iso?: string | null) => (iso ? toDisplayDate(iso) : "-");
 
+// announcement date >= effective date → 변경값 적용
+const isAfterOrEqual = (announcement: string | null | undefined, effective: string | null | undefined) => {
+  if (!announcement || !effective) return false;
+  return announcement >= effective;
+};
+
+const emptyForm = (): Omit<OverlapRow, "id"> => ({
+  project_name: "", client: "", contract_amount: null,
+  start_date: "", end_date: "", suspension_date: "", suspension_reason: "", agreement_date: "",
+  absolute_period_days: null, participants: [], notes: "",
+  contract_amount_change_date: "", contract_amount_new: null,
+  end_date_change_date: "", end_date_new: "",
+});
+
 export default function Overlaps() {
   const { user } = useAuth();
   const [rows, setRows] = useState<OverlapRow[]>([]);
@@ -85,18 +99,16 @@ export default function Overlaps() {
   const [unit, setUnit] = useState<Unit>("won");
   const [useAbsolute, setUseAbsolute] = useState(false);
   const [selectedTech, setSelectedTech] = useState<string>("__all__");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<OverlapRow | null>(null);
-  const [form, setForm] = useState<Omit<OverlapRow, "id">>({
-    project_name: "", client: "", contract_amount: null,
-    start_date: "", end_date: "", suspension_date: "", agreement_date: "",
-    absolute_period_days: null, participants: [], notes: "",
-  });
+  const [form, setForm] = useState<Omit<OverlapRow, "id">>(emptyForm());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const participantFileRef = useRef<HTMLInputElement>(null);
 
-  // 기술자 관리
   const [techOpen, setTechOpen] = useState(false);
   const [techEditing, setTechEditing] = useState<{ id: string; name: string; specialty: string | null } | null>(null);
   const [techForm, setTechForm] = useState<{ name: string; specialty: string }>({ name: "", specialty: "" });
@@ -117,11 +129,7 @@ export default function Overlaps() {
   };
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ project_name: "", client: "", contract_amount: null, start_date: "", end_date: "", suspension_date: "", agreement_date: "", absolute_period_days: null, participants: [], notes: "" });
-    setOpen(true);
-  };
+  const openCreate = () => { setEditing(null); setForm(emptyForm()); setOpen(true); };
   const openEdit = (r: OverlapRow) => {
     setEditing(r);
     setForm({
@@ -131,10 +139,15 @@ export default function Overlaps() {
       start_date: r.start_date || "",
       end_date: r.end_date || "",
       suspension_date: r.suspension_date || "",
+      suspension_reason: r.suspension_reason || "",
       agreement_date: r.agreement_date || "",
       absolute_period_days: r.absolute_period_days ?? null,
       participants: r.participants || [],
       notes: r.notes || "",
+      contract_amount_change_date: r.contract_amount_change_date || "",
+      contract_amount_new: r.contract_amount_new,
+      end_date_change_date: r.end_date_change_date || "",
+      end_date_new: r.end_date_new || "",
     });
     setOpen(true);
   };
@@ -144,18 +157,24 @@ export default function Overlaps() {
     if (!user) return;
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
     setSubmitting(true);
+    const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
     const payload: any = {
       project_name: form.project_name,
       client: form.client || null,
-      contract_amount: form.contract_amount === null || form.contract_amount === undefined || (form.contract_amount as any) === "" ? null : Number(form.contract_amount),
+      contract_amount: num(form.contract_amount),
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       suspension_date: form.suspension_date || null,
+      suspension_reason: form.suspension_reason || null,
       agreement_date: form.agreement_date || null,
-      absolute_period_days: form.absolute_period_days === null || form.absolute_period_days === undefined || (form.absolute_period_days as any) === "" ? null : Number(form.absolute_period_days),
+      absolute_period_days: num(form.absolute_period_days),
       participants: form.participants || [],
       notes: form.notes || null,
       technician_name: null,
+      contract_amount_change_date: form.contract_amount_change_date || null,
+      contract_amount_new: num(form.contract_amount_new),
+      end_date_change_date: form.end_date_change_date || null,
+      end_date_new: form.end_date_new || null,
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
@@ -174,7 +193,6 @@ export default function Overlaps() {
     setDeleteId(null);
   };
 
-  // 기술자 관리
   const openTechCreate = () => { setTechEditing(null); setTechForm({ name: "", specialty: "" }); setTechOpen(true); };
   const openTechEdit = (t: { id: string; name: string; specialty: string | null }) => {
     setTechEditing(t); setTechForm({ name: t.name, specialty: t.specialty || "" }); setTechOpen(true);
@@ -201,6 +219,29 @@ export default function Overlaps() {
     setTechDeleteId(null);
   };
 
+  // ===== 공고일 기준 effective 값 =====
+  const effectiveContract = (r: OverlapRow) => {
+    if (r.contract_amount_change_date && r.contract_amount_new !== null && r.contract_amount_new !== undefined &&
+        isAfterOrEqual(announcementDate, r.contract_amount_change_date)) return r.contract_amount_new;
+    return r.contract_amount;
+  };
+  const effectiveEndDate = (r: OverlapRow) => {
+    if (r.end_date_change_date && r.end_date_new &&
+        isAfterOrEqual(announcementDate, r.end_date_change_date)) return r.end_date_new;
+    return r.end_date;
+  };
+  const effectiveSuspensionDate = (r: OverlapRow) => {
+    if (!r.suspension_date) return null;
+    // suspension만 적용 가능: 공고일 >= 과업중지일일 때만 반영
+    if (!isAfterOrEqual(announcementDate, r.suspension_date)) return null;
+    return r.suspension_date;
+  };
+  const effectiveAgreementDate = (r: OverlapRow) => {
+    if (!r.agreement_date) return null;
+    if (!isAfterOrEqual(announcementDate, r.agreement_date)) return null;
+    return r.agreement_date;
+  };
+
   const filtered = useMemo(() => rows.filter((r) => {
     const matchSearch = !search ||
       (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -211,38 +252,25 @@ export default function Overlaps() {
     return matchSearch && matchTech;
   }), [rows, search, selectedTech]);
 
-  // 총계약기간: 절대공기 체크시 absolute_period_days 있으면 사용, 없으면 기본 end - start + 1
   const totalPeriod = (r: OverlapRow) => {
     if (useAbsolute && r.absolute_period_days) return r.absolute_period_days;
-    return diffDays(r.start_date, r.end_date);
+    return diffDays(r.start_date, effectiveEndDate(r));
   };
 
-  // 잔여일수 상태
-  // returns { value: number | null, label: string }
-  //  - null 이면 "-" 표시
   const remainInfo = (r: OverlapRow): { days: number | null; suspendedLong: boolean; agreed: boolean } => {
-    // 협의완료: 무조건 -
-    if (r.agreement_date) return { days: null, suspendedLong: false, agreed: true };
-    // 과업중지
-    if (r.suspension_date) {
-      const months = monthsBetween(r.suspension_date, new Date());
+    const agree = effectiveAgreementDate(r);
+    if (agree) return { days: null, suspendedLong: false, agreed: true };
+    const susp = effectiveSuspensionDate(r);
+    const endDate = effectiveEndDate(r);
+    if (susp) {
+      const months = monthsBetween(susp, new Date());
       if (months >= 3) return { days: null, suspendedLong: true, agreed: false };
-      if (!r.end_date) return { days: 0, suspendedLong: false, agreed: false };
-      const d = diffDays(r.suspension_date, r.end_date);
+      if (!endDate) return { days: 0, suspendedLong: false, agreed: false };
+      const d = diffDays(susp, endDate);
       return { days: Math.min(365, d), suspendedLong: false, agreed: false };
     }
-    if (!announcementDate || !r.end_date) return { days: 0, suspendedLong: false, agreed: false };
-    return { days: Math.min(365, diffDays(announcementDate, r.end_date)), suspendedLong: false, agreed: false };
-  };
-
-  const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
-    const info = remainInfo(r);
-    if (info.agreed) return { value: null, label: "-" };
-    if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
-    const t = totalPeriod(r);
-    const contract = roundedContractAmount(r.contract_amount);
-    if (!t || !contract || info.days === null) return { value: 0 };
-    return { value: contract * (info.days / t) / 10 };
+    if (!announcementDate || !endDate) return { days: 0, suspendedLong: false, agreed: false };
+    return { days: Math.min(365, diffDays(announcementDate, endDate)), suspendedLong: false, agreed: false };
   };
 
   const roundedContractAmount = (v: number | null) => {
@@ -251,6 +279,16 @@ export default function Overlaps() {
     if (unit === "m") return Math.round(n / 1_000_000) * 1_000_000;
     if (unit === "k") return Math.round(n / 1_000) * 1_000;
     return n;
+  };
+
+  const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    const info = remainInfo(r);
+    if (info.agreed) return { value: null, label: "-" };
+    if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
+    const t = totalPeriod(r);
+    const contract = roundedContractAmount(effectiveContract(r));
+    if (!t || !contract || info.days === null) return { value: 0 };
+    return { value: contract * (info.days / t) / 10 };
   };
 
   const fmtContract = (v: number | null) => {
@@ -267,14 +305,10 @@ export default function Overlaps() {
     return Math.round(v).toLocaleString();
   };
 
-  // 합계 (선택된 기술자 기준)
-  const totalOverlap = useMemo(() => filtered.reduce((acc, r) => {
-    const o = overlapAmount(r);
-    return acc + (o.value || 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, 0), [filtered, announcementDate, useAbsolute]);
+  const totalOverlap = useMemo(() => filtered.reduce((acc, r) => acc + (overlapAmount(r).value || 0), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtered, announcementDate, useAbsolute, unit]);
 
-  // participants editor
   const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "" }] });
   const updateParticipant = (i: number, patch: Partial<Participant>) => {
     const next = [...(form.participants || [])];
@@ -285,12 +319,45 @@ export default function Overlaps() {
     setForm({ ...form, participants: (form.participants || []).filter((_, idx) => idx !== i) });
   };
 
-  // 기술자별 중복금액 합계 (공고일 반영 시)
+  // Excel 일괄 추가
+  const handleParticipantExcel = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const data = await importFromExcel<Record<string, any>>(file);
+      const findKey = (row: Record<string, any>, keys: string[]) => {
+        for (const k of Object.keys(row)) {
+          const norm = String(k).replace(/\s+/g, "").toLowerCase();
+          if (keys.some((target) => norm.includes(target))) return row[k];
+        }
+        return null;
+      };
+      const parsed: Participant[] = data
+        .map((row) => {
+          const name = String(findKey(row, ["성명", "이름", "name"]) ?? "").trim().replace(/\s+/g, "");
+          const role = String(findKey(row, ["역할", "직책", "직위", "role"]) ?? "").trim();
+          return { name, role: role || undefined };
+        })
+        .filter((p) => p.name);
+      if (parsed.length === 0) { toast.error("엑셀에서 인력을 찾을 수 없습니다 (성명 컬럼 필요)"); return; }
+      const existingNames = new Set((form.participants || []).map((p) => p.name));
+      const merged = [...(form.participants || [])];
+      let added = 0;
+      for (const p of parsed) {
+        if (!existingNames.has(p.name)) { merged.push(p); existingNames.add(p.name); added += 1; }
+      }
+      setForm({ ...form, participants: merged });
+      toast.success(`${added}명 추가됨 (중복 ${parsed.length - added}명 제외)`);
+    } catch (err: any) {
+      toast.error("엑셀 읽기 실패: " + (err?.message || ""));
+    } finally {
+      if (participantFileRef.current) participantFileRef.current.value = "";
+    }
+  };
+
   const techOverlapTotals = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of rows) {
-      const o = overlapAmount(r);
-      const v = o.value || 0;
+      const v = overlapAmount(r).value || 0;
       if (!v) continue;
       for (const p of r.participants || []) {
         const name = (p.name || "").trim();
@@ -299,8 +366,8 @@ export default function Overlaps() {
       }
     }
     return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, announcementDate, useAbsolute]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, announcementDate, useAbsolute, unit]);
 
   return (
     <AppLayout title="PQ 기술자별 업무중첩도 관리">
@@ -322,20 +389,13 @@ export default function Overlaps() {
               <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(announcementDate)} onChange={(e) => setAnnouncementDate(inputToISO(e.target.value))} className="w-[140px]" />
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <CalendarIcon className="h-4 w-4" />
-                  </Button>
+                  <Button variant="outline" size="icon" className="h-9 w-9"><CalendarIcon className="h-4 w-4" /></Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={announcementDate ? new Date(announcementDate + "T00:00:00") : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        const iso = format(date, "yyyy-MM-dd");
-                        setAnnouncementDate(iso);
-                      }
-                    }}
+                    onSelect={(date) => { if (date) setAnnouncementDate(format(date, "yyyy-MM-dd")); }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -363,9 +423,7 @@ export default function Overlaps() {
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">전체</SelectItem>
-                  {technicians.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                  ))}
+                  {technicians.map((t) => (<SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -380,7 +438,8 @@ export default function Overlaps() {
           )}
         </Card>
 
-        <Card className="shadow-card overflow-hidden">
+        {/* Desktop table */}
+        <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -409,20 +468,30 @@ export default function Overlaps() {
                   const o = overlapAmount(r);
                   const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
                   const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
-                  const contractDays = diffDays(r.start_date, r.end_date);
+                  const eEnd = effectiveEndDate(r);
+                  const eContract = effectiveContract(r);
+                  const contractDays = diffDays(r.start_date, eEnd);
                   const absoluteApplied = useAbsolute && !!r.absolute_period_days;
+                  const susp = effectiveSuspensionDate(r);
+                  const agree = effectiveAgreementDate(r);
                   return (
                   <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{fmtContract(r.contract_amount)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">
+                      {fmtContract(eContract)}
+                      {eContract !== r.contract_amount && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.end_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {fmtDateCell(eEnd)}
+                      {eEnd !== r.end_date && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
                     <TableCell className={"whitespace-nowrap text-right" + (absoluteApplied ? " text-red-600 font-semibold" : "")}>{overlapText}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.suspension_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.agreement_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(susp)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtDateCell(agree)}</TableCell>
                     <TableCell className="whitespace-nowrap max-w-[200px] truncate">{r.notes || "-"}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
@@ -435,6 +504,60 @@ export default function Overlaps() {
             </Table>
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
+        </Card>
+
+        {/* Mobile cards */}
+        <Card className="shadow-card md:hidden p-2 space-y-2">
+          {loading ? (
+            <div className="text-center py-8"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">데이터가 없습니다.</div>
+          ) : filtered.map((r) => {
+            const info = remainInfo(r);
+            const o = overlapAmount(r);
+            const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
+            const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
+            const eEnd = effectiveEndDate(r);
+            const eContract = effectiveContract(r);
+            const susp = effectiveSuspensionDate(r);
+            const agree = effectiveAgreementDate(r);
+            const isOpen = !!expanded[r.id];
+            return (
+              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"}`}>
+                <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-center justify-between gap-2 p-3 text-left">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
+                    <div className="font-medium truncate">{r.project_name}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs text-muted-foreground">중복금액</div>
+                    <div className="font-semibold text-primary text-sm">{overlapText}</div>
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-3 pb-3 space-y-1.5 text-xs">
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                      <div className="text-muted-foreground">발주처</div><div>{r.client || "-"}</div>
+                      <div className="text-muted-foreground">계약금액</div>
+                      <div>{fmtContract(eContract)}{eContract !== r.contract_amount && <span className="ml-1 text-orange-600">(변경)</span>}</div>
+                      <div className="text-muted-foreground">착수일</div><div>{fmtDateCell(r.start_date)}</div>
+                      <div className="text-muted-foreground">준공예정일</div>
+                      <div>{fmtDateCell(eEnd)}{eEnd !== r.end_date && <span className="ml-1 text-orange-600">(변경)</span>}</div>
+                      <div className="text-muted-foreground">잔여일수</div><div>{remainText}</div>
+                      <div className="text-muted-foreground">과업중지일</div><div>{fmtDateCell(susp)}{susp && r.suspension_reason ? ` (${r.suspension_reason})` : ""}</div>
+                      <div className="text-muted-foreground">협의완료일</div><div>{fmtDateCell(agree)}</div>
+                      {r.notes && (<><div className="text-muted-foreground">비고</div><div className="truncate">{r.notes}</div></>)}
+                    </div>
+                    <div className="flex justify-end gap-1 pt-1">
+                      <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5 mr-1" />수정</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div className="px-1 py-1 text-xs text-muted-foreground">총 {filtered.length}건</div>
         </Card>
         </TabsContent>
 
@@ -488,16 +611,12 @@ export default function Overlaps() {
                       <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
                         <TableCell className="font-medium">
                           {t.name}
-                          {total >= 250_000_000 && (
-                            <span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded">2.5억 이상</span>
-                          )}
+                          {total >= 250_000_000 && (<span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded">2.5억 이상</span>)}
                         </TableCell>
                         <TableCell>{t.specialty || "-"}</TableCell>
                         <TableCell className="text-right font-semibold text-primary">
                           {announcementDate ? fmtOverlap(total) : "-"}
-                          {announcementDate && over > 0 && (
-                            <span className="block text-[10px] text-blue-700">+{fmtOverlap(over)} 초과</span>
-                          )}
+                          {announcementDate && over > 0 && (<span className="block text-[10px] text-blue-700">+{fmtOverlap(over)} 초과</span>)}
                         </TableCell>
                         <TableCell className="text-right">{count}건</TableCell>
                         <TableCell className="text-right">
@@ -519,7 +638,7 @@ export default function Overlaps() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
-          <form onSubmit={save} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          <form onSubmit={save} className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5 md:col-span-2">
                 <Label>사업명 <span className="text-destructive">*</span></Label>
@@ -545,21 +664,69 @@ export default function Overlaps() {
                 <Label>절대공기일수 (일)</Label>
                 <Input type="number" value={form.absolute_period_days ?? ""} onChange={(e) => setForm({ ...form, absolute_period_days: e.target.value === "" ? null : Number(e.target.value) })} />
               </div>
-              <div className="space-y-1.5">
-                <Label>과업중지일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: inputToISO(e.target.value) })} />
+            </div>
+
+            {/* 변경/반영 섹션 - 공고일 기준 적용 */}
+            <div className="border-t pt-3 space-y-3">
+              <div className="text-sm font-semibold">변경/반영 사항 <span className="text-xs font-normal text-muted-foreground">(공고일이 변경일 이후일 때만 반영)</span></div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
+                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">계약금액 변경</div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">변경일</Label>
+                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.contract_amount_change_date)} onChange={(e) => setForm({ ...form, contract_amount_change_date: inputToISO(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">변경 계약금액 (원)</Label>
+                  <Input type="number" value={form.contract_amount_new ?? ""} onChange={(e) => setForm({ ...form, contract_amount_new: e.target.value === "" ? null : Number(e.target.value) })} />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>협의완료일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
+                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">준공예정일 변경</div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">변경일</Label>
+                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_change_date)} onChange={(e) => setForm({ ...form, end_date_change_date: inputToISO(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">변경된 준공예정일</Label>
+                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_new)} onChange={(e) => setForm({ ...form, end_date_new: inputToISO(e.target.value) })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
+                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">과업중지 반영</div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">과업중지일</Label>
+                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: inputToISO(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">중지 사유</Label>
+                  <Input value={form.suspension_reason || ""} onChange={(e) => setForm({ ...form, suspension_reason: e.target.value })} placeholder="예: 발주처 사정" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
+                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">협의완료 반영</div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">협의완료일</Label>
+                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
+                </div>
               </div>
             </div>
 
             <div className="space-y-2 border-t pt-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label className="text-sm font-semibold">참여중인 인력</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
+                <div className="flex gap-1">
+                  <input ref={participantFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => handleParticipantExcel(e.target.files?.[0] || null)} />
+                  <Button type="button" size="sm" variant="outline" onClick={() => participantFileRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-1" />엑셀 업로드
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
+                </div>
               </div>
+              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택)</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
