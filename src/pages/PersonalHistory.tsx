@@ -201,6 +201,9 @@ export default function PersonalHistory() {
     const prof = profileMap.get(name);
     setBirthDate(prof?.birth_date || "");
     setSpecialty(prof?.specialty || "");
+    setAddress(prof?.address || "");
+    setGradeKepa(prof?.grade_kepa || "");
+    setGradeEval(prof?.grade_eval || "");
     setEducations(prof?.educations?.length ? prof.educations : [{ school: "", major: "", degree: "학사" }]);
     setCertifications(prof?.certifications?.length ? prof.certifications : [{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
