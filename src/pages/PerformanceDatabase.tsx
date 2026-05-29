@@ -302,7 +302,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     let completionFromExcel: string | null = null;
     const participants: Participant[] = rows
       .map((r) => {
-        const nm = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+        const nmRaw = String(r["성명"] ?? r["이름"] ?? r["name"] ?? "").trim();
+        const nm = nmRaw.replace(/\s+/g, "");
         if (!nm) return null;
         const birthRaw = r["생년월일"];
         const birth = typeof birthRaw === "number"
