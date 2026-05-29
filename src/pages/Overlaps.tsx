@@ -158,6 +158,12 @@ export default function Overlaps() {
       contract_amount_new: r.contract_amount_new,
       end_date_change_date: r.end_date_change_date || "",
       end_date_new: r.end_date_new || "",
+      original_contract_pdf_path: r.original_contract_pdf_path || null,
+      contract_change_pdf_path: r.contract_change_pdf_path || null,
+      end_date_change_pdf_path: r.end_date_change_pdf_path || null,
+      suspension_pdf_path: r.suspension_pdf_path || null,
+      agreement_pdf_path: r.agreement_pdf_path || null,
+      participant_list_pdf_path: r.participant_list_pdf_path || null,
     });
     setOpen(true);
   };
