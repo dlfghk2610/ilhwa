@@ -188,7 +188,7 @@ export default function Careers() {
     setTechStats(stats);
   };
 
-  useEffect(() => { loadTechs(); }, []);
+  useEffect(() => { loadTechs(); loadPersonalData(); }, []);
   useEffect(() => { if (techs.length) loadAllStats(techs); }, [techs]);
 
   const filtered = useMemo(() => {
