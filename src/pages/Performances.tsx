@@ -207,6 +207,7 @@ export default function Performances() {
   const [techSelectedRowIds, setTechSelectedRowIds] = useState<Set<string>>(new Set());
   const [techSelectionTouched, setTechSelectionTouched] = useState(false);
   const [includeUnder90, setIncludeUnder90] = useState(false);
+  const [excludeUnder120, setExcludeUnder120] = useState(false);
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
@@ -567,19 +568,23 @@ export default function Performances() {
           const baseName = pm ? pm[1].trim() : (r.project_name || "");
           const groupKey = `${baseName}__${r.client || ""}`;
           const under90 = partDays > 0 && partDays < 90;
+          const under120 = partDays > 0 && partDays < 120;
           const minC = parseAmt(minContractAmount);
           const minS = parseAmt(minShareAmount);
           const contractAmt = Number(r.contract_amount || 0);
           const shareAmt = Number(r.share_amount || 0);
           const belowAmount = (minC > 0 && contractAmt < minC) || (minS > 0 && shareAmt < minS);
 
-          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, belowAmount, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
+          return { row: r, part, evalW, svcW, simple, ratio, periodCount, expired, partDays, under90, under120, belowAmount, isPostEval, phaseNum, phaseLabel, baseName, groupKey };
         })
-        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; belowAmount: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
+        .filter(Boolean) as Array<{ row: Row; part: Participant; evalW: number; svcW: number; simple: number; ratio: number; periodCount: number; expired: boolean; partDays: number; under90: boolean; under120: boolean; belowAmount: boolean; isPostEval: boolean; phaseNum: number | null; phaseLabel: string | null; baseName: string; groupKey: string }>;
 
       const lastPhaseByGroup = new Map<string, { num: number; label: string }>();
       base.forEach((t) => {
         if (t.isPostEval && t.phaseNum != null && t.phaseLabel) {
+          // 90일 미만 차수는 후보에서 제외(자동으로 이전 차수로 폴백)
+          if (t.under90) return;
+          if (excludeUnder120 && t.under120) return;
           const cur = lastPhaseByGroup.get(t.groupKey);
           if (!cur || t.phaseNum > cur.num) lastPhaseByGroup.set(t.groupKey, { num: t.phaseNum, label: t.phaseLabel });
         }
@@ -592,7 +597,7 @@ export default function Performances() {
         return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
     };
-  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount]);
+  }, [rows, techEvalFilter, techServiceFilter, noticeDate, minContractAmount, minShareAmount, excludeUnder120]);
 
   const techRows = useMemo(() => {
     if (!selectedTech) return [];
@@ -609,6 +614,7 @@ export default function Performances() {
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
+    if (excludeUnder120 && t.under120) return false;
     if (excludePrivate && (t.row as any).is_private) return false;
     if (t.belowAmount) return false;
     if (t.isPhase) {
@@ -625,6 +631,7 @@ export default function Performances() {
         techRows.forEach((t) => {
           if (t.expired) next.delete(t.row.id);
           if (!includeUnder90 && t.under90) next.delete(t.row.id);
+          if (excludeUnder120 && t.under120) next.delete(t.row.id);
           if (excludePrivate && (t.row as any).is_private) next.delete(t.row.id);
           if (t.belowAmount) next.delete(t.row.id);
           if (t.isPhase && (excludeLhPhases || !t.isLastPhase)) next.delete(t.row.id);
@@ -635,19 +642,19 @@ export default function Performances() {
     }
     setTechSelectedRowIds(new Set(techRows.filter(isDefaultSelected).map((t) => t.row.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techRows, techSelectionTouched, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
+  }, [techRows, techSelectionTouched, includeUnder90, excludeUnder120, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const techTotals = useMemo(() => {
-    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && !t.belowAmount && techSelectedRowIds.has(t.row.id));
+    const active = techRows.filter((t) => !t.expired && !(!includeUnder90 && t.under90) && !(excludeUnder120 && t.under120) && !t.belowAmount && techSelectedRowIds.has(t.row.id));
     const simple = active.reduce((a, b) => a + b.simple, 0);
     const period = active.reduce((a, b) => a + b.periodCount, 0);
     return { simple, period };
-  }, [techRows, techSelectedRowIds, includeUnder90]);
+  }, [techRows, techSelectedRowIds, includeUnder90, excludeUnder120]);
 
   const techAllSelectableIds = useMemo(
     () => techRows.filter(isDefaultSelected).map((t) => t.row.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [techRows, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]
+    [techRows, includeUnder90, excludeUnder120, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]
   );
   const techAllChecked = techAllSelectableIds.length > 0 && techAllSelectableIds.every((id) => techSelectedRowIds.has(id));
 
@@ -686,6 +693,7 @@ export default function Performances() {
       const active = items.filter((t) => {
         if (t.expired) return false;
         if (!includeUnder90 && t.under90) return false;
+        if (excludeUnder120 && t.under120) return false;
         if (excludePrivate && (t.row as any).is_private) return false;
         if (t.belowAmount) return false;
         if (t.isPhase) {
@@ -698,7 +706,7 @@ export default function Performances() {
       const period = active.reduce((a, b) => a + b.periodCount, 0);
       return { name, company: meta.company, status: meta.status, count: items.length, activeCount: active.length, simple, period };
     });
-  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
+  }, [allTechList, techCompanyMap, computeForTech, includeUnder90, excludeUnder120, excludeLhPhases, excludePrivate, minContractAmount, minShareAmount]);
 
   const filteredAllTechStats = useMemo(() => {
     let arr = allTechStats;
@@ -785,6 +793,10 @@ export default function Performances() {
               참여일수 90일 미만 포함
             </label>
             <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+              <Checkbox checked={excludeUnder120} onCheckedChange={(c) => { setExcludeUnder120(!!c); setTechSelectionTouched(false); }} />
+              참여일수 120일 미만 제외
+            </label>
+            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
               <Checkbox checked={excludeLhPhases} onCheckedChange={(c) => { setExcludeLhPhases(!!c); setTechSelectionTouched(false); }} />
               LH사업의 경우 차수분 제외
             </label>
@@ -855,29 +867,34 @@ export default function Performances() {
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
                   ) : techRows.map((t, i) => {
                     const blockUnder90 = !includeUnder90 && t.under90;
-                    const zeroOut = blockUnder90 || t.belowAmount;
+                    const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
+                    const zeroOut = blockUnder90 || blockUnder120 || t.belowAmount;
                     const dispSimple = zeroOut ? 0 : t.simple;
                     const dispRatio = zeroOut ? 0 : t.ratio;
                     const dispPeriod = zeroOut ? 0 : t.periodCount;
                     const cAmt = Number(t.row.contract_amount || 0);
                     const sAmt = Number(t.row.share_amount || 0);
                     return (
-                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${blockUnder90 ? "bg-red-100 hover:bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                    <TableRow key={i} className={`${t.expired ? "opacity-60" : ""} ${blockUnder90 || blockUnder120 ? "bg-red-100 hover:bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
 
                       <TableCell>
                         {(() => {
-                          const disabled = t.expired || blockUnder90 || t.belowAmount;
+                          const disabled = t.expired || blockUnder90 || blockUnder120 || t.belowAmount;
                           return <Checkbox checked={!disabled && techSelectedRowIds.has(t.row.id)} disabled={disabled} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />;
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
                         {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                         {blockUnder90 && <Badge variant="destructive" className="ml-1">90일미만</Badge>}
+                        {blockUnder120 && <Badge variant="destructive" className="ml-1">120일미만</Badge>}
+                        {t.isPhase && !t.isLastPhase && t.lastPhaseLabel && (
+                          <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700">{t.lastPhaseLabel}차 실적집계중</Badge>
+                        )}
                         <div className="text-xs text-muted-foreground mt-0.5">용역금액 {formatAmt(cAmt)}원 / 지분금액 {formatAmt(sAmt)}원</div>
                         {t.expired && <div className="text-xs text-destructive mt-1">⚠ 공고일 기준 10년 경과 - 집계 제외</div>}
                         {!t.expired && t.under90 && !includeUnder90 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 90일 미만 ({t.partDays}일) - 기본 집계 제외</div>}
+                        {!t.expired && !t.under90 && excludeUnder120 && t.under120 && <div className="text-xs text-destructive mt-1">⚠ 참여일수 120일 미만 ({t.partDays}일) - 제외 옵션</div>}
                         {!t.expired && t.belowAmount && <div className="text-xs text-orange-600 font-semibold mt-1">⚠ 금액미달 - 집계 제외</div>}
-                        {!t.expired && t.isPhase && !t.isLastPhase && <div className="text-xs text-amber-700 mt-1">⚠ 최근차수({t.lastPhaseLabel}차)가 있어 집계 제외</div>}
                         {!t.expired && t.isPhase && t.isLastPhase && excludeLhPhases && <div className="text-xs text-destructive mt-1">⚠ LH 차수분 제외 옵션 - 집계 제외</div>}
                         {!t.expired && excludePrivate && (t.row as any).is_private && <div className="text-xs text-destructive mt-1">⚠ 민간사업 - 집계 제외</div>}
                       </TableCell>
@@ -919,20 +936,25 @@ export default function Performances() {
               ) : techRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
                 const blockUnder90 = !includeUnder90 && t.under90;
-                const zeroOut = blockUnder90 || t.belowAmount;
+                const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
+                const zeroOut = blockUnder90 || blockUnder120 || t.belowAmount;
                 const dispSimple = zeroOut ? 0 : t.simple;
                 const dispRatio = zeroOut ? 0 : t.ratio;
                 const dispPeriod = zeroOut ? 0 : t.periodCount;
                 const cAmt = Number(t.row.contract_amount || 0);
                 const sAmt = Number(t.row.share_amount || 0);
                 return (
-                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${blockUnder90 ? "bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
+                  <Card key={t.row.id} className={`p-3 ${t.expired ? "opacity-60" : ""} ${blockUnder90 || blockUnder120 ? "bg-red-100" : t.isPhase && !t.isLastPhase ? "bg-yellow-100" : t.belowAmount ? "bg-orange-50" : t.row.is_private ? "bg-lime-50" : ""}`}>
                     <div className="flex items-start gap-2">
-                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
+                      <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !blockUnder120 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || blockUnder120 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">
                           {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
                           {blockUnder90 && <Badge variant="destructive" className="ml-1">90일미만</Badge>}
+                          {blockUnder120 && <Badge variant="destructive" className="ml-1">120일미만</Badge>}
+                          {t.isPhase && !t.isLastPhase && t.lastPhaseLabel && (
+                            <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700">{t.lastPhaseLabel}차 실적집계중</Badge>
+                          )}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">용역 {formatAmt(cAmt)} / 지분 {formatAmt(sAmt)}</div>
                         {t.belowAmount && <div className="text-[11px] text-orange-600 font-semibold mt-0.5">⚠ 금액미달 - 집계 제외</div>}
@@ -1034,6 +1056,10 @@ export default function Performances() {
               <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                 <Checkbox checked={includeUnder90} onCheckedChange={(c) => setIncludeUnder90(!!c)} />
                 참여일수 90일 미만 포함
+              </label>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={excludeUnder120} onCheckedChange={(c) => setExcludeUnder120(!!c)} />
+                참여일수 120일 미만 제외
               </label>
               <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                 <Checkbox checked={excludeLhPhases} onCheckedChange={(c) => setExcludeLhPhases(!!c)} />
