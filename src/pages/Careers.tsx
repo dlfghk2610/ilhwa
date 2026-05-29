@@ -41,10 +41,47 @@ type TechStat = {
   count: number;
 };
 
+type Education = { school: string; major: string; degree: "학사" | "석사" | "박사" | "" };
+type Certification = { name: string; number: string; acquired_date: string; is_primary: boolean };
+type PersonalProfile = {
+  technician_name: string;
+  birth_date: string | null;
+  specialty: string | null;
+  address: string | null;
+  grade_kepa: string | null;
+  grade_eval: string | null;
+  educations: Education[];
+  certifications: Certification[];
+};
+type PersonalCareerRow = {
+  technician_name: string;
+  company: string;
+  department: string | null;
+  position: string | null;
+  hire_date: string | null;
+  resign_date: string | null;
+};
+
 const EXCEL_HEADERS = [
   "참여시작일", "참여종료일", "인정일", "사업명", "발주처",
   "사업공종", "전문분야", "담당업무", "평가구분", "참여회사", "참여직위",
 ];
+
+const fmtBirth = (s?: string | null) => {
+  if (!s) return "";
+  const [y, m, d] = s.split("-");
+  return y && m && d ? `${y}.${m}.${d}` : s;
+};
+
+const koreanAgeNow = (birth?: string | null) => {
+  if (!birth) return "";
+  const b = new Date(birth + "T00:00:00");
+  const r = new Date();
+  let age = r.getFullYear() - b.getFullYear();
+  const m = r.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && r.getDate() < b.getDate())) age -= 1;
+  return age >= 0 ? `${age}` : "";
+};
 
 const toIsoDate = (v: any): string | null => {
   if (v == null || v === "") return null;
