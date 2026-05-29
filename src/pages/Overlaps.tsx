@@ -582,7 +582,7 @@ export default function Overlaps() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 mr-2">
               <Checkbox id="printseq" checked={printSeq} onCheckedChange={(v) => setPrintSeq(!!v)} />
-              <Label htmlFor="printseq" className="text-sm cursor-pointer whitespace-nowrap">인쇄시 연번 표시(착수일 오름차순)</Label>
+              <Label htmlFor="printseq" className="text-sm cursor-pointer whitespace-nowrap">PDF 병합시 연번 표시(착수일 오름차순, 첫장 좌측상단)</Label>
             </div>
             <Button size="sm" variant="outline" onClick={exportOverlapExcel}>
               <FileDown className="h-4 w-4 mr-1" />엑셀 추출
@@ -592,9 +592,6 @@ export default function Overlaps() {
             </Button>
             <Button size="sm" variant="outline" onClick={() => mergeProofPdfs(true)} disabled={downloadingPdf}>
               {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙+참여자명단 PDF
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-1" />인쇄
             </Button>
           </div>
           {selectedTech !== "__all__" && (
