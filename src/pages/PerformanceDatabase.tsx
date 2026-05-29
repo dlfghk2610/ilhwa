@@ -1219,7 +1219,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                 <div>
                   <Label>참여자명단 PDF</Label>
                   <div className="flex items-center gap-2">
-                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => setForm({ ...form, participant_file: e.target.files?.[0] || null })} />
+                    <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => handleParticipantFileChange(e.target.files?.[0] || null)} />
                     {form.participant_file_path && !form.participant_file && (
                       <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
                     )}
