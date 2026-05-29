@@ -257,14 +257,29 @@ export default function Careers() {
             <div className="text-center text-muted-foreground py-8">등록된 기술자가 없습니다</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((t) => (
+              {filtered.map((t) => {
+                const prof = profilesByName[t.name];
+                const careers = careersByName[t.name] || [];
+                const primaryCert = prof?.certifications?.find((c) => c.is_primary) || prof?.certifications?.[0];
+                const age = koreanAgeNow(prof?.birth_date);
+                const isOpen = !!expandedHistory[t.id];
+                const hasHistory = !!prof || careers.length > 0;
+                return (
                 <Card key={t.id} className="p-4 hover:bg-accent/30 cursor-pointer transition" onClick={() => setSelectedTech(t)}>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="font-semibold text-base truncate">{t.name}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.specialty ? <Badge variant="secondary">{t.specialty}</Badge> : <Badge variant="outline">전문분야 미지정</Badge>}
+                        {prof?.grade_kepa && <Badge variant="outline" className="text-[10px]">건기협 {prof.grade_kepa}</Badge>}
+                        {prof?.grade_eval && <Badge variant="outline" className="text-[10px]">평가 {prof.grade_eval}</Badge>}
                       </div>
+                      {(prof?.birth_date || primaryCert?.name) && (
+                        <div className="mt-1.5 text-[11px] text-muted-foreground space-x-1.5">
+                          {prof?.birth_date && <span>{fmtBirth(prof.birth_date)}{age && ` (만 ${age}세)`}</span>}
+                          {primaryCert?.name && <span>· <Star className="inline h-3 w-3 -mt-0.5 text-amber-500" /> {primaryCert.name}</span>}
+                        </div>
+                      )}
                       {techStats[t.id] && (
                         <div className="mt-2 rounded bg-muted/50 px-2 py-1.5 text-xs">
                           <div className="flex justify-between">
@@ -277,6 +292,72 @@ export default function Careers() {
                           </div>
                         </div>
                       )}
+                      {hasHistory && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedHistory((p) => ({ ...p, [t.id]: !p[t.id] }))}
+                            className="mt-2 flex items-center gap-1 text-[11px] text-primary hover:underline"
+                          >
+                            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                            이력사항 {isOpen ? "숨기기" : "보기"}
+                          </button>
+                          {isOpen && (
+                            <div className="mt-2 rounded-md border bg-card p-2 text-[11px] space-y-1.5">
+                              {prof?.address && (
+                                <div><span className="text-muted-foreground">주소:</span> {prof.address}</div>
+                              )}
+                              {prof?.educations?.length ? (
+                                <div>
+                                  <div className="text-muted-foreground">학력</div>
+                                  <ul className="list-disc list-inside space-y-0.5">
+                                    {prof.educations.map((e, i) => (
+                                      <li key={i}>{[e.school, e.major, e.degree].filter(Boolean).join(" · ")}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {prof?.certifications?.length ? (
+                                <div>
+                                  <div className="text-muted-foreground">자격증</div>
+                                  <ul className="space-y-0.5">
+                                    {prof.certifications.map((c, i) => (
+                                      <li key={i} className="flex items-start gap-1">
+                                        {c.is_primary && <Star className="h-3 w-3 mt-0.5 text-amber-500 shrink-0" />}
+                                        <span>
+                                          {c.name}
+                                          {c.number && <span className="text-muted-foreground"> ({c.number})</span>}
+                                          {c.acquired_date && <span className="text-muted-foreground"> · {c.acquired_date}</span>}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {careers.length > 0 && (
+                                <div>
+                                  <div className="text-muted-foreground">근무처 ({careers.length}곳)</div>
+                                  <ul className="space-y-0.5">
+                                    {careers.map((c, i) => (
+                                      <li key={i}>
+                                        <span className="font-medium">{c.company}</span>
+                                        {(c.department || c.position) && (
+                                          <span className="text-muted-foreground"> · {[c.department, c.position].filter(Boolean).join(" / ")}</span>
+                                        )}
+                                        {(c.hire_date || c.resign_date) && (
+                                          <div className="text-muted-foreground">
+                                            {c.hire_date || "?"} ~ {c.resign_date || "재직중"}
+                                          </div>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEditTech(t)}><Pencil className="h-4 w-4" /></Button>
@@ -284,7 +365,8 @@ export default function Careers() {
                     </div>
                   </div>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
