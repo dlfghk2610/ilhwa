@@ -178,6 +178,9 @@ export default function PersonalHistory() {
     setPeriods([{ company: "", department: "", position: "", hire_date: "", resign_date: "", is_current: true }]);
     setBirthDate("");
     setSpecialty("");
+    setAddress("");
+    setGradeKepa("");
+    setGradeEval("");
     setEducations([{ school: "", major: "", degree: "학사" }]);
     setCertifications([{ name: "", number: "", acquired_date: "", is_primary: true }]);
     setDialogOpen(true);
