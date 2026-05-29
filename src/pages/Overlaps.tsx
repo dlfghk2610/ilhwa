@@ -439,8 +439,11 @@ export default function Overlaps() {
   const mergeProofPdfs = async (includeParticipantList: boolean) => {
     setDownloadingPdf(true);
     try {
+      const { StandardFonts, rgb } = await import("pdf-lib");
       const merged = await PDFDocument.create();
+      const font = await merged.embedFont(StandardFonts.HelveticaBold);
       let added = 0;
+      let seq = 0;
       for (const r of sortedForExport) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
@@ -449,13 +452,23 @@ export default function Overlaps() {
           if (p) paths.push(p);
         }
         if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
+        if (paths.length === 0) continue;
+        seq += 1;
+        let isFirstPageOfProject = true;
         for (const p of paths) {
           const bytes = await fetchPdfBytes(p);
           if (!bytes) continue;
           try {
             const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
             const pages = await merged.copyPages(src, src.getPageIndices());
-            pages.forEach((pg) => merged.addPage(pg));
+            pages.forEach((pg, idx) => {
+              merged.addPage(pg);
+              if (printSeq && isFirstPageOfProject && idx === 0) {
+                const { height } = pg.getSize();
+                pg.drawText(`${seq}`, { x: 20, y: height - 30, size: 18, font, color: rgb(0, 0, 0) });
+              }
+            });
+            isFirstPageOfProject = false;
             added += 1;
           } catch { /* skip */ }
         }
