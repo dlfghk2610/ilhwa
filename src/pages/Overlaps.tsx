@@ -191,6 +191,12 @@ export default function Overlaps() {
       contract_amount_new: num(form.contract_amount_new),
       end_date_change_date: form.end_date_change_date || null,
       end_date_new: form.end_date_new || null,
+      original_contract_pdf_path: form.original_contract_pdf_path || null,
+      contract_change_pdf_path: form.contract_change_pdf_path || null,
+      end_date_change_pdf_path: form.end_date_change_pdf_path || null,
+      suspension_pdf_path: form.suspension_pdf_path || null,
+      agreement_pdf_path: form.agreement_pdf_path || null,
+      participant_list_pdf_path: form.participant_list_pdf_path || null,
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
