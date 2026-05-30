@@ -612,6 +612,12 @@ export default function Performances() {
     });
   }, [computeForTech, selectedTech]);
 
+  const visibleTechRows = useMemo(() => {
+    const q = projectSearch.trim().toLowerCase();
+    if (!q) return techRows;
+    return techRows.filter((t) => (t.row.project_name || "").toLowerCase().includes(q));
+  }, [techRows, projectSearch]);
+
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
