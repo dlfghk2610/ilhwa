@@ -491,7 +491,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">※ 등록된 기술인력의 등급·경력·실적·교육시간·이적계수 자동연동은 다음 단계에서 추가됩니다.</p>
+              <p className="text-xs text-muted-foreground">※ 등급·경력·실적·교육·이적·여유도는 기술자명을 기준으로 자동연동되어 탭3에 표시됩니다.</p>
             </Card>
 
             <Card className="p-4 space-y-3">
