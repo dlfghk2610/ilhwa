@@ -820,7 +820,7 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>계약금액 (원)</Label>
-                <Input type="number" value={form.contract_amount ?? ""} onChange={(e) => setForm({ ...form, contract_amount: e.target.value === "" ? null : Number(e.target.value) })} />
+                <Input type="text" inputMode="numeric" value={form.contract_amount !== null && form.contract_amount !== undefined ? Number(form.contract_amount).toLocaleString() : ""} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, contract_amount: v === "" ? null : Number(v) }); }} />
               </div>
               <div className="space-y-1.5">
                 <Label>착수일</Label>
