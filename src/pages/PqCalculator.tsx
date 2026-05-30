@@ -220,20 +220,71 @@ function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ============================================================
+type DataPool = {
+  technicians: any[]; profiles: any[]; careers: any[]; performances: any[];
+  overlaps: any[]; similars: any[]; devs: any[]; educations: any[];
+};
+const EMPTY_POOL: DataPool = { technicians: [], profiles: [], careers: [], performances: [], overlaps: [], similars: [], devs: [], educations: [] };
+
+const GRADE_RATIO: Record<string, number> = {
+  "특급": 1.0, "고급": 0.9, "중급": 0.75, "초급": 0.6,
+  "기술사": 1.0, "기사": 0.85, "산업기사": 0.7,
+};
+const gradeRatio = (p: any) => {
+  if (!p) return 0;
+  const g = (p.grade_eval || p.grade_kepa || "") as string;
+  for (const k of Object.keys(GRADE_RATIO)) if (g.includes(k)) return GRADE_RATIO[k];
+  return 0.6;
+};
+const monthsBetween = (a: Date, b: Date) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+const careerYears = (name: string, careers: any[]) => {
+  let months = 0;
+  for (const c of careers.filter(c => c.technician_name === name)) {
+    if (!c.hire_date) continue;
+    const start = new Date(c.hire_date);
+    const end = c.resign_date ? new Date(c.resign_date) : new Date();
+    months += Math.max(0, monthsBetween(start, end));
+  }
+  return months / 12;
+};
+const perfCount = (name: string, perfs: any[]) => perfs.filter(p => p.technician_name === name).length;
+const overlapActiveCount = (name: string, overlaps: any[]) => {
+  const today = new Date();
+  return overlaps.filter(o => {
+    const ps = (o.participants || []) as any[];
+    const has = (o.technician_name === name) || ps.some((x) => x?.name === name);
+    if (!has) return false;
+    const end = o.end_date_new || o.end_date;
+    if (!end) return true;
+    return new Date(end) >= today;
+  }).length;
+};
+const lastResignMonthsAgo = (name: string, careers: any[]) => {
+  const rs = careers.filter(c => c.technician_name === name && c.resign_date).map(c => new Date(c.resign_date));
+  if (!rs.length) return Infinity;
+  rs.sort((a, b) => b.getTime() - a.getTime());
+  return monthsBetween(rs[0], new Date());
+};
+const eduHoursLast3y = (name: string, edus: any[]) => {
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 3);
+  return edus.filter(e => e.technician_name === name && e.completed_date && new Date(e.completed_date) >= cutoff)
+    .reduce((s, e) => s + Number(e.hours || 0), 0);
+};
+
 function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () => void }) {
   const { user } = useAuth();
   const [row, setRow] = useState<ProjectRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [criteria, setCriteria] = useState<CriteriaSection[]>(DEFAULT_CRITERIA);
-  const [scores, setScores] = useState<Record<string, number>>({}); // code → 자기평가 점수
+  const [scores, setScores] = useState<Record<string, number | null>>({});
   const [saving, setSaving] = useState(false);
+  const [pool, setPool] = useState<DataPool>(EMPTY_POOL);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await (supabase as any).from("pq_calc_projects").select("*").eq("id", projectId).maybeSingle();
     if (error) { toast.error(error.message); setLoading(false); return; }
     if (!data) { toast.error("사업을 찾을 수 없습니다"); onBack(); return; }
-    // ensure structure
     const r = data as ProjectRow;
     r.companies = r.companies || [];
     r.personnel = r.personnel || { chief: blankPerson("총괄"), leads: [], members: [] };
@@ -244,9 +295,24 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     setRow(r);
     setScores((r.options as any)?.scores || {});
 
-    // load shared criteria
     const { data: c } = await (supabase as any).from("pq_score_criteria").select("*").maybeSingle();
     if (c?.criteria && Array.isArray(c.criteria) && c.criteria.length) setCriteria(c.criteria);
+
+    const [t, p, ca, pe, ov, si, de, ed] = await Promise.all([
+      (supabase as any).from("technicians").select("*"),
+      (supabase as any).from("personal_profiles").select("*"),
+      (supabase as any).from("personal_careers").select("*"),
+      (supabase as any).from("personal_performances").select("*"),
+      (supabase as any).from("technician_overlaps").select("*"),
+      (supabase as any).from("similar_services").select("*"),
+      (supabase as any).from("pq_dev_records").select("*"),
+      (supabase as any).from("pq_educations").select("*"),
+    ]);
+    setPool({
+      technicians: t.data || [], profiles: p.data || [], careers: ca.data || [],
+      performances: pe.data || [], overlaps: ov.data || [], similars: si.data || [],
+      devs: de.data || [], educations: ed.data || [],
+    });
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [projectId]);
@@ -255,13 +321,9 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (!row) return;
     setSaving(true);
     const payload = {
-      project_name: row.project_name,
-      client: row.client,
-      announcement_date: row.announcement_date,
-      companies: row.companies,
-      personnel: row.personnel,
-      options: { ...row.options, scores },
-      notes: row.notes,
+      project_name: row.project_name, client: row.client, announcement_date: row.announcement_date,
+      companies: row.companies, personnel: row.personnel,
+      options: { ...row.options, scores }, notes: row.notes,
     };
     const { error } = await (supabase as any).from("pq_calc_projects").update(payload).eq("id", projectId);
     setSaving(false);
@@ -272,11 +334,8 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (!user) return;
     setCriteria(next);
     const { data: existing } = await (supabase as any).from("pq_score_criteria").select("id").maybeSingle();
-    if (existing?.id) {
-      await (supabase as any).from("pq_score_criteria").update({ criteria: next }).eq("id", existing.id);
-    } else {
-      await (supabase as any).from("pq_score_criteria").insert({ created_by: user.id, criteria: next });
-    }
+    if (existing?.id) await (supabase as any).from("pq_score_criteria").update({ criteria: next }).eq("id", existing.id);
+    else await (supabase as any).from("pq_score_criteria").insert({ created_by: user.id, criteria: next });
     toast.success("배점기준표 저장됨 (다른 사업에도 동일하게 반영)");
   };
 
@@ -284,8 +343,71 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     return <AppLayout title="PQ 배점계산기"><Card className="p-8 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></Card></AppLayout>;
   }
 
+  // ----- 자동 점수 계산 -----
+  const findProfile = (name: string) => pool.profiles.find(p => p.technician_name === name);
+  const groupAvg = (people: Person[], fn: (p: Person) => number) => people.length ? people.reduce((s, p) => s + fn(p), 0) / people.length : 0;
+  const chief = row.personnel.chief?.name ? [row.personnel.chief] : [];
+  const leads = row.personnel.leads.filter(p => p.name);
+  const members = row.personnel.members.filter(p => p.name);
+
+  const filteredSimilars = pool.similars.filter(s => {
+    const ef = row.options.similar_eval_filter || [];
+    const sf = row.options.similar_service_filter || [];
+    if (ef.length && !ef.includes(s.evaluation_type)) return false;
+    if (sf.length && !sf.includes(s.service_type)) return false;
+    return true;
+  });
+  const simCount = filteredSimilars.length;
+  const simAmount = filteredSimilars.reduce((s, x) => s + Number(x.contract_amount || 0), 0);
+
+  const newHires = Number((row.options as any).youth_new_hires || 0);
+  const avgWorkforce = Number((row.options as any).youth_avg_workforce || 0);
+  const youthRate = avgWorkforce > 0 ? (newHires / avgWorkforce) * 100 : 0;
+
+  const transferRatio = (name: string) => {
+    const m = lastResignMonthsAgo(name, pool.careers);
+    if (m === Infinity) return 1;
+    return Math.min(1, m / 6);
+  };
+
+  const autoFor = (code: string, max: number): { value: number; basis: string } => {
+    const f = (v: number, basis: string) => ({ value: Math.min(max, Math.max(0, v)), basis });
+    switch (code) {
+      case "1-1-가": return f(max * gradeRatio(findProfile(chief[0]?.name || "")), chief[0] ? `${chief[0].name} 등급` : "총괄 미입력");
+      case "1-2-가": return f(max * groupAvg(leads, p => gradeRatio(findProfile(p.name))), `책임 ${leads.length}명 평균`);
+      case "1-3-가": return f(max * groupAvg(members, p => gradeRatio(findProfile(p.name))), `참여 ${members.length}명 평균`);
+      case "1-1-나": return f(max * Math.min(1, careerYears(chief[0]?.name || "", pool.careers) / 30), chief[0] ? `${careerYears(chief[0].name, pool.careers).toFixed(1)}년` : "-");
+      case "1-2-나": return f(max * groupAvg(leads, p => Math.min(1, careerYears(p.name, pool.careers) / 30)), `책임 평균`);
+      case "1-3-나": return f(max * groupAvg(members, p => Math.min(1, careerYears(p.name, pool.careers) / 25)), `참여 평균`);
+      case "1-1-다": return f(max * Math.min(1, perfCount(chief[0]?.name || "", pool.performances) / 5), chief[0] ? `${perfCount(chief[0].name, pool.performances)}건` : "-");
+      case "1-2-다": return f(max * groupAvg(leads, p => Math.min(1, perfCount(p.name, pool.performances) / 5)), `책임 평균`);
+      case "1-3-다": return f(max * groupAvg(members, p => Math.min(1, perfCount(p.name, pool.performances) / 3)), `참여 평균`);
+      case "1-4-가": return f(max * Math.max(0, 1 - overlapActiveCount(chief[0]?.name || "", pool.overlaps) / 3), chief[0] ? `진행 ${overlapActiveCount(chief[0].name, pool.overlaps)}건` : "-");
+      case "1-4-나": return f(max * groupAvg(leads, p => Math.max(0, 1 - overlapActiveCount(p.name, pool.overlaps) / 3)), `책임 평균`);
+      case "1-4-다": return f(max * groupAvg(members, p => Math.max(0, 1 - overlapActiveCount(p.name, pool.overlaps) / 3)), `참여 평균`);
+      case "1-5": {
+        const all = [...chief, ...leads, ...members];
+        const avg = all.length ? all.reduce((s, p) => s + Math.min(1, eduHoursLast3y(p.name, pool.educations) / 35), 0) / all.length : 0;
+        return f(max * avg, `${all.length}명 평균 교육이수`);
+      }
+      case "2-1-가": return f(max * Math.min(1, simCount / 5), `${simCount}건`);
+      case "2-1-나": return f(max * Math.min(1, simAmount / 10_000_000_000), `${(simAmount / 1e8).toFixed(0)}억`);
+      case "2-3-가": return f(pool.devs.some(d => d.record_type?.includes("개발")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("개발")).length}건`);
+      case "2-3-나": return f(pool.devs.some(d => d.record_type?.includes("투자")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("투자")).length}건`);
+      case "2-3-다": return f(pool.devs.some(d => d.record_type?.includes("활용")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("활용")).length}건`);
+      case "2-6": return f(Math.min(1, youthRate / 3), `신규고용률 ${youthRate.toFixed(2)}%`);
+      default: return { value: 0, basis: "수동입력" };
+    }
+  };
+
+  const effectiveScore = (code: string, max: number) => {
+    const manual = scores[code];
+    if (manual !== undefined && manual !== null) return Number(manual);
+    return autoFor(code, max).value;
+  };
+
   const totalShare = (row.companies || []).reduce((s, c) => s + Number(c.share_rate || 0), 0);
-  const totalScore = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + Number(scores[it.code] || 0), 0), 0);
+  const totalScore = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + effectiveScore(it.code, it.max), 0), 0);
   const totalMax = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + it.max, 0), 0);
 
   return (
