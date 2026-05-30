@@ -192,7 +192,30 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     return n;
   });
 
-  useEffect(() => { fetchRows(); }, []);
+  const [techSpecMap, setTechSpecMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => { fetchRows(); fetchTechSpecialties(); }, []);
+
+  async function fetchTechSpecialties() {
+    const { data } = await supabase.from("personal_profiles").select("technician_name,birth_date,specialty");
+    const map = new Map<string, string>();
+    (data || []).forEach((p: any) => {
+      const sp = (p.specialty || "").trim();
+      if (!sp) return;
+      const name = (p.technician_name || "").trim();
+      if (name) map.set(name, sp);
+      if (p.birth_date) map.set(`${name}|${p.birth_date}`, sp);
+    });
+    setTechSpecMap(map);
+  }
+
+  function getRegisteredSpecialty(p: Participant): string | null {
+    const name = (p.name || "").trim();
+    if (!name) return null;
+    const bd = (p.birth_date || "").replace(/\./g, "-").trim();
+    if (bd && techSpecMap.has(`${name}|${bd}`)) return techSpecMap.get(`${name}|${bd}`)!;
+    return techSpecMap.get(name) || null;
+  }
 
   async function fetchRows() {
     setLoading(true);
