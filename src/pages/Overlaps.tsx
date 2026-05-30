@@ -163,7 +163,32 @@ export default function Overlaps() {
       (supabase as any).from("technicians").select("id, name, specialty").order("name"),
     ]);
     if (error) toast.error(error.message);
-    else setRows((data || []).map((r: any) => ({ ...r, participants: Array.isArray(r.participants) ? r.participants : [] })));
+    else setRows((data || []).map((r: any) => {
+      let amendments: Amendment[] = Array.isArray(r.amendments) ? r.amendments : [];
+      let suspensions: Suspension[] = Array.isArray(r.suspensions) ? r.suspensions : [];
+      // back-compat: legacy single fields -> arrays (only when no array data exists yet)
+      if (amendments.length === 0 && (r.contract_amount_change_date || r.end_date_change_date || r.contract_change_pdf_path || r.end_date_change_pdf_path)) {
+        amendments = [{
+          id: uid(),
+          change_date: r.contract_amount_change_date || r.end_date_change_date || "",
+          contract_amount_new: r.contract_amount_new ?? null,
+          end_date_new: r.end_date_new || "",
+          pdf_path: r.contract_change_pdf_path || r.end_date_change_pdf_path || null,
+          note: "",
+        }];
+      }
+      if (suspensions.length === 0 && (r.suspension_date || r.suspension_pdf_path)) {
+        suspensions = [{
+          id: uid(),
+          suspension_date: r.suspension_date || "",
+          suspension_reason: r.suspension_reason || "",
+          resume_date: "",
+          suspension_pdf_path: r.suspension_pdf_path || null,
+          resume_pdf_path: null,
+        }];
+      }
+      return { ...r, participants: Array.isArray(r.participants) ? r.participants : [], amendments, suspensions };
+    }));
     if (!techRes.error) setTechnicians(techRes.data || []);
     setLoading(false);
   };
@@ -194,6 +219,8 @@ export default function Overlaps() {
       suspension_pdf_path: r.suspension_pdf_path || null,
       agreement_pdf_path: r.agreement_pdf_path || null,
       participant_list_pdf_path: r.participant_list_pdf_path || null,
+      amendments: (r.amendments || []).map(a => ({ ...a, id: a.id || uid() })),
+      suspensions: (r.suspensions || []).map(s => ({ ...s, id: s.id || uid() })),
     });
     setOpen(true);
   };
@@ -204,6 +231,8 @@ export default function Overlaps() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
     setSubmitting(true);
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
+    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.pdf_path);
+    const cleanSuspensions = (form.suspensions || []).filter(s => s.suspension_date || s.resume_date || s.suspension_pdf_path || s.resume_pdf_path);
     const payload: any = {
       project_name: form.project_name,
       client: form.client || null,
@@ -227,6 +256,8 @@ export default function Overlaps() {
       suspension_pdf_path: form.suspension_pdf_path || null,
       agreement_pdf_path: form.agreement_pdf_path || null,
       participant_list_pdf_path: form.participant_list_pdf_path || null,
+      amendments: cleanAmendments,
+      suspensions: cleanSuspensions,
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
@@ -237,6 +268,7 @@ export default function Overlaps() {
     }
     setSubmitting(false);
   };
+
 
   const doDelete = async () => {
     if (!deleteId) return;
