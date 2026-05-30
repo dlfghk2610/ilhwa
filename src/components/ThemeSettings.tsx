@@ -189,21 +189,30 @@ export function ThemeSettings() {
   useEffect(() => {
     if (loadedUidRef.current !== (uid ?? null)) return;
     applyPrimary(color);
-    try { localStorage.setItem(primaryKey(uid), color); } catch {}
+    try {
+      localStorage.setItem(primaryKey(uid), color);
+      localStorage.setItem(PRIMARY_BASE, color); // unscoped: pre-React initTheme uses this
+    } catch {}
     if (uid) supabase.from("profiles").update({ theme_primary: color }).eq("id", uid).then(() => {});
   }, [color, uid]);
 
   useEffect(() => {
     if (loadedUidRef.current !== (uid ?? null)) return;
     applySidebar(sidebarColor);
-    try { localStorage.setItem(sidebarKey(uid), sidebarColor); } catch {}
+    try {
+      localStorage.setItem(sidebarKey(uid), sidebarColor);
+      localStorage.setItem(SIDEBAR_BASE, sidebarColor);
+    } catch {}
     if (uid) supabase.from("profiles").update({ theme_sidebar: sidebarColor }).eq("id", uid).then(() => {});
   }, [sidebarColor, uid]);
 
   useEffect(() => {
     if (loadedUidRef.current !== (uid ?? null)) return;
     applyBackground(backgroundColor);
-    try { localStorage.setItem(backgroundKey(uid), backgroundColor); } catch {}
+    try {
+      localStorage.setItem(backgroundKey(uid), backgroundColor);
+      localStorage.setItem(BACKGROUND_BASE, backgroundColor);
+    } catch {}
     if (uid) supabase.from("profiles").update({ theme_background: backgroundColor }).eq("id", uid).then(() => {});
   }, [backgroundColor, uid]);
 
