@@ -57,15 +57,39 @@ const DEFAULT_CRITERIA: CriteriaSection[] = [
   },
 ];
 
-type Company = { name: string; share_rate: number | null };
-type Person = { role: "총괄" | "책임" | "참여"; name: string; specialty?: string };
+type CompanySize = "대기업" | "중기업" | "소기업";
+type Company = { name: string; share_rate: number | null; size?: CompanySize };
+type CareerOpts = {
+  exclude_private?: boolean;   // 민간제외
+  recognized_date?: string;    // 인정일
+  exclude_overlap?: boolean;   // 중복제외
+};
+type PerfOpts = {
+  eval_types?: string[];       // 평가종류 (다중)
+  service_types?: string[];    // 사업종류 (다중)
+  include_under_90?: boolean;  // 90일미만 포함
+  count_mode?: "단순건수" | "참여비율건수";
+};
+type Person = {
+  role: "총괄" | "책임" | "참여";
+  name: string;
+  specialty?: string;
+  internal?: boolean;          // 우리회사 인력 여부
+  grade_override?: string;     // 등급 (수기 선택)
+  career_opts?: CareerOpts;
+  perf_opts?: PerfOpts;
+};
 type ProjectOptions = {
-  task_understanding_max?: number;       // 과업의 이해도 배점한도
-  joint_contract_type?: string;          // 공동도급 선택
-  company_capability_max?: number;       // 업체능력평가 배점한도
-  company_capability_relative?: boolean; // 상대평가
-  similar_eval_filter?: string[];        // 평가종류 필터
-  similar_service_filter?: string[];     // 사업종류 필터
+  task_understanding_max?: number;
+  joint_contract_mode?: "1종-2종" | "1종-2종+1종-소기업" | "1종-소기업";
+  joint_contract_type?: string; // legacy
+  company_capability_max?: number;
+  company_capability_relative?: boolean;
+  similar_eval_filter?: string[];
+  similar_service_filter?: string[];
+  credit_grade?: string;        // 신용도 등급 (AAA~D)
+  youth_new_hires?: number | null;
+  youth_avg_workforce?: number | null;
 };
 type ProjectRow = {
   id: string;
@@ -79,14 +103,23 @@ type ProjectRow = {
   created_at?: string;
 };
 
-const blankPerson = (role: Person["role"]): Person => ({ role, name: "", specialty: "" });
+const GRADE_OPTIONS = ["특급기술인", "고급기술인", "중급기술인", "초급기술인", "기술사", "기사", "산업기사"];
+const CREDIT_GRADES = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-", "B+", "B", "B-", "CCC", "CC", "C", "D"];
+const EVAL_TYPE_OPTIONS = ["환경영향평가", "전략환경영향평가", "소규모환경영향평가", "사후환경영향조사", "기타"];
+const SERVICE_TYPE_OPTIONS = ["도시개발", "산업단지", "도로", "철도", "항만", "댐", "에너지개발", "관광단지", "폐기물", "기타"];
+
+const blankPerson = (role: Person["role"]): Person => ({
+  role, name: "", specialty: "", internal: true,
+  career_opts: { exclude_private: false, exclude_overlap: false },
+  perf_opts: { eval_types: [], service_types: [], include_under_90: false, count_mode: "단순건수" },
+});
 const blankProject = (): Omit<ProjectRow, "id"> => ({
   project_name: "",
   client: "",
   announcement_date: null,
-  companies: [{ name: "", share_rate: 100 }],
+  companies: [{ name: "", share_rate: 100, size: "중기업" }],
   personnel: { chief: blankPerson("총괄"), leads: [blankPerson("책임"), blankPerson("책임")], members: [blankPerson("참여"), blankPerson("참여")] },
-  options: { task_understanding_max: 1, company_capability_max: 30, company_capability_relative: false, similar_eval_filter: [], similar_service_filter: [] },
+  options: { task_understanding_max: 1, company_capability_max: 30, company_capability_relative: false, similar_eval_filter: [], similar_service_filter: [], joint_contract_mode: "1종-2종" },
   notes: "",
 });
 
