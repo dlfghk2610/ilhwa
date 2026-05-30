@@ -471,48 +471,133 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           </TabsContent>
 
           {/* TAB 3 — SUMMARY */}
-          <TabsContent value="summary">
+          <TabsContent value="summary" className="space-y-4">
+            {/* 발주사업 개요 */}
+            <Card className="p-4">
+              <div className="font-semibold text-sm mb-3 pb-2 border-b">발주사업 요약</div>
+              <div className="grid md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
+                <div><span className="text-muted-foreground">사업명: </span><span className="font-medium">{row.project_name || "-"}</span></div>
+                <div><span className="text-muted-foreground">발주처: </span><span className="font-medium">{row.client || "-"}</span></div>
+                <div><span className="text-muted-foreground">공고일: </span><span className="font-medium">{row.announcement_date || "-"}</span></div>
+                <div><span className="text-muted-foreground">참여회사: </span><span className="font-medium">{(row.companies || []).filter(c => c.name).map(c => `${c.name}(${c.share_rate ?? 0}%)`).join(", ") || "-"}</span></div>
+              </div>
+              <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">총 평가점수</div>
+                <div className="text-2xl font-bold text-primary">{totalScore.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">/ {totalMax}점</span></div>
+              </div>
+            </Card>
+
+            {/* 기술자별 요약 */}
             <Card className="overflow-x-auto">
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약</div>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-40">평가항목</TableHead>
-                    <TableHead>평가요소</TableHead>
-                    <TableHead className="w-20 text-right">배점</TableHead>
-                    <TableHead className="w-32 text-right">자기평가</TableHead>
-                    <TableHead>산출근거</TableHead>
+                    <TableHead className="w-20">구분</TableHead>
+                    <TableHead className="w-32">기술자명</TableHead>
+                    <TableHead className="w-32">전문분야</TableHead>
+                    <TableHead className="text-right">등급</TableHead>
+                    <TableHead className="text-right">경력</TableHead>
+                    <TableHead className="text-right">실적</TableHead>
+                    <TableHead className="text-right">여유도</TableHead>
+                    <TableHead className="text-right">교육</TableHead>
+                    <TableHead className="text-right">이적계수</TableHead>
+                    <TableHead className="text-right font-semibold">소계</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {criteria.map((sec) => (
-                    <>
-                      <TableRow key={`s-${sec.code}`} className="bg-muted/30 font-semibold">
-                        <TableCell rowSpan={sec.items.length + 1}>{sec.code}. {sec.label}</TableCell>
-                        <TableCell></TableCell>
-                        <TableCell className="text-right">[{sec.max}]</TableCell>
-                        <TableCell className="text-right">
-                          {sec.items.reduce((s, it) => s + Number(scores[it.code] || 0), 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                      {sec.items.map((it) => (
-                        <TableRow key={it.code}>
-                          <TableCell>{it.label}</TableCell>
-                          <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
-                          <TableCell>
-                            <Input className="text-right" type="number" step="0.01" value={scores[it.code] ?? ""}
-                              onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? 0 : Number(e.target.value) })}
-                            />
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">자동계산 (개발 예정)</TableCell>
+                  {(() => {
+                    const persons: Person[] = [
+                      ...(row.personnel.chief ? [row.personnel.chief] : []),
+                      ...row.personnel.leads,
+                      ...row.personnel.members,
+                    ];
+                    if (persons.length === 0) {
+                      return <TableRow><TableCell colSpan={10} className="text-center py-6 text-muted-foreground">참여 인력을 먼저 입력하세요</TableCell></TableRow>;
+                    }
+                    const codeFor = (role: Person["role"], k: "등급" | "경력" | "실적" | "여유도") => {
+                      const map: Record<string, Record<string, string>> = {
+                        "총괄": { "등급": "1-1-가", "경력": "1-1-나", "실적": "1-1-다", "여유도": "1-4-가" },
+                        "책임": { "등급": "1-2-가", "경력": "1-2-나", "실적": "1-2-다", "여유도": "1-4-나" },
+                        "참여": { "등급": "1-3-가", "경력": "1-3-나", "실적": "1-3-다", "여유도": "1-4-다" },
+                      };
+                      return map[role]?.[k];
+                    };
+                    const groupCount = { "총괄": 1, "책임": row.personnel.leads.length || 1, "참여": row.personnel.members.length || 1 };
+                    const share = (role: Person["role"], code?: string) => code ? Number(scores[code] || 0) / (groupCount[role] || 1) : 0;
+                    const eduCode = "1-5";
+                    return persons.map((p, i) => {
+                      const g = share(p.role, codeFor(p.role, "등급"));
+                      const c = share(p.role, codeFor(p.role, "경력"));
+                      const r = share(p.role, codeFor(p.role, "실적"));
+                      const m = share(p.role, codeFor(p.role, "여유도"));
+                      const e = share(p.role, eduCode) / persons.length * (groupCount[p.role] || 1);
+                      const t = g + c + r + m + e;
+                      return (
+                        <TableRow key={i}>
+                          <TableCell><span className={`text-xs px-2 py-0.5 rounded ${p.role === "총괄" ? "bg-primary/15 text-primary" : p.role === "책임" ? "bg-blue-500/15 text-blue-700 dark:text-blue-300" : "bg-muted text-muted-foreground"}`}>{p.role}</span></TableCell>
+                          <TableCell className="font-medium">{p.name || "-"}</TableCell>
+                          <TableCell className="text-xs">{p.specialty || "-"}</TableCell>
+                          <TableCell className="text-right">{g.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{c.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{r.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{m.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{e.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">-</TableCell>
+                          <TableCell className="text-right font-semibold">{t.toFixed(2)}</TableCell>
                         </TableRow>
-                      ))}
-                    </>
-                  ))}
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+              <div className="p-2 text-xs text-muted-foreground border-t">※ 각 인력 점수는 항목별 자기평가 점수를 동일 역할 인원수로 균등 배분한 값입니다. (자동연동 전 임시 계산)</div>
+            </Card>
+
+            {/* 항목별 점수표 */}
+            <Card className="overflow-x-auto">
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30">항목별 점수표</div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-48">평가항목</TableHead>
+                    <TableHead>평가요소</TableHead>
+                    <TableHead className="w-24 text-right">배점</TableHead>
+                    <TableHead className="w-32 text-right">자기평가</TableHead>
+                    <TableHead className="w-32">산출근거</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {criteria.map((sec) => {
+                    const secSum = sec.items.reduce((s, it) => s + Number(scores[it.code] || 0), 0);
+                    return (
+                      <>
+                        <TableRow key={`s-${sec.code}`} className="bg-muted/40 font-semibold">
+                          <TableCell colSpan={2}>{sec.code}. {sec.label}</TableCell>
+                          <TableCell className="text-right">[{sec.max}]</TableCell>
+                          <TableCell className="text-right text-primary">{secSum.toFixed(2)}</TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                        {sec.items.map((it) => (
+                          <TableRow key={it.code}>
+                            <TableCell className="text-xs text-muted-foreground pl-6">{it.code}</TableCell>
+                            <TableCell>{it.label}</TableCell>
+                            <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
+                            <TableCell>
+                              <Input className="text-right h-8" type="number" step="0.01" value={scores[it.code] ?? ""}
+                                onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? 0 : Number(e.target.value) })}
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">자동계산 예정</TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    );
+                  })}
                   <TableRow className="bg-primary/10 font-bold">
-                    <TableCell colSpan={2}>합계</TableCell>
+                    <TableCell colSpan={2}>합 계</TableCell>
                     <TableCell className="text-right">{totalMax}</TableCell>
-                    <TableCell className="text-right">{totalScore.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-primary text-base">{totalScore.toFixed(2)}</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
                 </TableBody>
