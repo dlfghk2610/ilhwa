@@ -23,6 +23,23 @@ import { PDFDocument } from "pdf-lib";
 
 type Participant = { name: string; role?: string };
 
+type Amendment = {
+  id: string;
+  change_date: string | null;
+  contract_amount_new: number | null;
+  end_date_new: string | null;
+  pdf_path: string | null;
+  note?: string | null;
+};
+type Suspension = {
+  id: string;
+  suspension_date: string | null;
+  suspension_reason: string | null;
+  resume_date: string | null;
+  suspension_pdf_path: string | null;
+  resume_pdf_path: string | null;
+};
+
 type OverlapRow = {
   id: string;
   project_name: string;
@@ -30,12 +47,14 @@ type OverlapRow = {
   contract_amount: number | null;
   start_date: string | null;
   end_date: string | null;
+  // legacy single-suspension fields (kept for back-compat reads)
   suspension_date: string | null;
   suspension_reason: string | null;
   agreement_date: string | null;
   absolute_period_days: number | null;
   participants: Participant[];
   notes: string | null;
+  // legacy single-amendment fields (kept for back-compat reads)
   contract_amount_change_date: string | null;
   contract_amount_new: number | null;
   end_date_change_date: string | null;
@@ -46,9 +65,16 @@ type OverlapRow = {
   suspension_pdf_path: string | null;
   agreement_pdf_path: string | null;
   participant_list_pdf_path: string | null;
+  // new array fields
+  amendments: Amendment[];
+  suspensions: Suspension[];
 };
 
 type Unit = "won" | "k" | "m";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const blankAmendment = (): Amendment => ({ id: uid(), change_date: "", contract_amount_new: null, end_date_new: "", pdf_path: null, note: "" });
+const blankSuspension = (): Suspension => ({ id: uid(), suspension_date: "", suspension_reason: "", resume_date: "", suspension_pdf_path: null, resume_pdf_path: null });
 
 const toDisplayDate = (iso?: string | null) => (!iso ? "" : iso.replace(/-/g, "."));
 const toISODate = (display?: string | null) => (!display ? "" : display.replace(/\./g, "-"));
@@ -97,6 +123,7 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   original_contract_pdf_path: null, contract_change_pdf_path: null,
   end_date_change_pdf_path: null, suspension_pdf_path: null,
   agreement_pdf_path: null, participant_list_pdf_path: null,
+  amendments: [], suspensions: [],
 });
 
 export default function Overlaps() {
