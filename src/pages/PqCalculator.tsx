@@ -58,36 +58,49 @@ const DEFAULT_CRITERIA: CriteriaSection[] = [
 ];
 
 type CompanySize = "대기업" | "중기업" | "소기업";
-type Company = { name: string; share_rate: number | null; size?: CompanySize };
+type CompanyCapability = {
+  similar_count?: number | null;
+  similar_amount?: number | null;
+  credit_grade?: string;
+  financial_health?: string;
+  dev_count?: number | null;
+  invest_amount?: number | null;
+  util_count?: number | null;
+  penalty_points?: number | null;
+  joint_contract?: string;
+  capability_score?: number | null;
+  notes?: string;
+};
+type Company = { name: string; share_rate: number | null; size?: CompanySize; capability?: CompanyCapability };
 type CareerOpts = {
-  exclude_private?: boolean;   // 민간제외
-  recognized_date?: string;    // 인정일
-  exclude_overlap?: boolean;   // 중복제외
+  exclude_private?: boolean;
+  recognized_date?: string;
+  exclude_overlap?: boolean;
 };
 type PerfOpts = {
-  eval_types?: string[];       // 평가종류 (다중)
-  service_types?: string[];    // 사업종류 (다중)
-  include_under_90?: boolean;  // 90일미만 포함
+  eval_types?: string[];
+  service_types?: string[];
+  include_under_90?: boolean;
   count_mode?: "단순건수" | "참여비율건수";
 };
 type Person = {
   role: "총괄" | "책임" | "참여";
   name: string;
   specialty?: string;
-  internal?: boolean;          // 우리회사 인력 여부
-  grade_override?: string;     // 등급 (수기 선택)
+  internal?: boolean;
+  grade_override?: string;
   career_opts?: CareerOpts;
   perf_opts?: PerfOpts;
 };
 type ProjectOptions = {
   task_understanding_max?: number;
   joint_contract_mode?: "1종-2종" | "1종-2종+1종-소기업" | "1종-소기업";
-  joint_contract_type?: string; // legacy
+  joint_contract_type?: string;
   company_capability_max?: number;
   company_capability_relative?: boolean;
   similar_eval_filter?: string[];
   similar_service_filter?: string[];
-  credit_grade?: string;        // 신용도 등급 (AAA~D)
+  credit_grade?: string;
   youth_new_hires?: number | null;
   youth_avg_workforce?: number | null;
 };
@@ -105,8 +118,7 @@ type ProjectRow = {
 
 const GRADE_OPTIONS = ["특급기술인", "고급기술인", "중급기술인", "초급기술인", "기술사", "기사", "산업기사"];
 const CREDIT_GRADES = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-", "B+", "B", "B-", "CCC", "CC", "C", "D"];
-const EVAL_TYPE_OPTIONS = ["환경영향평가", "전략환경영향평가", "소규모환경영향평가", "사후환경영향조사", "기타"];
-const SERVICE_TYPE_OPTIONS = ["도시개발", "산업단지", "도로", "철도", "항만", "댐", "에너지개발", "관광단지", "폐기물", "기타"];
+const FINANCIAL_HEALTH_OPTIONS = ["우수", "양호", "보통", "미흡"];
 
 const blankPerson = (role: Person["role"]): Person => ({
   role, name: "", specialty: "", internal: true,
@@ -117,11 +129,43 @@ const blankProject = (): Omit<ProjectRow, "id"> => ({
   project_name: "",
   client: "",
   announcement_date: null,
-  companies: [{ name: "", share_rate: 100, size: "중기업" }],
+  companies: [{ name: "", share_rate: 100, size: "중기업", capability: {} }],
   personnel: { chief: blankPerson("총괄"), leads: [blankPerson("책임"), blankPerson("책임")], members: [blankPerson("참여"), blankPerson("참여")] },
   options: { task_understanding_max: 1, company_capability_max: 30, company_capability_relative: false, similar_eval_filter: [], similar_service_filter: [], joint_contract_mode: "1종-2종" },
   notes: "",
 });
+
+// ---------- TagInput: 자유 입력 + 다중 태그 ----------
+function TagInput({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (values.includes(v)) { setDraft(""); return; }
+    onChange([...values, v]); setDraft("");
+  };
+  return (
+    <div className="border rounded-md p-1.5 flex flex-wrap gap-1 min-h-[36px] bg-background">
+      {values.map((v, i) => (
+        <span key={i} className="inline-flex items-center gap-1 text-xs bg-secondary text-secondary-foreground rounded px-2 py-0.5">
+          {v}
+          <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+        </span>
+      ))}
+      <input
+        className="flex-1 min-w-[100px] text-xs bg-transparent outline-none px-1"
+        placeholder={placeholder || "입력 후 Enter"}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); }
+          else if (e.key === "Backspace" && !draft && values.length) onChange(values.slice(0, -1));
+        }}
+        onBlur={add}
+      />
+    </div>
+  );
+}
 
 // ============================================================
 export default function PqCalculator() {
