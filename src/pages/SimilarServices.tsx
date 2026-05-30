@@ -361,9 +361,26 @@ export default function SimilarServices() {
     }
   };
 
+  // 계약기간 기준 90일 미만 자동 판정 (start_date~completion_date, 단계가 있으면 합산)
+  const computeUnder90 = (r: Row): boolean => {
+    const dayDiff = (s?: string | null, e?: string | null) => {
+      if (!s || !e) return 0;
+      const sd = new Date(s).getTime(), ed = new Date(e).getTime();
+      if (isNaN(sd) || isNaN(ed)) return 0;
+      return Math.max(0, Math.round((ed - sd) / 86400000) + 1);
+    };
+    const phases = Array.isArray(r.phases) ? r.phases : [];
+    let total = 0;
+    if (phases.length > 0) {
+      total = phases.reduce((s, p) => s + dayDiff(p.start_date, p.end_date), 0);
+    }
+    if (total === 0) total = dayDiff(r.start_date, r.completion_date);
+    return total > 0 && total < 90;
+  };
+
   const filtered = rows.filter((r) => {
     if ((r as any).is_private && excludePrivate) return false;
-    if ((r as any).is_under_90days && !includeUnder90) return false;
+    if (computeUnder90(r) && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
     if ((r as any).is_progress && !includeProgress) return false;
     if ((r as any).is_dual_participation && !includeDual) return false;
