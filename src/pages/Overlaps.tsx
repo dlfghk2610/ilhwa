@@ -495,19 +495,41 @@ export default function Overlaps() {
     { key: "agreement_pdf_path", label: "협의완료 공문" },
   ];
 
-  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
-    if (!user) return;
+  const uploadPdfRaw = async (file: File, fieldKey: string): Promise<string | null> => {
+    if (!user) return null;
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("PDF 파일만 업로드 가능합니다"); return;
+      toast.error("PDF 파일만 업로드 가능합니다"); return null;
     }
-    setUploadingField(field as string);
+    setUploadingField(fieldKey);
     const path = `${user.id}/${Date.now()}_${file.name.replace(/[^\w.\-]/g, "_")}`;
     const { error } = await supabase.storage.from("overlap-documents").upload(path, file, { contentType: "application/pdf" });
     setUploadingField(null);
-    if (error) { toast.error(error.message); return; }
-    setForm((f) => ({ ...f, [field]: path }));
+    if (error) { toast.error(error.message); return null; }
     toast.success("업로드 완료");
+    return path;
   };
+  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
+    const path = await uploadPdfRaw(file, String(field));
+    if (path) setForm((f) => ({ ...f, [field]: path }));
+  };
+  const uploadAmendmentPdf = async (idx: number, file: File) => {
+    const path = await uploadPdfRaw(file, `amendment-${idx}`);
+    if (!path) return;
+    setForm((f) => {
+      const next = [...(f.amendments || [])]; next[idx] = { ...next[idx], pdf_path: path };
+      return { ...f, amendments: next };
+    });
+  };
+  const uploadSuspensionPdf = async (idx: number, kind: "suspension" | "resume", file: File) => {
+    const path = await uploadPdfRaw(file, `suspension-${idx}-${kind}`);
+    if (!path) return;
+    setForm((f) => {
+      const next = [...(f.suspensions || [])];
+      next[idx] = { ...next[idx], [kind === "suspension" ? "suspension_pdf_path" : "resume_pdf_path"]: path };
+      return { ...f, suspensions: next };
+    });
+  };
+
 
   const downloadPdf = async (path: string) => {
     const { data, error } = await supabase.storage.from("overlap-documents").download(path);
