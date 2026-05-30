@@ -23,6 +23,23 @@ import { PDFDocument } from "pdf-lib";
 
 type Participant = { name: string; role?: string };
 
+type Amendment = {
+  id: string;
+  change_date: string | null;
+  contract_amount_new: number | null;
+  end_date_new: string | null;
+  pdf_path: string | null;
+  note?: string | null;
+};
+type Suspension = {
+  id: string;
+  suspension_date: string | null;
+  suspension_reason: string | null;
+  resume_date: string | null;
+  suspension_pdf_path: string | null;
+  resume_pdf_path: string | null;
+};
+
 type OverlapRow = {
   id: string;
   project_name: string;
@@ -30,12 +47,14 @@ type OverlapRow = {
   contract_amount: number | null;
   start_date: string | null;
   end_date: string | null;
+  // legacy single-suspension fields (kept for back-compat reads)
   suspension_date: string | null;
   suspension_reason: string | null;
   agreement_date: string | null;
   absolute_period_days: number | null;
   participants: Participant[];
   notes: string | null;
+  // legacy single-amendment fields (kept for back-compat reads)
   contract_amount_change_date: string | null;
   contract_amount_new: number | null;
   end_date_change_date: string | null;
@@ -46,9 +65,16 @@ type OverlapRow = {
   suspension_pdf_path: string | null;
   agreement_pdf_path: string | null;
   participant_list_pdf_path: string | null;
+  // new array fields
+  amendments: Amendment[];
+  suspensions: Suspension[];
 };
 
 type Unit = "won" | "k" | "m";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const blankAmendment = (): Amendment => ({ id: uid(), change_date: "", contract_amount_new: null, end_date_new: "", pdf_path: null, note: "" });
+const blankSuspension = (): Suspension => ({ id: uid(), suspension_date: "", suspension_reason: "", resume_date: "", suspension_pdf_path: null, resume_pdf_path: null });
 
 const toDisplayDate = (iso?: string | null) => (!iso ? "" : iso.replace(/-/g, "."));
 const toISODate = (display?: string | null) => (!display ? "" : display.replace(/\./g, "-"));
@@ -97,6 +123,7 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   original_contract_pdf_path: null, contract_change_pdf_path: null,
   end_date_change_pdf_path: null, suspension_pdf_path: null,
   agreement_pdf_path: null, participant_list_pdf_path: null,
+  amendments: [], suspensions: [],
 });
 
 export default function Overlaps() {
@@ -136,7 +163,32 @@ export default function Overlaps() {
       (supabase as any).from("technicians").select("id, name, specialty").order("name"),
     ]);
     if (error) toast.error(error.message);
-    else setRows((data || []).map((r: any) => ({ ...r, participants: Array.isArray(r.participants) ? r.participants : [] })));
+    else setRows((data || []).map((r: any) => {
+      let amendments: Amendment[] = Array.isArray(r.amendments) ? r.amendments : [];
+      let suspensions: Suspension[] = Array.isArray(r.suspensions) ? r.suspensions : [];
+      // back-compat: legacy single fields -> arrays (only when no array data exists yet)
+      if (amendments.length === 0 && (r.contract_amount_change_date || r.end_date_change_date || r.contract_change_pdf_path || r.end_date_change_pdf_path)) {
+        amendments = [{
+          id: uid(),
+          change_date: r.contract_amount_change_date || r.end_date_change_date || "",
+          contract_amount_new: r.contract_amount_new ?? null,
+          end_date_new: r.end_date_new || "",
+          pdf_path: r.contract_change_pdf_path || r.end_date_change_pdf_path || null,
+          note: "",
+        }];
+      }
+      if (suspensions.length === 0 && (r.suspension_date || r.suspension_pdf_path)) {
+        suspensions = [{
+          id: uid(),
+          suspension_date: r.suspension_date || "",
+          suspension_reason: r.suspension_reason || "",
+          resume_date: "",
+          suspension_pdf_path: r.suspension_pdf_path || null,
+          resume_pdf_path: null,
+        }];
+      }
+      return { ...r, participants: Array.isArray(r.participants) ? r.participants : [], amendments, suspensions };
+    }));
     if (!techRes.error) setTechnicians(techRes.data || []);
     setLoading(false);
   };
@@ -167,6 +219,8 @@ export default function Overlaps() {
       suspension_pdf_path: r.suspension_pdf_path || null,
       agreement_pdf_path: r.agreement_pdf_path || null,
       participant_list_pdf_path: r.participant_list_pdf_path || null,
+      amendments: (r.amendments || []).map(a => ({ ...a, id: a.id || uid() })),
+      suspensions: (r.suspensions || []).map(s => ({ ...s, id: s.id || uid() })),
     });
     setOpen(true);
   };
@@ -177,6 +231,8 @@ export default function Overlaps() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
     setSubmitting(true);
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
+    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.pdf_path);
+    const cleanSuspensions = (form.suspensions || []).filter(s => s.suspension_date || s.resume_date || s.suspension_pdf_path || s.resume_pdf_path);
     const payload: any = {
       project_name: form.project_name,
       client: form.client || null,
@@ -200,6 +256,8 @@ export default function Overlaps() {
       suspension_pdf_path: form.suspension_pdf_path || null,
       agreement_pdf_path: form.agreement_pdf_path || null,
       participant_list_pdf_path: form.participant_list_pdf_path || null,
+      amendments: cleanAmendments,
+      suspensions: cleanSuspensions,
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
@@ -210,6 +268,7 @@ export default function Overlaps() {
     }
     setSubmitting(false);
   };
+
 
   const doDelete = async () => {
     if (!deleteId) return;
@@ -244,23 +303,52 @@ export default function Overlaps() {
     setTechDeleteId(null);
   };
 
-  // ===== 공고일 기준 effective 값 =====
+  // ===== 공고일 기준 effective 값 (변경계약 다중 + 과업중지/재개 다중) =====
+  const sortedAmendments = (r: OverlapRow) => {
+    return (r.amendments || []).filter(a => a.change_date).slice().sort((a, b) => (a.change_date || "").localeCompare(b.change_date || ""));
+  };
+  const sortedSuspensions = (r: OverlapRow) => {
+    return (r.suspensions || []).filter(s => s.suspension_date).slice().sort((a, b) => (a.suspension_date || "").localeCompare(b.suspension_date || ""));
+  };
   const effectiveContract = (r: OverlapRow) => {
-    if (r.contract_amount_change_date && r.contract_amount_new !== null && r.contract_amount_new !== undefined &&
-        isAfterOrEqual(announcementDate, r.contract_amount_change_date)) return r.contract_amount_new;
-    return r.contract_amount;
+    let v = r.contract_amount;
+    for (const a of sortedAmendments(r)) {
+      if (a.contract_amount_new === null || a.contract_amount_new === undefined) continue;
+      if (isAfterOrEqual(announcementDate, a.change_date)) v = a.contract_amount_new;
+    }
+    return v;
   };
   const effectiveEndDate = (r: OverlapRow) => {
-    if (r.end_date_change_date && r.end_date_new &&
-        isAfterOrEqual(announcementDate, r.end_date_change_date)) return r.end_date_new;
-    return r.end_date;
+    let v = r.end_date;
+    for (const a of sortedAmendments(r)) {
+      if (!a.end_date_new) continue;
+      if (isAfterOrEqual(announcementDate, a.change_date)) v = a.end_date_new;
+    }
+    return v;
   };
-  const effectiveSuspensionDate = (r: OverlapRow) => {
-    if (!r.suspension_date) return null;
-    // suspension만 적용 가능: 공고일 >= 과업중지일일 때만 반영
-    if (!isAfterOrEqual(announcementDate, r.suspension_date)) return null;
-    return r.suspension_date;
+  // 공고일 기준 활성 중지 사이클 (중지일 <= 공고일, 그리고 재개일 없거나 재개일 > 공고일)
+  const activeSuspensionAt = (r: OverlapRow): Suspension | null => {
+    if (!announcementDate) return null;
+    let active: Suspension | null = null;
+    for (const s of sortedSuspensions(r)) {
+      if (!isAfterOrEqual(announcementDate, s.suspension_date)) break;
+      if (!s.resume_date || announcementDate < s.resume_date) active = s;
+      else active = null; // resumed before announcement
+    }
+    return active;
   };
+  // 마지막으로 재개된 날짜 (공고일 시점에 중지 중이 아닐 때 산정 시작점으로 사용)
+  const lastResumeBefore = (r: OverlapRow): string | null => {
+    if (!announcementDate) return null;
+    let last: string | null = null;
+    for (const s of sortedSuspensions(r)) {
+      if (s.resume_date && isAfterOrEqual(announcementDate, s.resume_date)) {
+        if (!last || s.resume_date > last) last = s.resume_date;
+      }
+    }
+    return last;
+  };
+  const effectiveSuspensionDate = (r: OverlapRow) => activeSuspensionAt(r)?.suspension_date || null;
   const effectiveAgreementDate = (r: OverlapRow) => {
     if (!r.agreement_date) return null;
     if (!isAfterOrEqual(announcementDate, r.agreement_date)) return null;
@@ -295,8 +383,12 @@ export default function Overlaps() {
       return { days: Math.min(365, d), suspendedLong: false, agreed: false };
     }
     if (!announcementDate || !endDate) return { days: 0, suspendedLong: false, agreed: false };
-    return { days: Math.min(365, diffDays(announcementDate, endDate)), suspendedLong: false, agreed: false };
+    // 과업이 재개된 적이 있으면 마지막 재개일을 산정 시작점으로 사용
+    const resume = lastResumeBefore(r);
+    const startPoint = resume && resume > announcementDate ? resume : (resume || announcementDate);
+    return { days: Math.min(365, diffDays(startPoint, endDate)), suspendedLong: false, agreed: false };
   };
+
 
   const roundedContractAmount = (v: number | null) => {
     if (v === null || v === undefined) return 0;
@@ -397,25 +489,45 @@ export default function Overlaps() {
   // ===== PDF 업로드/다운로드/병합 & 엑셀 추출 =====
   const PDF_FIELDS: { key: keyof OverlapRow; label: string }[] = [
     { key: "original_contract_pdf_path", label: "당초 계약서" },
-    { key: "contract_change_pdf_path", label: "계약금액 변경 계약서" },
-    { key: "end_date_change_pdf_path", label: "준공예정일 변경 계약서" },
-    { key: "suspension_pdf_path", label: "과업중지 공문" },
     { key: "agreement_pdf_path", label: "협의완료 공문" },
   ];
 
-  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
-    if (!user) return;
+
+  const uploadPdfRaw = async (file: File, fieldKey: string): Promise<string | null> => {
+    if (!user) return null;
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("PDF 파일만 업로드 가능합니다"); return;
+      toast.error("PDF 파일만 업로드 가능합니다"); return null;
     }
-    setUploadingField(field as string);
+    setUploadingField(fieldKey);
     const path = `${user.id}/${Date.now()}_${file.name.replace(/[^\w.\-]/g, "_")}`;
     const { error } = await supabase.storage.from("overlap-documents").upload(path, file, { contentType: "application/pdf" });
     setUploadingField(null);
-    if (error) { toast.error(error.message); return; }
-    setForm((f) => ({ ...f, [field]: path }));
+    if (error) { toast.error(error.message); return null; }
     toast.success("업로드 완료");
+    return path;
   };
+  const uploadPdf = async (field: keyof OverlapRow, file: File) => {
+    const path = await uploadPdfRaw(file, String(field));
+    if (path) setForm((f) => ({ ...f, [field]: path }));
+  };
+  const uploadAmendmentPdf = async (idx: number, file: File) => {
+    const path = await uploadPdfRaw(file, `amendment-${idx}`);
+    if (!path) return;
+    setForm((f) => {
+      const next = [...(f.amendments || [])]; next[idx] = { ...next[idx], pdf_path: path };
+      return { ...f, amendments: next };
+    });
+  };
+  const uploadSuspensionPdf = async (idx: number, kind: "suspension" | "resume", file: File) => {
+    const path = await uploadPdfRaw(file, `suspension-${idx}-${kind}`);
+    if (!path) return;
+    setForm((f) => {
+      const next = [...(f.suspensions || [])];
+      next[idx] = { ...next[idx], [kind === "suspension" ? "suspension_pdf_path" : "resume_pdf_path"]: path };
+      return { ...f, suspensions: next };
+    });
+  };
+
 
   const downloadPdf = async (path: string) => {
     const { data, error } = await supabase.storage.from("overlap-documents").download(path);
@@ -447,9 +559,21 @@ export default function Overlaps() {
       for (const r of sortedForExport) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
+        // 변경계약 PDF (시간순)
+        for (const a of sortedAmendments(r)) {
+          if (a.pdf_path) paths.push(a.pdf_path);
+        }
+        // 과업중지/재개 PDF (시간순)
+        for (const s of sortedSuspensions(r)) {
+          if (s.suspension_pdf_path) paths.push(s.suspension_pdf_path);
+          if (s.resume_pdf_path) paths.push(s.resume_pdf_path);
+        }
+        // 협의완료 공문
+        if (r.agreement_pdf_path) paths.push(r.agreement_pdf_path);
+        // legacy single fields (fallback for old data)
         for (const f of PDF_FIELDS.slice(1)) {
           const p = r[f.key] as string | null;
-          if (p) paths.push(p);
+          if (p && !paths.includes(p)) paths.push(p);
         }
         if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
         if (paths.length === 0) continue;
@@ -836,54 +960,172 @@ export default function Overlaps() {
               </div>
             </div>
 
-            {/* 변경/반영 섹션 - 공고일 기준 적용 */}
-            <div className="border-t pt-3 space-y-3">
-              <div className="text-sm font-semibold">변경/반영 사항 <span className="text-xs font-normal text-muted-foreground">(공고일이 변경일 이후일 때만 반영)</span></div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">계약금액 변경</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.contract_amount_change_date)} onChange={(e) => setForm({ ...form, contract_amount_change_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경 계약금액 (원)</Label>
-                  <Input type="text" inputMode="numeric" value={form.contract_amount_new !== null && form.contract_amount_new !== undefined ? Number(form.contract_amount_new).toLocaleString() : ""} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, contract_amount_new: v === "" ? null : Number(v) }); }} />
-                </div>
+            {/* 변경계약 (다중) - PDF 인라인 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm font-semibold">변경계약 이력 <span className="text-xs font-normal text-muted-foreground">(공고일 ≥ 변경일일 때만 반영)</span></div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, amendments: [...(form.amendments || []), blankAmendment()] })}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />변경계약 추가
+                </Button>
               </div>
+              {(form.amendments || []).length === 0 && (
+                <div className="text-xs text-muted-foreground">등록된 변경계약이 없습니다.</div>
+              )}
+              {(form.amendments || []).map((a, i) => {
+                const pdfFileName = a.pdf_path ? a.pdf_path.split("/").pop() : null;
+                const inputId = `amend-pdf-${a.id}`;
+                return (
+                  <div key={a.id} className="rounded-md border bg-muted/20 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium">제{i + 1}차 변경계약</div>
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm({ ...form, amendments: (form.amendments || []).filter((_, j) => j !== i) })}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경일</Label>
+                        <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(a.change_date)} onChange={(e) => {
+                          const next = [...(form.amendments || [])]; next[i] = { ...a, change_date: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경 계약금액 (원)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="변경 없으면 비움"
+                          value={a.contract_amount_new !== null && a.contract_amount_new !== undefined ? Number(a.contract_amount_new).toLocaleString() : ""}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^\d]/g, "");
+                            const next = [...(form.amendments || [])]; next[i] = { ...a, contract_amount_new: v === "" ? null : Number(v) }; setForm({ ...form, amendments: next });
+                          }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경 준공예정일</Label>
+                        <Input type="text" placeholder="변경 없으면 비움" value={toDisplayDate(a.end_date_new)} onChange={(e) => {
+                          const next = [...(form.amendments || [])]; next[i] = { ...a, end_date_new: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
+                        }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
+                      <div className="text-xs w-[120px] shrink-0">변경계약서 PDF</div>
+                      <input id={inputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAmendmentPdf(i, f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(inputId)?.click()} disabled={uploadingField === `amendment-${i}`}>
+                        {uploadingField === `amendment-${i}` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {a.pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {a.pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(a.pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={pdfFileName || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{pdfFileName}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.amendments || [])]; next[i] = { ...a, pdf_path: null }; setForm({ ...form, amendments: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">준공예정일 변경</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_change_date)} onChange={(e) => setForm({ ...form, end_date_change_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경된 준공예정일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_new)} onChange={(e) => setForm({ ...form, end_date_new: inputToISO(e.target.value) })} />
-                </div>
+            {/* 과업중지/재개 (다중) - PDF 인라인 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm font-semibold">과업중지 / 재개 이력 <span className="text-xs font-normal text-muted-foreground">(재개일 이후 잔여일수는 재개일 기준으로 다시 산정)</span></div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, suspensions: [...(form.suspensions || []), blankSuspension()] })}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />중지/재개 추가
+                </Button>
               </div>
+              {(form.suspensions || []).length === 0 && (
+                <div className="text-xs text-muted-foreground">등록된 과업중지가 없습니다.</div>
+              )}
+              {(form.suspensions || []).map((s, i) => {
+                const sFile = s.suspension_pdf_path ? s.suspension_pdf_path.split("/").pop() : null;
+                const rFile = s.resume_pdf_path ? s.resume_pdf_path.split("/").pop() : null;
+                const sInputId = `susp-pdf-${s.id}`;
+                const rInputId = `resume-pdf-${s.id}`;
+                return (
+                  <div key={s.id} className="rounded-md border bg-muted/20 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium">제{i + 1}차 중지/재개</div>
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm({ ...form, suspensions: (form.suspensions || []).filter((_, j) => j !== i) })}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">과업중지일</Label>
+                        <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(s.suspension_date)} onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_date: inputToISO(e.target.value) }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">중지 사유</Label>
+                        <Input value={s.suspension_reason || ""} placeholder="예: 발주처 사정" onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_reason: e.target.value }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">과업재개일</Label>
+                        <Input type="text" placeholder="아직 재개되지 않았으면 비움" value={toDisplayDate(s.resume_date)} onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, resume_date: inputToISO(e.target.value) }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                    </div>
+                    {/* 중지공문 PDF */}
+                    <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
+                      <div className="text-xs w-[120px] shrink-0">중지 공문 PDF</div>
+                      <input id={sInputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSuspensionPdf(i, "suspension", f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(sInputId)?.click()} disabled={uploadingField === `suspension-${i}-suspension`}>
+                        {uploadingField === `suspension-${i}-suspension` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {s.suspension_pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {s.suspension_pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(s.suspension_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={sFile || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{sFile}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_pdf_path: null }; setForm({ ...form, suspensions: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                    {/* 재개공문 PDF */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-xs w-[120px] shrink-0">재개 공문 PDF</div>
+                      <input id={rInputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSuspensionPdf(i, "resume", f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(rInputId)?.click()} disabled={uploadingField === `suspension-${i}-resume`}>
+                        {uploadingField === `suspension-${i}-resume` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {s.resume_pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {s.resume_pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(s.resume_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={rFile || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{rFile}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.suspensions || [])]; next[i] = { ...s, resume_pdf_path: null }; setForm({ ...form, suspensions: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">과업중지 반영</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">과업중지일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">중지 사유</Label>
-                  <Input value={form.suspension_reason || ""} onChange={(e) => setForm({ ...form, suspension_reason: e.target.value })} placeholder="예: 발주처 사정" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">협의완료 반영</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">협의완료일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
-                </div>
+            {/* 협의완료 (단일) */}
+            <div className="border-t pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">협의완료일</Label>
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
               </div>
             </div>
+
 
             <div className="space-y-2 border-t pt-3">
               <div className="flex items-center justify-between flex-wrap gap-2">

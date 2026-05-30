@@ -729,6 +729,7 @@ export type Database = {
           absolute_period_days: number | null
           agreement_date: string | null
           agreement_pdf_path: string | null
+          amendments: Json
           client: string | null
           contract_amount: number | null
           contract_amount_change_date: string | null
@@ -751,6 +752,7 @@ export type Database = {
           suspension_date: string | null
           suspension_pdf_path: string | null
           suspension_reason: string | null
+          suspensions: Json
           technician_name: string | null
           updated_at: string
         }
@@ -758,6 +760,7 @@ export type Database = {
           absolute_period_days?: number | null
           agreement_date?: string | null
           agreement_pdf_path?: string | null
+          amendments?: Json
           client?: string | null
           contract_amount?: number | null
           contract_amount_change_date?: string | null
@@ -780,6 +783,7 @@ export type Database = {
           suspension_date?: string | null
           suspension_pdf_path?: string | null
           suspension_reason?: string | null
+          suspensions?: Json
           technician_name?: string | null
           updated_at?: string
         }
@@ -787,6 +791,7 @@ export type Database = {
           absolute_period_days?: number | null
           agreement_date?: string | null
           agreement_pdf_path?: string | null
+          amendments?: Json
           client?: string | null
           contract_amount?: number | null
           contract_amount_change_date?: string | null
@@ -809,6 +814,7 @@ export type Database = {
           suspension_date?: string | null
           suspension_pdf_path?: string | null
           suspension_reason?: string | null
+          suspensions?: Json
           technician_name?: string | null
           updated_at?: string
         }
