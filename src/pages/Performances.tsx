@@ -949,7 +949,7 @@ export default function Performances() {
                       <Checkbox className="mt-1" checked={!t.expired && !blockUnder90 && !blockUnder120 && !t.belowAmount && techSelectedRowIds.has(t.row.id)} disabled={t.expired || blockUnder90 || blockUnder120 || t.belowAmount} onCheckedChange={(c) => toggleTechRow(t.row.id, !!c)} />
                       <button type="button" onClick={() => toggleExpandedTechRow(t.row.id)} className="flex-1 text-left">
                         <div className="font-medium text-sm break-words">
-                          {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                          {t.row.project_name}{t.row.is_private && <Badge variant="outline" className="ml-1 border-green-600 text-green-700">민간</Badge>}
                           {blockUnder90 && <Badge variant="destructive" className="ml-1">90일미만</Badge>}
                           {blockUnder120 && <Badge variant="destructive" className="ml-1">120일미만</Badge>}
                           {t.isPhase && !t.isLastPhase && t.lastPhaseLabel && (
