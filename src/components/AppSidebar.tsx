@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut, ShieldCheck, UserCog } from "lucide-react";
+import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut, ShieldCheck, UserCog, Calculator, FlaskConical, GraduationCap } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -16,7 +16,10 @@ const items = [
   { title: "PQ 개인별 경력관리", url: "/careers", icon: Briefcase },
   { title: "PQ 개인별 이력사항", url: "/personal-history", icon: UserCog },
   { title: "PQ 기술자별 업무중첩도", url: "/overlaps", icon: Layers },
+  { title: "PQ 기술자별 교육현황", url: "/pq-educations", icon: GraduationCap },
   { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2 },
+  { title: "PQ 개발·투자·활용실적", url: "/pq-dev-records", icon: FlaskConical },
+  { title: "PQ 배점계산기", url: "/pq-calculator", icon: Calculator },
   { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
   { title: "타회사 실적 데이터베이스 관리", url: "/external-performance-database", icon: Building },
 ];

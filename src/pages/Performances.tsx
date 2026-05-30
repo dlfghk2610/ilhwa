@@ -211,6 +211,7 @@ export default function Performances() {
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
+  const [projectSearch, setProjectSearch] = useState<string>("");
   const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
@@ -611,6 +612,12 @@ export default function Performances() {
     });
   }, [computeForTech, selectedTech]);
 
+  const visibleTechRows = useMemo(() => {
+    const q = projectSearch.trim().toLowerCase();
+    if (!q) return techRows;
+    return techRows.filter((t) => (t.row.project_name || "").toLowerCase().includes(q));
+  }, [techRows, projectSearch]);
+
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
@@ -807,6 +814,11 @@ export default function Performances() {
           </div>
         </Card>
 
+        <Card className="p-3">
+          <Label className="text-xs text-muted-foreground">사업명 검색</Label>
+          <Input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="사업명으로 필터링" className="mt-1" />
+        </Card>
+
         {selectedTech && (
           <Card className="p-4 grid grid-cols-2 gap-3">
             <div className="rounded-md border bg-muted/40 p-3 text-center">
@@ -863,9 +875,9 @@ export default function Performances() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {techRows.length === 0 ? (
+                  {visibleTechRows.length === 0 ? (
                     <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
-                  ) : techRows.map((t, i) => {
+                  ) : visibleTechRows.map((t, i) => {
                     const blockUnder90 = !includeUnder90 && t.under90;
                     const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
                     const zeroOut = blockUnder90 || blockUnder120 || t.belowAmount;
@@ -914,7 +926,7 @@ export default function Performances() {
                     </TableRow>
                     );
                   })}
-                  {techRows.length > 0 && (
+                  {visibleTechRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
                       <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
@@ -931,9 +943,9 @@ export default function Performances() {
                 <Checkbox checked={techAllChecked} disabled={techAllSelectableIds.length === 0} onCheckedChange={(c) => toggleTechAll(!!c)} />
                 <span className="text-xs font-medium">전체 선택</span>
               </div>
-              {techRows.length === 0 ? (
+              {visibleTechRows.length === 0 ? (
                 <Card className="p-4 text-center text-sm text-muted-foreground">참여 사업이 없습니다</Card>
-              ) : techRows.map((t) => {
+              ) : visibleTechRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
                 const blockUnder90 = !includeUnder90 && t.under90;
                 const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
@@ -981,7 +993,7 @@ export default function Performances() {
                   </Card>
                 );
               })}
-              {techRows.length > 0 && (
+              {visibleTechRows.length > 0 && (
                 <Card className="p-3 bg-muted/40 font-semibold text-sm flex justify-between">
                   <span>합계 (선택)</span>
                   <span>단순 {techTotals.simple.toFixed(2)} / 기간대비 {techTotals.period.toFixed(2)}</span>

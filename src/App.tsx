@@ -14,6 +14,9 @@ import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
 import ExternalPerformanceDatabase from "./pages/ExternalPerformanceDatabase.tsx";
+import PqDevRecords from "./pages/PqDevRecords.tsx";
+import PqEducations from "./pages/PqEducations.tsx";
+import PqCalculator from "./pages/PqCalculator.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -36,6 +39,10 @@ const App = () => (
           <Route path="/similar-services" element={<ProtectedRoute><SimilarServices /></ProtectedRoute>} />
           <Route path="/performance-database" element={<ProtectedRoute><PerformanceDatabase /></ProtectedRoute>} />
           <Route path="/external-performance-database" element={<ProtectedRoute><ExternalPerformanceDatabase /></ProtectedRoute>} />
+          <Route path="/pq-dev-records" element={<ProtectedRoute><PqDevRecords /></ProtectedRoute>} />
+          <Route path="/pq-educations" element={<ProtectedRoute><PqEducations /></ProtectedRoute>} />
+          <Route path="/pq-calculator" element={<ProtectedRoute><PqCalculator /></ProtectedRoute>} />
+          <Route path="/pq-calculator/:projectId" element={<ProtectedRoute><PqCalculator /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

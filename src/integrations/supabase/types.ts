@@ -451,6 +451,156 @@ export type Database = {
         }
         Relationships: []
       }
+      pq_calc_projects: {
+        Row: {
+          announcement_date: string | null
+          client: string | null
+          companies: Json
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          options: Json
+          personnel: Json
+          project_name: string
+          updated_at: string
+        }
+        Insert: {
+          announcement_date?: string | null
+          client?: string | null
+          companies?: Json
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          options?: Json
+          personnel?: Json
+          project_name: string
+          updated_at?: string
+        }
+        Update: {
+          announcement_date?: string | null
+          client?: string | null
+          companies?: Json
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          options?: Json
+          personnel?: Json
+          project_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pq_dev_records: {
+        Row: {
+          amount: number | null
+          attachment_path: string | null
+          created_at: string
+          created_by: string
+          id: string
+          institution: string | null
+          notes: string | null
+          record_date: string | null
+          record_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          attachment_path?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          institution?: string | null
+          notes?: string | null
+          record_date?: string | null
+          record_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          attachment_path?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          institution?: string | null
+          notes?: string | null
+          record_date?: string | null
+          record_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pq_educations: {
+        Row: {
+          certificate_path: string | null
+          completed_date: string | null
+          course_name: string
+          created_at: string
+          created_by: string
+          hours: number | null
+          id: string
+          institution: string | null
+          notes: string | null
+          technician_name: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_path?: string | null
+          completed_date?: string | null
+          course_name: string
+          created_at?: string
+          created_by: string
+          hours?: number | null
+          id?: string
+          institution?: string | null
+          notes?: string | null
+          technician_name: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_path?: string | null
+          completed_date?: string | null
+          course_name?: string
+          created_at?: string
+          created_by?: string
+          hours?: number | null
+          id?: string
+          institution?: string | null
+          notes?: string | null
+          technician_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pq_score_criteria: {
+        Row: {
+          created_at: string
+          created_by: string
+          criteria: Json
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          criteria?: Json
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          criteria?: Json
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
