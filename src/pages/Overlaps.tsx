@@ -561,9 +561,21 @@ export default function Overlaps() {
       for (const r of sortedForExport) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
+        // 변경계약 PDF (시간순)
+        for (const a of sortedAmendments(r)) {
+          if (a.pdf_path) paths.push(a.pdf_path);
+        }
+        // 과업중지/재개 PDF (시간순)
+        for (const s of sortedSuspensions(r)) {
+          if (s.suspension_pdf_path) paths.push(s.suspension_pdf_path);
+          if (s.resume_pdf_path) paths.push(s.resume_pdf_path);
+        }
+        // 협의완료 공문
+        if (r.agreement_pdf_path) paths.push(r.agreement_pdf_path);
+        // legacy single fields (fallback for old data)
         for (const f of PDF_FIELDS.slice(1)) {
           const p = r[f.key] as string | null;
-          if (p) paths.push(p);
+          if (p && !paths.includes(p)) paths.push(p);
         }
         if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
         if (paths.length === 0) continue;
