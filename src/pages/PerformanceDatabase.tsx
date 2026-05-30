@@ -192,7 +192,30 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     return n;
   });
 
-  useEffect(() => { fetchRows(); }, []);
+  const [techSpecMap, setTechSpecMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => { fetchRows(); fetchTechSpecialties(); }, []);
+
+  async function fetchTechSpecialties() {
+    const { data } = await supabase.from("personal_profiles").select("technician_name,birth_date,specialty");
+    const map = new Map<string, string>();
+    (data || []).forEach((p: any) => {
+      const sp = (p.specialty || "").trim();
+      if (!sp) return;
+      const name = (p.technician_name || "").trim();
+      if (name) map.set(name, sp);
+      if (p.birth_date) map.set(`${name}|${p.birth_date}`, sp);
+    });
+    setTechSpecMap(map);
+  }
+
+  function getRegisteredSpecialty(p: Participant): string | null {
+    const name = (p.name || "").trim();
+    if (!name) return null;
+    const bd = (p.birth_date || "").replace(/\./g, "-").trim();
+    if (bd && techSpecMap.has(`${name}|${bd}`)) return techSpecMap.get(`${name}|${bd}`)!;
+    return techSpecMap.get(name) || null;
+  }
 
   async function fetchRows() {
     setLoading(true);
@@ -1177,16 +1200,23 @@ export default function PerformanceDatabase({ external = false }: { external?: b
               {form.participant_file_path && !form.participant_file && (
                 <div className="text-xs text-muted-foreground">기존 파일: {form.participant_file_path.split("/").pop()}</div>
               )}
-              {form.participants.map((p, i) => (
-                <div key={i} className="border rounded p-2 space-y-2">
+              {form.participants.map((p, i) => {
+                const regSpec = getRegisteredSpecialty(p);
+                const partSpec = (p.specialty || "").trim();
+                const mismatch = !!regSpec && !!partSpec && regSpec !== partSpec;
+                return (
+                <div key={i} className={`border rounded p-2 space-y-2 ${mismatch ? "bg-purple-100 border-purple-400" : ""}`}>
                   <div className="flex items-center gap-2">
                     <Input className="max-w-[140px]" placeholder="성명" value={p.name} onChange={(e) => updateParticipant(i, "name", e.target.value)} />
                     <Input className="max-w-[120px]" placeholder="생년월일" value={p.birth_date || ""} onChange={(e) => updateParticipant(i, "birth_date", formatDate(e.target.value))} />
-                    <Input className="max-w-[120px]" placeholder="전문분야" value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} />
+                    <Input className={`max-w-[120px] ${mismatch ? "border-purple-500" : ""}`} placeholder="전문분야" value={p.specialty || ""} onChange={(e) => updateParticipant(i, "specialty", e.target.value)} />
                     <Input className="max-w-[100px]" placeholder="직위" value={p.position || ""} onChange={(e) => updateParticipant(i, "position", e.target.value)} />
                     <Input className="max-w-[100px]" placeholder="책임정도" value={p.responsibility || ""} onChange={(e) => updateParticipant(i, "responsibility", e.target.value)} />
                     <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                   </div>
+                  {mismatch && (
+                    <div className="text-xs text-purple-700 font-semibold">⚠ 이력사항 등록 전문분야({regSpec})와 일치하지 않습니다</div>
+                  )}
                   <div className="space-y-1">
                     {(p.periods && p.periods.length > 0 ? p.periods : [{ start: "", end: "" }]).map((pd, j) => (
                       <PeriodTextInput
@@ -1200,7 +1230,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     <Button type="button" size="sm" variant="ghost" onClick={() => addParticipantPeriod(i)}><Plus className="h-3 w-3 mr-1" />참여기간 추가</Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
 
