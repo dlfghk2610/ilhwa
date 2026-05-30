@@ -489,11 +489,9 @@ export default function Overlaps() {
   // ===== PDF 업로드/다운로드/병합 & 엑셀 추출 =====
   const PDF_FIELDS: { key: keyof OverlapRow; label: string }[] = [
     { key: "original_contract_pdf_path", label: "당초 계약서" },
-    { key: "contract_change_pdf_path", label: "계약금액 변경 계약서" },
-    { key: "end_date_change_pdf_path", label: "준공예정일 변경 계약서" },
-    { key: "suspension_pdf_path", label: "과업중지 공문" },
     { key: "agreement_pdf_path", label: "협의완료 공문" },
   ];
+
 
   const uploadPdfRaw = async (file: File, fieldKey: string): Promise<string | null> => {
     if (!user) return null;
