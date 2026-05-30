@@ -884,7 +884,7 @@ export default function Performances() {
                         })()}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {t.row.project_name}{t.row.is_private && <span className="ml-1 text-xs text-green-700 font-semibold">(민간)</span>}
+                        {t.row.project_name}{t.row.is_private && <Badge variant="outline" className="ml-1 border-green-600 text-green-700">민간</Badge>}
                         {blockUnder90 && <Badge variant="destructive" className="ml-1">90일미만</Badge>}
                         {blockUnder120 && <Badge variant="destructive" className="ml-1">120일미만</Badge>}
                         {t.isPhase && !t.isLastPhase && t.lastPhaseLabel && (
