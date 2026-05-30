@@ -57,15 +57,39 @@ const DEFAULT_CRITERIA: CriteriaSection[] = [
   },
 ];
 
-type Company = { name: string; share_rate: number | null };
-type Person = { role: "총괄" | "책임" | "참여"; name: string; specialty?: string };
+type CompanySize = "대기업" | "중기업" | "소기업";
+type Company = { name: string; share_rate: number | null; size?: CompanySize };
+type CareerOpts = {
+  exclude_private?: boolean;   // 민간제외
+  recognized_date?: string;    // 인정일
+  exclude_overlap?: boolean;   // 중복제외
+};
+type PerfOpts = {
+  eval_types?: string[];       // 평가종류 (다중)
+  service_types?: string[];    // 사업종류 (다중)
+  include_under_90?: boolean;  // 90일미만 포함
+  count_mode?: "단순건수" | "참여비율건수";
+};
+type Person = {
+  role: "총괄" | "책임" | "참여";
+  name: string;
+  specialty?: string;
+  internal?: boolean;          // 우리회사 인력 여부
+  grade_override?: string;     // 등급 (수기 선택)
+  career_opts?: CareerOpts;
+  perf_opts?: PerfOpts;
+};
 type ProjectOptions = {
-  task_understanding_max?: number;       // 과업의 이해도 배점한도
-  joint_contract_type?: string;          // 공동도급 선택
-  company_capability_max?: number;       // 업체능력평가 배점한도
-  company_capability_relative?: boolean; // 상대평가
-  similar_eval_filter?: string[];        // 평가종류 필터
-  similar_service_filter?: string[];     // 사업종류 필터
+  task_understanding_max?: number;
+  joint_contract_mode?: "1종-2종" | "1종-2종+1종-소기업" | "1종-소기업";
+  joint_contract_type?: string; // legacy
+  company_capability_max?: number;
+  company_capability_relative?: boolean;
+  similar_eval_filter?: string[];
+  similar_service_filter?: string[];
+  credit_grade?: string;        // 신용도 등급 (AAA~D)
+  youth_new_hires?: number | null;
+  youth_avg_workforce?: number | null;
 };
 type ProjectRow = {
   id: string;
@@ -79,14 +103,23 @@ type ProjectRow = {
   created_at?: string;
 };
 
-const blankPerson = (role: Person["role"]): Person => ({ role, name: "", specialty: "" });
+const GRADE_OPTIONS = ["특급기술인", "고급기술인", "중급기술인", "초급기술인", "기술사", "기사", "산업기사"];
+const CREDIT_GRADES = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-", "B+", "B", "B-", "CCC", "CC", "C", "D"];
+const EVAL_TYPE_OPTIONS = ["환경영향평가", "전략환경영향평가", "소규모환경영향평가", "사후환경영향조사", "기타"];
+const SERVICE_TYPE_OPTIONS = ["도시개발", "산업단지", "도로", "철도", "항만", "댐", "에너지개발", "관광단지", "폐기물", "기타"];
+
+const blankPerson = (role: Person["role"]): Person => ({
+  role, name: "", specialty: "", internal: true,
+  career_opts: { exclude_private: false, exclude_overlap: false },
+  perf_opts: { eval_types: [], service_types: [], include_under_90: false, count_mode: "단순건수" },
+});
 const blankProject = (): Omit<ProjectRow, "id"> => ({
   project_name: "",
   client: "",
   announcement_date: null,
-  companies: [{ name: "", share_rate: 100 }],
+  companies: [{ name: "", share_rate: 100, size: "중기업" }],
   personnel: { chief: blankPerson("총괄"), leads: [blankPerson("책임"), blankPerson("책임")], members: [blankPerson("참여"), blankPerson("참여")] },
-  options: { task_understanding_max: 1, company_capability_max: 30, company_capability_relative: false, similar_eval_filter: [], similar_service_filter: [] },
+  options: { task_understanding_max: 1, company_capability_max: 30, company_capability_relative: false, similar_eval_filter: [], similar_service_filter: [], joint_contract_mode: "1종-2종" },
   notes: "",
 });
 
@@ -453,6 +486,16 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Input className="flex-1" placeholder="회사명" value={c.name} onChange={(e) => {
                     const next = [...row.companies]; next[i] = { ...c, name: e.target.value }; setRow({ ...row, companies: next });
                   }} />
+                  <Select value={c.size || ""} onValueChange={(v) => {
+                    const next = [...row.companies]; next[i] = { ...c, size: v as CompanySize }; setRow({ ...row, companies: next });
+                  }}>
+                    <SelectTrigger className="w-28"><SelectValue placeholder="규모" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="대기업">대기업</SelectItem>
+                      <SelectItem value="중기업">중기업</SelectItem>
+                      <SelectItem value="소기업">소기업</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input className="w-32" type="number" placeholder="지분율(%)" value={c.share_rate ?? ""} onChange={(e) => {
                     const next = [...row.companies]; next[i] = { ...c, share_rate: e.target.value === "" ? null : Number(e.target.value) }; setRow({ ...row, companies: next });
                   }} />
@@ -466,14 +509,14 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
             <Card className="p-4 space-y-3">
               <div className="font-semibold text-sm">참여 인력</div>
-              <PersonRow label="총괄평가자 (1인)" person={row.personnel.chief!} onChange={(p) => setRow({ ...row, personnel: { ...row.personnel, chief: p } })} />
+              <PersonDetail label="총괄평가자 (1인)" person={row.personnel.chief!} announcementDate={row.announcement_date} onChange={(p) => setRow({ ...row, personnel: { ...row.personnel, chief: p } })} />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>책임평가자</Label>
                   <Button size="sm" variant="outline" onClick={() => setRow({ ...row, personnel: { ...row.personnel, leads: [...row.personnel.leads, blankPerson("책임")] } })}><Plus className="h-3 w-3 mr-1" />추가</Button>
                 </div>
                 {row.personnel.leads.map((p, i) => (
-                  <PersonRow key={i} person={p}
+                  <PersonDetail key={i} person={p} announcementDate={row.announcement_date}
                     onChange={(np) => { const next = [...row.personnel.leads]; next[i] = np; setRow({ ...row, personnel: { ...row.personnel, leads: next } }); }}
                     onRemove={() => setRow({ ...row, personnel: { ...row.personnel, leads: row.personnel.leads.filter((_, j) => j !== i) } })}
                   />
@@ -485,13 +528,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Button size="sm" variant="outline" onClick={() => setRow({ ...row, personnel: { ...row.personnel, members: [...row.personnel.members, blankPerson("참여")] } })}><Plus className="h-3 w-3 mr-1" />추가</Button>
                 </div>
                 {row.personnel.members.map((p, i) => (
-                  <PersonRow key={i} person={p}
+                  <PersonDetail key={i} person={p} announcementDate={row.announcement_date}
                     onChange={(np) => { const next = [...row.personnel.members]; next[i] = np; setRow({ ...row, personnel: { ...row.personnel, members: next } }); }}
                     onRemove={() => setRow({ ...row, personnel: { ...row.personnel, members: row.personnel.members.filter((_, j) => j !== i) } })}
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">※ 등급·경력·실적·교육·이적·여유도는 기술자명을 기준으로 자동연동되어 탭3에 표시됩니다.</p>
+              <p className="text-xs text-muted-foreground">※ "우리회사 인력" 체크 시 등급·경력·실적·여유도가 등록 데이터 기반으로 자동 산출됩니다. (옵션은 산출 시 적용)</p>
             </Card>
 
             <Card className="p-4 space-y-3">
@@ -502,12 +545,22 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Input type="number" step="0.5" value={row.options.task_understanding_max ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, task_understanding_max: Number(e.target.value) } })} />
                 </div>
                 <div>
-                  <Label>공동도급 선택</Label>
-                  <Select value={row.options.joint_contract_type || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, joint_contract_type: v } })}>
+                  <Label>공동도급 방식</Label>
+                  <Select value={row.options.joint_contract_mode || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, joint_contract_mode: v as any } })}>
                     <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1종-2종">1종업체 ↔ 2종업체</SelectItem>
-                      <SelectItem value="1종-소기업">1종업체 ↔ 소기업</SelectItem>
+                      <SelectItem value="1종-2종">1종 ↔ 2종 (배점한도 부여)</SelectItem>
+                      <SelectItem value="1종-2종+1종-소기업">1종 ↔ 2종 + 1종 ↔ 소기업</SelectItem>
+                      <SelectItem value="1종-소기업">1종 ↔ 소기업만</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>신용도 등급</Label>
+                  <Select value={row.options.credit_grade || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, credit_grade: v } })}>
+                    <SelectTrigger><SelectValue placeholder="등급 선택" /></SelectTrigger>
+                    <SelectContent>
+                      {CREDIT_GRADES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -749,15 +802,108 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   );
 }
 
-function PersonRow({ label, person, onChange, onRemove }: { label?: string; person: Person; onChange: (p: Person) => void; onRemove?: () => void }) {
+function PersonDetail({ label, person, announcementDate, onChange, onRemove }: { label?: string; person: Person; announcementDate?: string | null; onChange: (p: Person) => void; onRemove?: () => void }) {
+  const internal = person.internal !== false;
+  const co = person.career_opts || {};
+  const po = person.perf_opts || {};
+  const toggleArr = (arr: string[] | undefined, v: string) => {
+    const a = arr || []; return a.includes(v) ? a.filter(x => x !== v) : [...a, v];
+  };
   return (
-    <div className="space-y-1">
-      {label && <Label className="text-xs">{label}</Label>}
-      <div className="flex gap-2">
-        <Input className="flex-1" placeholder="기술자명" value={person.name} onChange={(e) => onChange({ ...person, name: e.target.value })} />
+    <div className="border rounded-md p-3 space-y-3 bg-card">
+      {label && <div className="text-xs font-semibold text-muted-foreground">{label}</div>}
+      {/* 기본 정보 */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <Input className="flex-1 min-w-[140px]" placeholder="기술자명" value={person.name} onChange={(e) => onChange({ ...person, name: e.target.value })} />
         <Input className="w-40" placeholder="전문분야" value={person.specialty || ""} onChange={(e) => onChange({ ...person, specialty: e.target.value })} />
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+          <input type="checkbox" checked={internal} onChange={(e) => onChange({ ...person, internal: e.target.checked })} />
+          우리회사 인력
+        </label>
         {onRemove && <Button size="icon" variant="ghost" onClick={onRemove}><X className="h-4 w-4" /></Button>}
       </div>
+
+      {internal && (
+        <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+          {/* 등급 */}
+          <div>
+            <Label className="text-xs">등급 (수기 선택, 비우면 자동)</Label>
+            <Select value={person.grade_override || ""} onValueChange={(v) => onChange({ ...person, grade_override: v })}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="등급" /></SelectTrigger>
+              <SelectContent>
+                {GRADE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* 여유도 기준일 */}
+          <div>
+            <Label className="text-xs">여유도 기준일 (공고일)</Label>
+            <Input className="h-9" type="date" value={announcementDate || ""} disabled />
+          </div>
+
+          {/* 경력 옵션 */}
+          <div className="md:col-span-2 border rounded p-2 space-y-2">
+            <div className="text-xs font-semibold">경력 산정 옵션</div>
+            <div className="flex gap-4 flex-wrap items-center">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!co.exclude_private} onChange={(e) => onChange({ ...person, career_opts: { ...co, exclude_private: e.target.checked } })} />
+                민간실적 제외
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!co.exclude_overlap} onChange={(e) => onChange({ ...person, career_opts: { ...co, exclude_overlap: e.target.checked } })} />
+                중복 경력 제외
+              </label>
+              <div className="flex items-center gap-1 text-xs">
+                <span>인정일:</span>
+                <Input className="h-8 w-40" type="date" value={co.recognized_date || ""} onChange={(e) => onChange({ ...person, career_opts: { ...co, recognized_date: e.target.value } })} />
+              </div>
+            </div>
+          </div>
+
+          {/* 실적 옵션 */}
+          <div className="md:col-span-2 border rounded p-2 space-y-2">
+            <div className="text-xs font-semibold">실적 산정 옵션</div>
+            <div>
+              <Label className="text-xs">평가종류</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {EVAL_TYPE_OPTIONS.map(v => (
+                  <label key={v} className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" checked={(po.eval_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, eval_types: toggleArr(po.eval_types, v) } })} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">사업종류</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {SERVICE_TYPE_OPTIONS.map(v => (
+                  <label key={v} className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" checked={(po.service_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, service_types: toggleArr(po.service_types, v) } })} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-4 flex-wrap items-center">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!po.include_under_90} onChange={(e) => onChange({ ...person, perf_opts: { ...po, include_under_90: e.target.checked } })} />
+                90일 미만 포함
+              </label>
+              <div className="flex items-center gap-1 text-xs">
+                <span>건수 산정:</span>
+                <Select value={po.count_mode || "단순건수"} onValueChange={(v) => onChange({ ...person, perf_opts: { ...po, count_mode: v as any } })}>
+                  <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="단순건수">단순건수</SelectItem>
+                    <SelectItem value="참여비율건수">참여비율건수</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
