@@ -625,25 +625,6 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
               </div>
             </Card>
 
-            {/* 기술자별 요약 */}
-            <Card className="overflow-x-auto">
-              <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약</div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-20">구분</TableHead>
-                    <TableHead className="w-32">기술자명</TableHead>
-                    <TableHead className="w-32">전문분야</TableHead>
-                    <TableHead className="text-right">등급</TableHead>
-                    <TableHead className="text-right">경력</TableHead>
-                    <TableHead className="text-right">실적</TableHead>
-                    <TableHead className="text-right">여유도</TableHead>
-                    <TableHead className="text-right">교육</TableHead>
-                    <TableHead className="text-right">이적계수</TableHead>
-                    <TableHead className="text-right font-semibold">소계</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
             {/* 기술자별 요약 — 자동연동 */}
             <Card className="overflow-x-auto">
               <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약 (자동연동)</div>
