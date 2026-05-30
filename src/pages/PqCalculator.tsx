@@ -564,7 +564,6 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                     </SelectContent>
                   </Select>
                 </div>
-                </div>
                 <div>
                   <Label>업체능력평가 배점한도</Label>
                   <Input type="number" value={row.options.company_capability_max ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, company_capability_max: Number(e.target.value) } })} />
