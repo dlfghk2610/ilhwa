@@ -848,7 +848,7 @@ export default function Overlaps() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">변경 계약금액 (원)</Label>
-                  <Input type="number" value={form.contract_amount_new ?? ""} onChange={(e) => setForm({ ...form, contract_amount_new: e.target.value === "" ? null : Number(e.target.value) })} />
+                  <Input type="text" inputMode="numeric" value={form.contract_amount_new !== null && form.contract_amount_new !== undefined ? Number(form.contract_amount_new).toLocaleString() : ""} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, contract_amount_new: v === "" ? null : Number(v) }); }} />
                 </div>
               </div>
 
