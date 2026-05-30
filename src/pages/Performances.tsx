@@ -211,6 +211,7 @@ export default function Performances() {
   const [excludeLhPhases, setExcludeLhPhases] = useState(false);
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
+  const [projectSearch, setProjectSearch] = useState<string>("");
   const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
