@@ -303,23 +303,52 @@ export default function Overlaps() {
     setTechDeleteId(null);
   };
 
-  // ===== 공고일 기준 effective 값 =====
+  // ===== 공고일 기준 effective 값 (변경계약 다중 + 과업중지/재개 다중) =====
+  const sortedAmendments = (r: OverlapRow) => {
+    return (r.amendments || []).filter(a => a.change_date).slice().sort((a, b) => (a.change_date || "").localeCompare(b.change_date || ""));
+  };
+  const sortedSuspensions = (r: OverlapRow) => {
+    return (r.suspensions || []).filter(s => s.suspension_date).slice().sort((a, b) => (a.suspension_date || "").localeCompare(b.suspension_date || ""));
+  };
   const effectiveContract = (r: OverlapRow) => {
-    if (r.contract_amount_change_date && r.contract_amount_new !== null && r.contract_amount_new !== undefined &&
-        isAfterOrEqual(announcementDate, r.contract_amount_change_date)) return r.contract_amount_new;
-    return r.contract_amount;
+    let v = r.contract_amount;
+    for (const a of sortedAmendments(r)) {
+      if (a.contract_amount_new === null || a.contract_amount_new === undefined) continue;
+      if (isAfterOrEqual(announcementDate, a.change_date)) v = a.contract_amount_new;
+    }
+    return v;
   };
   const effectiveEndDate = (r: OverlapRow) => {
-    if (r.end_date_change_date && r.end_date_new &&
-        isAfterOrEqual(announcementDate, r.end_date_change_date)) return r.end_date_new;
-    return r.end_date;
+    let v = r.end_date;
+    for (const a of sortedAmendments(r)) {
+      if (!a.end_date_new) continue;
+      if (isAfterOrEqual(announcementDate, a.change_date)) v = a.end_date_new;
+    }
+    return v;
   };
-  const effectiveSuspensionDate = (r: OverlapRow) => {
-    if (!r.suspension_date) return null;
-    // suspension만 적용 가능: 공고일 >= 과업중지일일 때만 반영
-    if (!isAfterOrEqual(announcementDate, r.suspension_date)) return null;
-    return r.suspension_date;
+  // 공고일 기준 활성 중지 사이클 (중지일 <= 공고일, 그리고 재개일 없거나 재개일 > 공고일)
+  const activeSuspensionAt = (r: OverlapRow): Suspension | null => {
+    if (!announcementDate) return null;
+    let active: Suspension | null = null;
+    for (const s of sortedSuspensions(r)) {
+      if (!isAfterOrEqual(announcementDate, s.suspension_date)) break;
+      if (!s.resume_date || announcementDate < s.resume_date) active = s;
+      else active = null; // resumed before announcement
+    }
+    return active;
   };
+  // 마지막으로 재개된 날짜 (공고일 시점에 중지 중이 아닐 때 산정 시작점으로 사용)
+  const lastResumeBefore = (r: OverlapRow): string | null => {
+    if (!announcementDate) return null;
+    let last: string | null = null;
+    for (const s of sortedSuspensions(r)) {
+      if (s.resume_date && isAfterOrEqual(announcementDate, s.resume_date)) {
+        if (!last || s.resume_date > last) last = s.resume_date;
+      }
+    }
+    return last;
+  };
+  const effectiveSuspensionDate = (r: OverlapRow) => activeSuspensionAt(r)?.suspension_date || null;
   const effectiveAgreementDate = (r: OverlapRow) => {
     if (!r.agreement_date) return null;
     if (!isAfterOrEqual(announcementDate, r.agreement_date)) return null;
@@ -354,8 +383,12 @@ export default function Overlaps() {
       return { days: Math.min(365, d), suspendedLong: false, agreed: false };
     }
     if (!announcementDate || !endDate) return { days: 0, suspendedLong: false, agreed: false };
-    return { days: Math.min(365, diffDays(announcementDate, endDate)), suspendedLong: false, agreed: false };
+    // 과업이 재개된 적이 있으면 마지막 재개일을 산정 시작점으로 사용
+    const resume = lastResumeBefore(r);
+    const startPoint = resume && resume > announcementDate ? resume : (resume || announcementDate);
+    return { days: Math.min(365, diffDays(startPoint, endDate)), suspendedLong: false, agreed: false };
   };
+
 
   const roundedContractAmount = (v: number | null) => {
     if (v === null || v === undefined) return 0;
