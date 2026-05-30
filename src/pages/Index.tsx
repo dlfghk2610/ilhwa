@@ -4,15 +4,17 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { FileText, Award, Briefcase, Layers, Building2, ArrowRight, CalendarClock, User } from "lucide-react";
+import { FileText, Award, Briefcase, Layers, Building2, ArrowRight, CalendarClock, User, GraduationCap, FlaskConical } from "lucide-react";
 
 const menus = [
   { title: "입찰참가관리", url: "/bids", icon: FileText, table: "bid_participations", desc: "입찰 사업 진행 현황" },
-  { title: "PQ 개인별 실적", url: "/performances", icon: Award, table: "personal_performances", desc: "기술자 개별 실적" },
-  { title: "PQ 개인별 경력", url: "/careers", icon: Briefcase, table: "personal_careers", desc: "기술자 경력 이력" },
-  { title: "PQ 개인별 이력사항", url: "/personal-history", icon: User, table: "personal_profiles", desc: "기술자 프로필/근무처/자격" },
-  { title: "업무중첩도", url: "/overlaps", icon: Layers, table: "technician_overlaps", desc: "기술자별 참여 일정" },
-  { title: "유사용역(회사실적)", url: "/similar-services", icon: Building2, table: "similar_services", desc: "회사 누적 실적" },
+  { title: "PQ 기술자 실적관리", url: "/performances", icon: Award, table: "personal_performances", desc: "기술자 개별 실적" },
+  { title: "PQ 기술자 경력관리", url: "/careers", icon: Briefcase, table: "personal_careers", desc: "기술자 경력 이력" },
+  { title: "PQ 기술자 이력사항", url: "/personal-history", icon: User, table: "personal_profiles", desc: "기술자 프로필/근무처/자격" },
+  { title: "PQ 기술자 업무중첩도", url: "/overlaps", icon: Layers, table: "technician_overlaps", desc: "기술자별 참여 일정" },
+  { title: "PQ 기술자 교육현황", url: "/pq-educations", icon: GraduationCap, table: "pq_educations", desc: "기술자 교육 이수 현황" },
+  { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2, table: "similar_services", desc: "회사 누적 실적" },
+  { title: "PQ 개발·투자·활용실적", url: "/pq-dev-records", icon: FlaskConical, table: "pq_dev_records", desc: "개발/투자/활용 실적" },
 ];
 
 const fmtDT = (iso: string | null) => {
