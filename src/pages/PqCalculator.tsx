@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -220,20 +220,71 @@ function ProjectList({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ============================================================
+type DataPool = {
+  technicians: any[]; profiles: any[]; careers: any[]; performances: any[];
+  overlaps: any[]; similars: any[]; devs: any[]; educations: any[];
+};
+const EMPTY_POOL: DataPool = { technicians: [], profiles: [], careers: [], performances: [], overlaps: [], similars: [], devs: [], educations: [] };
+
+const GRADE_RATIO: Record<string, number> = {
+  "특급": 1.0, "고급": 0.9, "중급": 0.75, "초급": 0.6,
+  "기술사": 1.0, "기사": 0.85, "산업기사": 0.7,
+};
+const gradeRatio = (p: any) => {
+  if (!p) return 0;
+  const g = (p.grade_eval || p.grade_kepa || "") as string;
+  for (const k of Object.keys(GRADE_RATIO)) if (g.includes(k)) return GRADE_RATIO[k];
+  return 0.6;
+};
+const monthsBetween = (a: Date, b: Date) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+const careerYears = (name: string, careers: any[]) => {
+  let months = 0;
+  for (const c of careers.filter(c => c.technician_name === name)) {
+    if (!c.hire_date) continue;
+    const start = new Date(c.hire_date);
+    const end = c.resign_date ? new Date(c.resign_date) : new Date();
+    months += Math.max(0, monthsBetween(start, end));
+  }
+  return months / 12;
+};
+const perfCount = (name: string, perfs: any[]) => perfs.filter(p => p.technician_name === name).length;
+const overlapActiveCount = (name: string, overlaps: any[]) => {
+  const today = new Date();
+  return overlaps.filter(o => {
+    const ps = (o.participants || []) as any[];
+    const has = (o.technician_name === name) || ps.some((x) => x?.name === name);
+    if (!has) return false;
+    const end = o.end_date_new || o.end_date;
+    if (!end) return true;
+    return new Date(end) >= today;
+  }).length;
+};
+const lastResignMonthsAgo = (name: string, careers: any[]) => {
+  const rs = careers.filter(c => c.technician_name === name && c.resign_date).map(c => new Date(c.resign_date));
+  if (!rs.length) return Infinity;
+  rs.sort((a, b) => b.getTime() - a.getTime());
+  return monthsBetween(rs[0], new Date());
+};
+const eduHoursLast3y = (name: string, edus: any[]) => {
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 3);
+  return edus.filter(e => e.technician_name === name && e.completed_date && new Date(e.completed_date) >= cutoff)
+    .reduce((s, e) => s + Number(e.hours || 0), 0);
+};
+
 function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () => void }) {
   const { user } = useAuth();
   const [row, setRow] = useState<ProjectRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [criteria, setCriteria] = useState<CriteriaSection[]>(DEFAULT_CRITERIA);
-  const [scores, setScores] = useState<Record<string, number>>({}); // code → 자기평가 점수
+  const [scores, setScores] = useState<Record<string, number | null>>({});
   const [saving, setSaving] = useState(false);
+  const [pool, setPool] = useState<DataPool>(EMPTY_POOL);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await (supabase as any).from("pq_calc_projects").select("*").eq("id", projectId).maybeSingle();
     if (error) { toast.error(error.message); setLoading(false); return; }
     if (!data) { toast.error("사업을 찾을 수 없습니다"); onBack(); return; }
-    // ensure structure
     const r = data as ProjectRow;
     r.companies = r.companies || [];
     r.personnel = r.personnel || { chief: blankPerson("총괄"), leads: [], members: [] };
@@ -244,9 +295,24 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     setRow(r);
     setScores((r.options as any)?.scores || {});
 
-    // load shared criteria
     const { data: c } = await (supabase as any).from("pq_score_criteria").select("*").maybeSingle();
     if (c?.criteria && Array.isArray(c.criteria) && c.criteria.length) setCriteria(c.criteria);
+
+    const [t, p, ca, pe, ov, si, de, ed] = await Promise.all([
+      (supabase as any).from("technicians").select("*"),
+      (supabase as any).from("personal_profiles").select("*"),
+      (supabase as any).from("personal_careers").select("*"),
+      (supabase as any).from("personal_performances").select("*"),
+      (supabase as any).from("technician_overlaps").select("*"),
+      (supabase as any).from("similar_services").select("*"),
+      (supabase as any).from("pq_dev_records").select("*"),
+      (supabase as any).from("pq_educations").select("*"),
+    ]);
+    setPool({
+      technicians: t.data || [], profiles: p.data || [], careers: ca.data || [],
+      performances: pe.data || [], overlaps: ov.data || [], similars: si.data || [],
+      devs: de.data || [], educations: ed.data || [],
+    });
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [projectId]);
@@ -255,13 +321,9 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (!row) return;
     setSaving(true);
     const payload = {
-      project_name: row.project_name,
-      client: row.client,
-      announcement_date: row.announcement_date,
-      companies: row.companies,
-      personnel: row.personnel,
-      options: { ...row.options, scores },
-      notes: row.notes,
+      project_name: row.project_name, client: row.client, announcement_date: row.announcement_date,
+      companies: row.companies, personnel: row.personnel,
+      options: { ...row.options, scores }, notes: row.notes,
     };
     const { error } = await (supabase as any).from("pq_calc_projects").update(payload).eq("id", projectId);
     setSaving(false);
@@ -272,11 +334,8 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (!user) return;
     setCriteria(next);
     const { data: existing } = await (supabase as any).from("pq_score_criteria").select("id").maybeSingle();
-    if (existing?.id) {
-      await (supabase as any).from("pq_score_criteria").update({ criteria: next }).eq("id", existing.id);
-    } else {
-      await (supabase as any).from("pq_score_criteria").insert({ created_by: user.id, criteria: next });
-    }
+    if (existing?.id) await (supabase as any).from("pq_score_criteria").update({ criteria: next }).eq("id", existing.id);
+    else await (supabase as any).from("pq_score_criteria").insert({ created_by: user.id, criteria: next });
     toast.success("배점기준표 저장됨 (다른 사업에도 동일하게 반영)");
   };
 
@@ -284,8 +343,71 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     return <AppLayout title="PQ 배점계산기"><Card className="p-8 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></Card></AppLayout>;
   }
 
+  // ----- 자동 점수 계산 -----
+  const findProfile = (name: string) => pool.profiles.find(p => p.technician_name === name);
+  const groupAvg = (people: Person[], fn: (p: Person) => number) => people.length ? people.reduce((s, p) => s + fn(p), 0) / people.length : 0;
+  const chief = row.personnel.chief?.name ? [row.personnel.chief] : [];
+  const leads = row.personnel.leads.filter(p => p.name);
+  const members = row.personnel.members.filter(p => p.name);
+
+  const filteredSimilars = pool.similars.filter(s => {
+    const ef = row.options.similar_eval_filter || [];
+    const sf = row.options.similar_service_filter || [];
+    if (ef.length && !ef.includes(s.evaluation_type)) return false;
+    if (sf.length && !sf.includes(s.service_type)) return false;
+    return true;
+  });
+  const simCount = filteredSimilars.length;
+  const simAmount = filteredSimilars.reduce((s, x) => s + Number(x.contract_amount || 0), 0);
+
+  const newHires = Number((row.options as any).youth_new_hires || 0);
+  const avgWorkforce = Number((row.options as any).youth_avg_workforce || 0);
+  const youthRate = avgWorkforce > 0 ? (newHires / avgWorkforce) * 100 : 0;
+
+  const transferRatio = (name: string) => {
+    const m = lastResignMonthsAgo(name, pool.careers);
+    if (m === Infinity) return 1;
+    return Math.min(1, m / 6);
+  };
+
+  const autoFor = (code: string, max: number): { value: number; basis: string } => {
+    const f = (v: number, basis: string) => ({ value: Math.min(max, Math.max(0, v)), basis });
+    switch (code) {
+      case "1-1-가": return f(max * gradeRatio(findProfile(chief[0]?.name || "")), chief[0] ? `${chief[0].name} 등급` : "총괄 미입력");
+      case "1-2-가": return f(max * groupAvg(leads, p => gradeRatio(findProfile(p.name))), `책임 ${leads.length}명 평균`);
+      case "1-3-가": return f(max * groupAvg(members, p => gradeRatio(findProfile(p.name))), `참여 ${members.length}명 평균`);
+      case "1-1-나": return f(max * Math.min(1, careerYears(chief[0]?.name || "", pool.careers) / 30), chief[0] ? `${careerYears(chief[0].name, pool.careers).toFixed(1)}년` : "-");
+      case "1-2-나": return f(max * groupAvg(leads, p => Math.min(1, careerYears(p.name, pool.careers) / 30)), `책임 평균`);
+      case "1-3-나": return f(max * groupAvg(members, p => Math.min(1, careerYears(p.name, pool.careers) / 25)), `참여 평균`);
+      case "1-1-다": return f(max * Math.min(1, perfCount(chief[0]?.name || "", pool.performances) / 5), chief[0] ? `${perfCount(chief[0].name, pool.performances)}건` : "-");
+      case "1-2-다": return f(max * groupAvg(leads, p => Math.min(1, perfCount(p.name, pool.performances) / 5)), `책임 평균`);
+      case "1-3-다": return f(max * groupAvg(members, p => Math.min(1, perfCount(p.name, pool.performances) / 3)), `참여 평균`);
+      case "1-4-가": return f(max * Math.max(0, 1 - overlapActiveCount(chief[0]?.name || "", pool.overlaps) / 3), chief[0] ? `진행 ${overlapActiveCount(chief[0].name, pool.overlaps)}건` : "-");
+      case "1-4-나": return f(max * groupAvg(leads, p => Math.max(0, 1 - overlapActiveCount(p.name, pool.overlaps) / 3)), `책임 평균`);
+      case "1-4-다": return f(max * groupAvg(members, p => Math.max(0, 1 - overlapActiveCount(p.name, pool.overlaps) / 3)), `참여 평균`);
+      case "1-5": {
+        const all = [...chief, ...leads, ...members];
+        const avg = all.length ? all.reduce((s, p) => s + Math.min(1, eduHoursLast3y(p.name, pool.educations) / 35), 0) / all.length : 0;
+        return f(max * avg, `${all.length}명 평균 교육이수`);
+      }
+      case "2-1-가": return f(max * Math.min(1, simCount / 5), `${simCount}건`);
+      case "2-1-나": return f(max * Math.min(1, simAmount / 10_000_000_000), `${(simAmount / 1e8).toFixed(0)}억`);
+      case "2-3-가": return f(pool.devs.some(d => d.record_type?.includes("개발")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("개발")).length}건`);
+      case "2-3-나": return f(pool.devs.some(d => d.record_type?.includes("투자")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("투자")).length}건`);
+      case "2-3-다": return f(pool.devs.some(d => d.record_type?.includes("활용")) ? max : 0, `${pool.devs.filter(d => d.record_type?.includes("활용")).length}건`);
+      case "2-6": return f(Math.min(1, youthRate / 3), `신규고용률 ${youthRate.toFixed(2)}%`);
+      default: return { value: 0, basis: "수동입력" };
+    }
+  };
+
+  const effectiveScore = (code: string, max: number) => {
+    const manual = scores[code];
+    if (manual !== undefined && manual !== null) return Number(manual);
+    return autoFor(code, max).value;
+  };
+
   const totalShare = (row.companies || []).reduce((s, c) => s + Number(c.share_rate || 0), 0);
-  const totalScore = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + Number(scores[it.code] || 0), 0), 0);
+  const totalScore = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + effectiveScore(it.code, it.max), 0), 0);
   const totalMax = criteria.reduce((s, sec) => s + sec.items.reduce((ss, it) => ss + it.max, 0), 0);
 
   return (
@@ -369,7 +491,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">※ 등록된 기술인력의 등급·경력·실적·교육시간·이적계수 자동연동은 다음 단계에서 추가됩니다.</p>
+              <p className="text-xs text-muted-foreground">※ 등급·경력·실적·교육·이적·여유도는 기술자명을 기준으로 자동연동되어 탭3에 표시됩니다.</p>
             </Card>
 
             <Card className="p-4 space-y-3">
@@ -398,6 +520,22 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                     <input type="checkbox" checked={!!row.options.company_capability_relative} onChange={(e) => setRow({ ...row, options: { ...row.options, company_capability_relative: e.target.checked } })} />
                     상대평가 적용
                   </label>
+                </div>
+                <div>
+                  <Label>청년고용 - 최근3년 신규고용(명)</Label>
+                  <Input type="number" value={(row.options as any).youth_new_hires ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, youth_new_hires: e.target.value === "" ? null : Number(e.target.value) } as any })} />
+                </div>
+                <div>
+                  <Label>청년고용 - 최근3년 기술인력 평균(명)</Label>
+                  <Input type="number" value={(row.options as any).youth_avg_workforce ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, youth_avg_workforce: e.target.value === "" ? null : Number(e.target.value) } as any })} />
+                </div>
+                <div>
+                  <Label>유사용역 평가종류 필터 (쉼표구분, 비우면 전체)</Label>
+                  <Input value={(row.options.similar_eval_filter || []).join(",")} onChange={(e) => setRow({ ...row, options: { ...row.options, similar_eval_filter: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })} />
+                </div>
+                <div>
+                  <Label>유사용역 사업종류 필터 (쉼표구분, 비우면 전체)</Label>
+                  <Input value={(row.options.similar_service_filter || []).join(",")} onChange={(e) => setRow({ ...row, options: { ...row.options, similar_service_filter: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })} />
                 </div>
               </div>
               <div>
@@ -487,116 +625,117 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
               </div>
             </Card>
 
-            {/* 기술자별 요약 */}
+            {/* 기술자별 요약 — 자동연동 */}
             <Card className="overflow-x-auto">
-              <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약</div>
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약 (자동연동)</div>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-20">구분</TableHead>
-                    <TableHead className="w-32">기술자명</TableHead>
-                    <TableHead className="w-32">전문분야</TableHead>
+                    <TableHead className="w-16">구분</TableHead>
+                    <TableHead className="w-28">기술자명</TableHead>
+                    <TableHead className="w-24">전문분야</TableHead>
                     <TableHead className="text-right">등급</TableHead>
-                    <TableHead className="text-right">경력</TableHead>
-                    <TableHead className="text-right">실적</TableHead>
-                    <TableHead className="text-right">여유도</TableHead>
-                    <TableHead className="text-right">교육</TableHead>
+                    <TableHead className="text-right">경력(년)</TableHead>
+                    <TableHead className="text-right">실적(건)</TableHead>
+                    <TableHead className="text-right">진행중</TableHead>
+                    <TableHead className="text-right">교육(h/3y)</TableHead>
                     <TableHead className="text-right">이적계수</TableHead>
-                    <TableHead className="text-right font-semibold">소계</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(() => {
                     const persons: Person[] = [
-                      ...(row.personnel.chief ? [row.personnel.chief] : []),
-                      ...row.personnel.leads,
-                      ...row.personnel.members,
+                      ...(row.personnel.chief?.name ? [row.personnel.chief] : []),
+                      ...row.personnel.leads.filter(p => p.name),
+                      ...row.personnel.members.filter(p => p.name),
                     ];
-                    if (persons.length === 0) {
-                      return <TableRow><TableCell colSpan={10} className="text-center py-6 text-muted-foreground">참여 인력을 먼저 입력하세요</TableCell></TableRow>;
-                    }
-                    const codeFor = (role: Person["role"], k: "등급" | "경력" | "실적" | "여유도") => {
-                      const map: Record<string, Record<string, string>> = {
-                        "총괄": { "등급": "1-1-가", "경력": "1-1-나", "실적": "1-1-다", "여유도": "1-4-가" },
-                        "책임": { "등급": "1-2-가", "경력": "1-2-나", "실적": "1-2-다", "여유도": "1-4-나" },
-                        "참여": { "등급": "1-3-가", "경력": "1-3-나", "실적": "1-3-다", "여유도": "1-4-다" },
-                      };
-                      return map[role]?.[k];
-                    };
-                    const groupCount = { "총괄": 1, "책임": row.personnel.leads.length || 1, "참여": row.personnel.members.length || 1 };
-                    const share = (role: Person["role"], code?: string) => code ? Number(scores[code] || 0) / (groupCount[role] || 1) : 0;
-                    const eduCode = "1-5";
+                    if (!persons.length) return <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">참여 인력을 먼저 입력하세요</TableCell></TableRow>;
                     return persons.map((p, i) => {
-                      const g = share(p.role, codeFor(p.role, "등급"));
-                      const c = share(p.role, codeFor(p.role, "경력"));
-                      const r = share(p.role, codeFor(p.role, "실적"));
-                      const m = share(p.role, codeFor(p.role, "여유도"));
-                      const e = share(p.role, eduCode) / persons.length * (groupCount[p.role] || 1);
-                      const t = g + c + r + m + e;
+                      const prof = findProfile(p.name);
+                      const grade = prof?.grade_eval || prof?.grade_kepa || "-";
+                      const yrs = careerYears(p.name, pool.careers);
+                      const pc = perfCount(p.name, pool.performances);
+                      const ov = overlapActiveCount(p.name, pool.overlaps);
+                      const edu = eduHoursLast3y(p.name, pool.educations);
+                      const tr = transferRatio(p.name);
                       return (
                         <TableRow key={i}>
                           <TableCell><span className={`text-xs px-2 py-0.5 rounded ${p.role === "총괄" ? "bg-primary/15 text-primary" : p.role === "책임" ? "bg-blue-500/15 text-blue-700 dark:text-blue-300" : "bg-muted text-muted-foreground"}`}>{p.role}</span></TableCell>
-                          <TableCell className="font-medium">{p.name || "-"}</TableCell>
+                          <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell className="text-xs">{p.specialty || "-"}</TableCell>
-                          <TableCell className="text-right">{g.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{c.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{r.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{m.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{e.toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">-</TableCell>
-                          <TableCell className="text-right font-semibold">{t.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-xs">{grade}</TableCell>
+                          <TableCell className="text-right">{yrs.toFixed(1)}</TableCell>
+                          <TableCell className="text-right">{pc}</TableCell>
+                          <TableCell className={`text-right ${ov > 0 ? "text-amber-600 font-medium" : ""}`}>{ov}</TableCell>
+                          <TableCell className="text-right">{edu.toFixed(0)}</TableCell>
+                          <TableCell className="text-right">{tr.toFixed(2)}</TableCell>
                         </TableRow>
                       );
                     });
                   })()}
                 </TableBody>
               </Table>
-              <div className="p-2 text-xs text-muted-foreground border-t">※ 각 인력 점수는 항목별 자기평가 점수를 동일 역할 인원수로 균등 배분한 값입니다. (자동연동 전 임시 계산)</div>
+              <div className="p-2 text-xs text-muted-foreground border-t">※ 각 항목은 기술자명 일치 기준으로 인적사항·경력·실적·중첩도·교육 메뉴에서 자동 산출됩니다.</div>
             </Card>
 
-            {/* 항목별 점수표 */}
+            {/* 항목별 점수표 — 자동/보정 */}
             <Card className="overflow-x-auto">
-              <div className="p-3 font-semibold text-sm border-b bg-muted/30">항목별 점수표</div>
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30 flex items-center justify-between">
+                <span>항목별 점수표</span>
+                <span className="text-xs font-normal text-muted-foreground">보정값을 비우면 자동값이 사용됩니다</span>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-48">평가항목</TableHead>
+                    <TableHead className="w-20">코드</TableHead>
                     <TableHead>평가요소</TableHead>
-                    <TableHead className="w-24 text-right">배점</TableHead>
-                    <TableHead className="w-32 text-right">자기평가</TableHead>
-                    <TableHead className="w-32">산출근거</TableHead>
+                    <TableHead className="w-20 text-right">배점</TableHead>
+                    <TableHead className="w-24 text-right">자동</TableHead>
+                    <TableHead className="w-28 text-right">보정</TableHead>
+                    <TableHead className="w-24 text-right">최종</TableHead>
+                    <TableHead className="w-40">산출근거</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {criteria.map((sec) => {
-                    const secSum = sec.items.reduce((s, it) => s + Number(scores[it.code] || 0), 0);
+                    const secSum = sec.items.reduce((s, it) => s + effectiveScore(it.code, it.max), 0);
                     return (
-                      <>
-                        <TableRow key={`s-${sec.code}`} className="bg-muted/40 font-semibold">
+                      <React.Fragment key={sec.code}>
+                        <TableRow className="bg-muted/40 font-semibold">
                           <TableCell colSpan={2}>{sec.code}. {sec.label}</TableCell>
                           <TableCell className="text-right">[{sec.max}]</TableCell>
+                          <TableCell colSpan={2}></TableCell>
                           <TableCell className="text-right text-primary">{secSum.toFixed(2)}</TableCell>
                           <TableCell></TableCell>
                         </TableRow>
-                        {sec.items.map((it) => (
-                          <TableRow key={it.code}>
-                            <TableCell className="text-xs text-muted-foreground pl-6">{it.code}</TableCell>
-                            <TableCell>{it.label}</TableCell>
-                            <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
-                            <TableCell>
-                              <Input className="text-right h-8" type="number" step="0.01" value={scores[it.code] ?? ""}
-                                onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? 0 : Number(e.target.value) })}
-                              />
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">자동계산 예정</TableCell>
-                          </TableRow>
-                        ))}
-                      </>
+                        {sec.items.map((it) => {
+                          const auto = autoFor(it.code, it.max);
+                          const manual = scores[it.code];
+                          const final = (manual !== undefined && manual !== null) ? Number(manual) : auto.value;
+                          return (
+                            <TableRow key={it.code}>
+                              <TableCell className="text-xs text-muted-foreground pl-6">{it.code}</TableCell>
+                              <TableCell>{it.label}</TableCell>
+                              <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">{auto.value.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Input className="text-right h-8" type="number" step="0.01" placeholder="자동"
+                                  value={manual ?? ""}
+                                  onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? null : Number(e.target.value) })}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right font-medium">{final.toFixed(2)}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{auto.basis}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </React.Fragment>
                     );
                   })}
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell colSpan={2}>합 계</TableCell>
                     <TableCell className="text-right">{totalMax}</TableCell>
+                    <TableCell colSpan={2}></TableCell>
                     <TableCell className="text-right text-primary text-base">{totalScore.toFixed(2)}</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
