@@ -157,9 +157,9 @@ export function ThemeSettings() {
       const lsP = localStorage.getItem(primaryKey(uid));
       const lsS = localStorage.getItem(sidebarKey(uid));
       const lsB = localStorage.getItem(backgroundKey(uid));
-      let c = lsP || (uid ? DEFAULT_PRIMARY : (localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY));
-      let s = lsS || (uid ? DEFAULT_SIDEBAR : (localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR));
-      let b = lsB || (uid ? DEFAULT_BACKGROUND : (localStorage.getItem(BACKGROUND_BASE) || DEFAULT_BACKGROUND));
+      let c = lsP || localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY;
+      let s = lsS || localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR;
+      let b = lsB || localStorage.getItem(BACKGROUND_BASE) || DEFAULT_BACKGROUND;
 
       if (uid) {
         const { data } = await supabase
