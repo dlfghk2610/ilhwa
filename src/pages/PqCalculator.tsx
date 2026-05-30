@@ -970,26 +970,12 @@ function PersonDetail({ label, person, announcementDate, onChange, onRemove }: {
           <div className="md:col-span-2 border rounded p-2 space-y-2">
             <div className="text-xs font-semibold">실적 산정 옵션</div>
             <div>
-              <Label className="text-xs">평가종류</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {EVAL_TYPE_OPTIONS.map(v => (
-                  <label key={v} className="flex items-center gap-1 text-xs">
-                    <input type="checkbox" checked={(po.eval_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, eval_types: toggleArr(po.eval_types, v) } })} />
-                    {v}
-                  </label>
-                ))}
-              </div>
+              <Label className="text-xs">평가종류 (자유 입력, Enter로 추가)</Label>
+              <TagInput values={po.eval_types || []} placeholder="예: 환경영향평가" onChange={(v) => onChange({ ...person, perf_opts: { ...po, eval_types: v } })} />
             </div>
             <div>
-              <Label className="text-xs">사업종류</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {SERVICE_TYPE_OPTIONS.map(v => (
-                  <label key={v} className="flex items-center gap-1 text-xs">
-                    <input type="checkbox" checked={(po.service_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, service_types: toggleArr(po.service_types, v) } })} />
-                    {v}
-                  </label>
-                ))}
-              </div>
+              <Label className="text-xs">사업종류 (자유 입력, Enter로 추가)</Label>
+              <TagInput values={po.service_types || []} placeholder="예: 도시개발" onChange={(v) => onChange({ ...person, perf_opts: { ...po, service_types: v } })} />
             </div>
             <div className="flex gap-4 flex-wrap items-center">
               <label className="flex items-center gap-1 text-xs">
