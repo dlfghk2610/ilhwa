@@ -14,6 +14,9 @@ import Overlaps from "./pages/Overlaps.tsx";
 import SimilarServices from "./pages/SimilarServices.tsx";
 import PerformanceDatabase from "./pages/PerformanceDatabase.tsx";
 import ExternalPerformanceDatabase from "./pages/ExternalPerformanceDatabase.tsx";
+import PqDevRecords from "./pages/PqDevRecords.tsx";
+import PqEducations from "./pages/PqEducations.tsx";
+import PqCalculator from "./pages/PqCalculator.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
