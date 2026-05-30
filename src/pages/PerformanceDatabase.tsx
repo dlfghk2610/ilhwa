@@ -1173,10 +1173,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 rounded-md bg-background border">
               {[
                 { k: "is_private", l: "민간사업" },
-                { k: "is_under_90days", l: "90일미만 포함" },
                 { k: "is_lh_completion", l: "LH기성실적" },
-                { k: "is_progress", l: "기성실적 포함" },
-                { k: "is_dual_participation", l: "분담사업 포함" },
+                { k: "is_progress", l: "기성실적" },
+                { k: "is_dual_participation", l: "분담사업" },
               ].map(({ k, l }) => (
                 <label key={k} className="flex items-center gap-2">
                   <Checkbox checked={(form as any)[k]} onCheckedChange={(c) => setForm({ ...form, [k]: !!c } as any)} />
