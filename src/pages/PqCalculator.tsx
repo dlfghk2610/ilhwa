@@ -802,15 +802,108 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   );
 }
 
-function PersonRow({ label, person, onChange, onRemove }: { label?: string; person: Person; onChange: (p: Person) => void; onRemove?: () => void }) {
+function PersonDetail({ label, person, announcementDate, onChange, onRemove }: { label?: string; person: Person; announcementDate?: string | null; onChange: (p: Person) => void; onRemove?: () => void }) {
+  const internal = person.internal !== false;
+  const co = person.career_opts || {};
+  const po = person.perf_opts || {};
+  const toggleArr = (arr: string[] | undefined, v: string) => {
+    const a = arr || []; return a.includes(v) ? a.filter(x => x !== v) : [...a, v];
+  };
   return (
-    <div className="space-y-1">
-      {label && <Label className="text-xs">{label}</Label>}
-      <div className="flex gap-2">
-        <Input className="flex-1" placeholder="기술자명" value={person.name} onChange={(e) => onChange({ ...person, name: e.target.value })} />
+    <div className="border rounded-md p-3 space-y-3 bg-card">
+      {label && <div className="text-xs font-semibold text-muted-foreground">{label}</div>}
+      {/* 기본 정보 */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <Input className="flex-1 min-w-[140px]" placeholder="기술자명" value={person.name} onChange={(e) => onChange({ ...person, name: e.target.value })} />
         <Input className="w-40" placeholder="전문분야" value={person.specialty || ""} onChange={(e) => onChange({ ...person, specialty: e.target.value })} />
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+          <input type="checkbox" checked={internal} onChange={(e) => onChange({ ...person, internal: e.target.checked })} />
+          우리회사 인력
+        </label>
         {onRemove && <Button size="icon" variant="ghost" onClick={onRemove}><X className="h-4 w-4" /></Button>}
       </div>
+
+      {internal && (
+        <div className="grid md:grid-cols-2 gap-3 pt-2 border-t">
+          {/* 등급 */}
+          <div>
+            <Label className="text-xs">등급 (수기 선택, 비우면 자동)</Label>
+            <Select value={person.grade_override || ""} onValueChange={(v) => onChange({ ...person, grade_override: v })}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="등급" /></SelectTrigger>
+              <SelectContent>
+                {GRADE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* 여유도 기준일 */}
+          <div>
+            <Label className="text-xs">여유도 기준일 (공고일)</Label>
+            <Input className="h-9" type="date" value={announcementDate || ""} disabled />
+          </div>
+
+          {/* 경력 옵션 */}
+          <div className="md:col-span-2 border rounded p-2 space-y-2">
+            <div className="text-xs font-semibold">경력 산정 옵션</div>
+            <div className="flex gap-4 flex-wrap items-center">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!co.exclude_private} onChange={(e) => onChange({ ...person, career_opts: { ...co, exclude_private: e.target.checked } })} />
+                민간실적 제외
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!co.exclude_overlap} onChange={(e) => onChange({ ...person, career_opts: { ...co, exclude_overlap: e.target.checked } })} />
+                중복 경력 제외
+              </label>
+              <div className="flex items-center gap-1 text-xs">
+                <span>인정일:</span>
+                <Input className="h-8 w-40" type="date" value={co.recognized_date || ""} onChange={(e) => onChange({ ...person, career_opts: { ...co, recognized_date: e.target.value } })} />
+              </div>
+            </div>
+          </div>
+
+          {/* 실적 옵션 */}
+          <div className="md:col-span-2 border rounded p-2 space-y-2">
+            <div className="text-xs font-semibold">실적 산정 옵션</div>
+            <div>
+              <Label className="text-xs">평가종류</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {EVAL_TYPE_OPTIONS.map(v => (
+                  <label key={v} className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" checked={(po.eval_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, eval_types: toggleArr(po.eval_types, v) } })} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">사업종류</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {SERVICE_TYPE_OPTIONS.map(v => (
+                  <label key={v} className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" checked={(po.service_types || []).includes(v)} onChange={() => onChange({ ...person, perf_opts: { ...po, service_types: toggleArr(po.service_types, v) } })} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-4 flex-wrap items-center">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={!!po.include_under_90} onChange={(e) => onChange({ ...person, perf_opts: { ...po, include_under_90: e.target.checked } })} />
+                90일 미만 포함
+              </label>
+              <div className="flex items-center gap-1 text-xs">
+                <span>건수 산정:</span>
+                <Select value={po.count_mode || "단순건수"} onValueChange={(v) => onChange({ ...person, perf_opts: { ...po, count_mode: v as any } })}>
+                  <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="단순건수">단순건수</SelectItem>
+                    <SelectItem value="참여비율건수">참여비율건수</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
