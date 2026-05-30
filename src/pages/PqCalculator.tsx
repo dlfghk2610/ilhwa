@@ -689,12 +689,12 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Input type="number" value={(row.options as any).youth_avg_workforce ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, youth_avg_workforce: e.target.value === "" ? null : Number(e.target.value) } as any })} />
                 </div>
                 <div>
-                  <Label>유사용역 평가종류 필터 (쉼표구분, 비우면 전체)</Label>
-                  <Input value={(row.options.similar_eval_filter || []).join(",")} onChange={(e) => setRow({ ...row, options: { ...row.options, similar_eval_filter: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })} />
+                  <Label>유사용역 평가종류 필터 (비우면 전체)</Label>
+                  <TagInput values={row.options.similar_eval_filter || []} placeholder="예: 환경영향평가" onChange={(v) => setRow({ ...row, options: { ...row.options, similar_eval_filter: v } })} />
                 </div>
                 <div>
-                  <Label>유사용역 사업종류 필터 (쉼표구분, 비우면 전체)</Label>
-                  <Input value={(row.options.similar_service_filter || []).join(",")} onChange={(e) => setRow({ ...row, options: { ...row.options, similar_service_filter: e.target.value.split(",").map(s => s.trim()).filter(Boolean) } })} />
+                  <Label>유사용역 사업종류 필터 (비우면 전체)</Label>
+                  <TagInput values={row.options.similar_service_filter || []} placeholder="예: 도시개발" onChange={(v) => setRow({ ...row, options: { ...row.options, similar_service_filter: v } })} />
                 </div>
               </div>
               <div>
