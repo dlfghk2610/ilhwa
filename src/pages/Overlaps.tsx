@@ -962,54 +962,172 @@ export default function Overlaps() {
               </div>
             </div>
 
-            {/* 변경/반영 섹션 - 공고일 기준 적용 */}
-            <div className="border-t pt-3 space-y-3">
-              <div className="text-sm font-semibold">변경/반영 사항 <span className="text-xs font-normal text-muted-foreground">(공고일이 변경일 이후일 때만 반영)</span></div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">계약금액 변경</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.contract_amount_change_date)} onChange={(e) => setForm({ ...form, contract_amount_change_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경 계약금액 (원)</Label>
-                  <Input type="text" inputMode="numeric" value={form.contract_amount_new !== null && form.contract_amount_new !== undefined ? Number(form.contract_amount_new).toLocaleString() : ""} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, contract_amount_new: v === "" ? null : Number(v) }); }} />
-                </div>
+            {/* 변경계약 (다중) - PDF 인라인 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm font-semibold">변경계약 이력 <span className="text-xs font-normal text-muted-foreground">(공고일 ≥ 변경일일 때만 반영)</span></div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, amendments: [...(form.amendments || []), blankAmendment()] })}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />변경계약 추가
+                </Button>
               </div>
+              {(form.amendments || []).length === 0 && (
+                <div className="text-xs text-muted-foreground">등록된 변경계약이 없습니다.</div>
+              )}
+              {(form.amendments || []).map((a, i) => {
+                const pdfFileName = a.pdf_path ? a.pdf_path.split("/").pop() : null;
+                const inputId = `amend-pdf-${a.id}`;
+                return (
+                  <div key={a.id} className="rounded-md border bg-muted/20 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium">제{i + 1}차 변경계약</div>
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm({ ...form, amendments: (form.amendments || []).filter((_, j) => j !== i) })}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경일</Label>
+                        <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(a.change_date)} onChange={(e) => {
+                          const next = [...(form.amendments || [])]; next[i] = { ...a, change_date: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경 계약금액 (원)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="변경 없으면 비움"
+                          value={a.contract_amount_new !== null && a.contract_amount_new !== undefined ? Number(a.contract_amount_new).toLocaleString() : ""}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^\d]/g, "");
+                            const next = [...(form.amendments || [])]; next[i] = { ...a, contract_amount_new: v === "" ? null : Number(v) }; setForm({ ...form, amendments: next });
+                          }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">변경 준공예정일</Label>
+                        <Input type="text" placeholder="변경 없으면 비움" value={toDisplayDate(a.end_date_new)} onChange={(e) => {
+                          const next = [...(form.amendments || [])]; next[i] = { ...a, end_date_new: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
+                        }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
+                      <div className="text-xs w-[120px] shrink-0">변경계약서 PDF</div>
+                      <input id={inputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAmendmentPdf(i, f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(inputId)?.click()} disabled={uploadingField === `amendment-${i}`}>
+                        {uploadingField === `amendment-${i}` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {a.pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {a.pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(a.pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={pdfFileName || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{pdfFileName}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.amendments || [])]; next[i] = { ...a, pdf_path: null }; setForm({ ...form, amendments: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">준공예정일 변경</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_change_date)} onChange={(e) => setForm({ ...form, end_date_change_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">변경된 준공예정일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date_new)} onChange={(e) => setForm({ ...form, end_date_new: inputToISO(e.target.value) })} />
-                </div>
+            {/* 과업중지/재개 (다중) - PDF 인라인 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm font-semibold">과업중지 / 재개 이력 <span className="text-xs font-normal text-muted-foreground">(재개일 이후 잔여일수는 재개일 기준으로 다시 산정)</span></div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, suspensions: [...(form.suspensions || []), blankSuspension()] })}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />중지/재개 추가
+                </Button>
               </div>
+              {(form.suspensions || []).length === 0 && (
+                <div className="text-xs text-muted-foreground">등록된 과업중지가 없습니다.</div>
+              )}
+              {(form.suspensions || []).map((s, i) => {
+                const sFile = s.suspension_pdf_path ? s.suspension_pdf_path.split("/").pop() : null;
+                const rFile = s.resume_pdf_path ? s.resume_pdf_path.split("/").pop() : null;
+                const sInputId = `susp-pdf-${s.id}`;
+                const rInputId = `resume-pdf-${s.id}`;
+                return (
+                  <div key={s.id} className="rounded-md border bg-muted/20 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium">제{i + 1}차 중지/재개</div>
+                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm({ ...form, suspensions: (form.suspensions || []).filter((_, j) => j !== i) })}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">과업중지일</Label>
+                        <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(s.suspension_date)} onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_date: inputToISO(e.target.value) }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">중지 사유</Label>
+                        <Input value={s.suspension_reason || ""} placeholder="예: 발주처 사정" onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_reason: e.target.value }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">과업재개일</Label>
+                        <Input type="text" placeholder="아직 재개되지 않았으면 비움" value={toDisplayDate(s.resume_date)} onChange={(e) => {
+                          const next = [...(form.suspensions || [])]; next[i] = { ...s, resume_date: inputToISO(e.target.value) }; setForm({ ...form, suspensions: next });
+                        }} />
+                      </div>
+                    </div>
+                    {/* 중지공문 PDF */}
+                    <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
+                      <div className="text-xs w-[120px] shrink-0">중지 공문 PDF</div>
+                      <input id={sInputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSuspensionPdf(i, "suspension", f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(sInputId)?.click()} disabled={uploadingField === `suspension-${i}-suspension`}>
+                        {uploadingField === `suspension-${i}-suspension` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {s.suspension_pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {s.suspension_pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(s.suspension_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={sFile || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{sFile}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.suspensions || [])]; next[i] = { ...s, suspension_pdf_path: null }; setForm({ ...form, suspensions: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                    {/* 재개공문 PDF */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-xs w-[120px] shrink-0">재개 공문 PDF</div>
+                      <input id={rInputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSuspensionPdf(i, "resume", f); e.target.value = ""; }} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById(rInputId)?.click()} disabled={uploadingField === `suspension-${i}-resume`}>
+                        {uploadingField === `suspension-${i}-resume` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                        {s.resume_pdf_path ? "교체" : "업로드"}
+                      </Button>
+                      {s.resume_pdf_path && (
+                        <>
+                          <button type="button" onClick={() => downloadPdf(s.resume_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={rFile || ""}>
+                            <FileTextIcon className="inline h-3 w-3 mr-0.5" />{rFile}
+                          </button>
+                          <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
+                            const next = [...(form.suspensions || [])]; next[i] = { ...s, resume_pdf_path: null }; setForm({ ...form, suspensions: next });
+                          }}><X className="h-3.5 w-3.5" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">과업중지 반영</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">과업중지일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.suspension_date)} onChange={(e) => setForm({ ...form, suspension_date: inputToISO(e.target.value) })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">중지 사유</Label>
-                  <Input value={form.suspension_reason || ""} onChange={(e) => setForm({ ...form, suspension_reason: e.target.value })} placeholder="예: 발주처 사정" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 rounded-md bg-muted/30">
-                <div className="md:col-span-2 text-xs font-medium text-muted-foreground">협의완료 반영</div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">협의완료일</Label>
-                  <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
-                </div>
+            {/* 협의완료 (단일) */}
+            <div className="border-t pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">협의완료일</Label>
+                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.agreement_date)} onChange={(e) => setForm({ ...form, agreement_date: inputToISO(e.target.value) })} />
               </div>
             </div>
+
 
             <div className="space-y-2 border-t pt-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
