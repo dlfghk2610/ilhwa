@@ -486,6 +486,16 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Input className="flex-1" placeholder="회사명" value={c.name} onChange={(e) => {
                     const next = [...row.companies]; next[i] = { ...c, name: e.target.value }; setRow({ ...row, companies: next });
                   }} />
+                  <Select value={c.size || ""} onValueChange={(v) => {
+                    const next = [...row.companies]; next[i] = { ...c, size: v as CompanySize }; setRow({ ...row, companies: next });
+                  }}>
+                    <SelectTrigger className="w-28"><SelectValue placeholder="규모" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="대기업">대기업</SelectItem>
+                      <SelectItem value="중기업">중기업</SelectItem>
+                      <SelectItem value="소기업">소기업</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input className="w-32" type="number" placeholder="지분율(%)" value={c.share_rate ?? ""} onChange={(e) => {
                     const next = [...row.companies]; next[i] = { ...c, share_rate: e.target.value === "" ? null : Number(e.target.value) }; setRow({ ...row, companies: next });
                   }} />
@@ -499,14 +509,14 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
             <Card className="p-4 space-y-3">
               <div className="font-semibold text-sm">참여 인력</div>
-              <PersonRow label="총괄평가자 (1인)" person={row.personnel.chief!} onChange={(p) => setRow({ ...row, personnel: { ...row.personnel, chief: p } })} />
+              <PersonDetail label="총괄평가자 (1인)" person={row.personnel.chief!} announcementDate={row.announcement_date} onChange={(p) => setRow({ ...row, personnel: { ...row.personnel, chief: p } })} />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>책임평가자</Label>
                   <Button size="sm" variant="outline" onClick={() => setRow({ ...row, personnel: { ...row.personnel, leads: [...row.personnel.leads, blankPerson("책임")] } })}><Plus className="h-3 w-3 mr-1" />추가</Button>
                 </div>
                 {row.personnel.leads.map((p, i) => (
-                  <PersonRow key={i} person={p}
+                  <PersonDetail key={i} person={p} announcementDate={row.announcement_date}
                     onChange={(np) => { const next = [...row.personnel.leads]; next[i] = np; setRow({ ...row, personnel: { ...row.personnel, leads: next } }); }}
                     onRemove={() => setRow({ ...row, personnel: { ...row.personnel, leads: row.personnel.leads.filter((_, j) => j !== i) } })}
                   />
@@ -518,13 +528,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Button size="sm" variant="outline" onClick={() => setRow({ ...row, personnel: { ...row.personnel, members: [...row.personnel.members, blankPerson("참여")] } })}><Plus className="h-3 w-3 mr-1" />추가</Button>
                 </div>
                 {row.personnel.members.map((p, i) => (
-                  <PersonRow key={i} person={p}
+                  <PersonDetail key={i} person={p} announcementDate={row.announcement_date}
                     onChange={(np) => { const next = [...row.personnel.members]; next[i] = np; setRow({ ...row, personnel: { ...row.personnel, members: next } }); }}
                     onRemove={() => setRow({ ...row, personnel: { ...row.personnel, members: row.personnel.members.filter((_, j) => j !== i) } })}
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">※ 등급·경력·실적·교육·이적·여유도는 기술자명을 기준으로 자동연동되어 탭3에 표시됩니다.</p>
+              <p className="text-xs text-muted-foreground">※ "우리회사 인력" 체크 시 등급·경력·실적·여유도가 등록 데이터 기반으로 자동 산출됩니다. (옵션은 산출 시 적용)</p>
             </Card>
 
             <Card className="p-4 space-y-3">
@@ -535,14 +545,25 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   <Input type="number" step="0.5" value={row.options.task_understanding_max ?? ""} onChange={(e) => setRow({ ...row, options: { ...row.options, task_understanding_max: Number(e.target.value) } })} />
                 </div>
                 <div>
-                  <Label>공동도급 선택</Label>
-                  <Select value={row.options.joint_contract_type || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, joint_contract_type: v } })}>
+                  <Label>공동도급 방식</Label>
+                  <Select value={row.options.joint_contract_mode || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, joint_contract_mode: v as any } })}>
                     <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1종-2종">1종업체 ↔ 2종업체</SelectItem>
-                      <SelectItem value="1종-소기업">1종업체 ↔ 소기업</SelectItem>
+                      <SelectItem value="1종-2종">1종 ↔ 2종 (배점한도 부여)</SelectItem>
+                      <SelectItem value="1종-2종+1종-소기업">1종 ↔ 2종 + 1종 ↔ 소기업</SelectItem>
+                      <SelectItem value="1종-소기업">1종 ↔ 소기업만</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label>신용도 등급</Label>
+                  <Select value={row.options.credit_grade || ""} onValueChange={(v) => setRow({ ...row, options: { ...row.options, credit_grade: v } })}>
+                    <SelectTrigger><SelectValue placeholder="등급 선택" /></SelectTrigger>
+                    <SelectContent>
+                      {CREDIT_GRADES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 </div>
                 <div>
                   <Label>업체능력평가 배점한도</Label>
