@@ -520,36 +520,98 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
             <Card className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="font-semibold text-sm">참여 회사 / 지분율</div>
-                <Button size="sm" variant="outline" onClick={() => setRow({ ...row, companies: [...row.companies, { name: "", share_rate: 0 }] })}>
+                <div className="font-semibold text-sm">참여 회사 / 지분율 / 환경평가업체 능력평가</div>
+                <Button size="sm" variant="outline" onClick={() => setRow({ ...row, companies: [...row.companies, { name: "", share_rate: 0, size: "중기업", capability: {} }] })}>
                   <Plus className="h-4 w-4 mr-1" />회사 추가
                 </Button>
               </div>
-              {row.companies.map((c, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Input className="flex-1" placeholder="회사명" value={c.name} onChange={(e) => {
-                    const next = [...row.companies]; next[i] = { ...c, name: e.target.value }; setRow({ ...row, companies: next });
-                  }} />
-                  <Select value={c.size || ""} onValueChange={(v) => {
-                    const next = [...row.companies]; next[i] = { ...c, size: v as CompanySize }; setRow({ ...row, companies: next });
-                  }}>
-                    <SelectTrigger className="w-28"><SelectValue placeholder="규모" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="대기업">대기업</SelectItem>
-                      <SelectItem value="중기업">중기업</SelectItem>
-                      <SelectItem value="소기업">소기업</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input className="w-32" type="number" placeholder="지분율(%)" value={c.share_rate ?? ""} onChange={(e) => {
-                    const next = [...row.companies]; next[i] = { ...c, share_rate: e.target.value === "" ? null : Number(e.target.value) }; setRow({ ...row, companies: next });
-                  }} />
-                  <Button size="icon" variant="ghost" onClick={() => setRow({ ...row, companies: row.companies.filter((_, j) => j !== i) })}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {row.companies.map((c, i) => {
+                const cap = c.capability || {};
+                const updateCap = (patch: Partial<CompanyCapability>) => {
+                  const next = [...row.companies]; next[i] = { ...c, capability: { ...cap, ...patch } }; setRow({ ...row, companies: next });
+                };
+                const updateCompany = (patch: Partial<Company>) => {
+                  const next = [...row.companies]; next[i] = { ...c, ...patch }; setRow({ ...row, companies: next });
+                };
+                return (
+                  <div key={i} className="border rounded-md p-3 space-y-3 bg-card">
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <Input className="flex-1 min-w-[160px]" placeholder="회사명" value={c.name} onChange={(e) => updateCompany({ name: e.target.value })} />
+                      <Select value={c.size || ""} onValueChange={(v) => updateCompany({ size: v as CompanySize })}>
+                        <SelectTrigger className="w-28"><SelectValue placeholder="규모" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="대기업">대기업</SelectItem>
+                          <SelectItem value="중기업">중기업</SelectItem>
+                          <SelectItem value="소기업">소기업</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input className="w-28" type="number" placeholder="지분율(%)" value={c.share_rate ?? ""} onChange={(e) => updateCompany({ share_rate: e.target.value === "" ? null : Number(e.target.value) })} />
+                      <Button size="icon" variant="ghost" onClick={() => setRow({ ...row, companies: row.companies.filter((_, j) => j !== i) })}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">환경평가업체 능력평가</div>
+                      <div className="grid md:grid-cols-3 gap-2">
+                        <div>
+                          <Label className="text-xs">신용도 등급</Label>
+                          <Select value={cap.credit_grade || ""} onValueChange={(v) => updateCap({ credit_grade: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="등급 선택" /></SelectTrigger>
+                            <SelectContent>{CREDIT_GRADES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">재정상태 건실도</Label>
+                          <Select value={cap.financial_health || ""} onValueChange={(v) => updateCap({ financial_health: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="선택" /></SelectTrigger>
+                            <SelectContent>{FINANCIAL_HEALTH_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">업체능력평가 점수(자체)</Label>
+                          <Input className="h-9" type="number" step="0.01" value={cap.capability_score ?? ""} onChange={(e) => updateCap({ capability_score: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">유사용역 수행건수</Label>
+                          <Input className="h-9" type="number" value={cap.similar_count ?? ""} onChange={(e) => updateCap({ similar_count: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">유사용역 수행금액(원)</Label>
+                          <Input className="h-9" type="number" value={cap.similar_amount ?? ""} onChange={(e) => updateCap({ similar_amount: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">벌점(감점)</Label>
+                          <Input className="h-9" type="number" step="0.01" value={cap.penalty_points ?? ""} onChange={(e) => updateCap({ penalty_points: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">개발실적 건수</Label>
+                          <Input className="h-9" type="number" value={cap.dev_count ?? ""} onChange={(e) => updateCap({ dev_count: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">투자실적 금액(원)</Label>
+                          <Input className="h-9" type="number" value={cap.invest_amount ?? ""} onChange={(e) => updateCap({ invest_amount: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">활용실적 건수</Label>
+                          <Input className="h-9" type="number" value={cap.util_count ?? ""} onChange={(e) => updateCap({ util_count: e.target.value === "" ? null : Number(e.target.value) })} />
+                        </div>
+                        <div className="md:col-span-3">
+                          <Label className="text-xs">공동도급 형태(메모)</Label>
+                          <Input className="h-9" value={cap.joint_contract || ""} placeholder="예: 1종↔2종 + 1종↔소기업" onChange={(e) => updateCap({ joint_contract: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-3">
+                          <Label className="text-xs">비고</Label>
+                          <Textarea rows={2} value={cap.notes || ""} onChange={(e) => updateCap({ notes: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               <div className={`text-xs ${Math.abs(totalShare - 100) > 0.01 ? "text-destructive" : "text-muted-foreground"}`}>지분율 합계: {totalShare}%</div>
             </Card>
+
 
             <Card className="p-4 space-y-3">
               <div className="font-semibold text-sm">참여 인력</div>
