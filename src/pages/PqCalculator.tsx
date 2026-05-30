@@ -644,97 +644,117 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+            {/* 기술자별 요약 — 자동연동 */}
+            <Card className="overflow-x-auto">
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30">기술자별 점수 요약 (자동연동)</div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-16">구분</TableHead>
+                    <TableHead className="w-28">기술자명</TableHead>
+                    <TableHead className="w-24">전문분야</TableHead>
+                    <TableHead className="text-right">등급</TableHead>
+                    <TableHead className="text-right">경력(년)</TableHead>
+                    <TableHead className="text-right">실적(건)</TableHead>
+                    <TableHead className="text-right">진행중</TableHead>
+                    <TableHead className="text-right">교육(h/3y)</TableHead>
+                    <TableHead className="text-right">이적계수</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(() => {
                     const persons: Person[] = [
-                      ...(row.personnel.chief ? [row.personnel.chief] : []),
-                      ...row.personnel.leads,
-                      ...row.personnel.members,
+                      ...(row.personnel.chief?.name ? [row.personnel.chief] : []),
+                      ...row.personnel.leads.filter(p => p.name),
+                      ...row.personnel.members.filter(p => p.name),
                     ];
-                    if (persons.length === 0) {
-                      return <TableRow><TableCell colSpan={10} className="text-center py-6 text-muted-foreground">참여 인력을 먼저 입력하세요</TableCell></TableRow>;
-                    }
-                    const codeFor = (role: Person["role"], k: "등급" | "경력" | "실적" | "여유도") => {
-                      const map: Record<string, Record<string, string>> = {
-                        "총괄": { "등급": "1-1-가", "경력": "1-1-나", "실적": "1-1-다", "여유도": "1-4-가" },
-                        "책임": { "등급": "1-2-가", "경력": "1-2-나", "실적": "1-2-다", "여유도": "1-4-나" },
-                        "참여": { "등급": "1-3-가", "경력": "1-3-나", "실적": "1-3-다", "여유도": "1-4-다" },
-                      };
-                      return map[role]?.[k];
-                    };
-                    const groupCount = { "총괄": 1, "책임": row.personnel.leads.length || 1, "참여": row.personnel.members.length || 1 };
-                    const share = (role: Person["role"], code?: string) => code ? Number(scores[code] || 0) / (groupCount[role] || 1) : 0;
-                    const eduCode = "1-5";
+                    if (!persons.length) return <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">참여 인력을 먼저 입력하세요</TableCell></TableRow>;
                     return persons.map((p, i) => {
-                      const g = share(p.role, codeFor(p.role, "등급"));
-                      const c = share(p.role, codeFor(p.role, "경력"));
-                      const r = share(p.role, codeFor(p.role, "실적"));
-                      const m = share(p.role, codeFor(p.role, "여유도"));
-                      const e = share(p.role, eduCode) / persons.length * (groupCount[p.role] || 1);
-                      const t = g + c + r + m + e;
+                      const prof = findProfile(p.name);
+                      const grade = prof?.grade_eval || prof?.grade_kepa || "-";
+                      const yrs = careerYears(p.name, pool.careers);
+                      const pc = perfCount(p.name, pool.performances);
+                      const ov = overlapActiveCount(p.name, pool.overlaps);
+                      const edu = eduHoursLast3y(p.name, pool.educations);
+                      const tr = transferRatio(p.name);
                       return (
                         <TableRow key={i}>
                           <TableCell><span className={`text-xs px-2 py-0.5 rounded ${p.role === "총괄" ? "bg-primary/15 text-primary" : p.role === "책임" ? "bg-blue-500/15 text-blue-700 dark:text-blue-300" : "bg-muted text-muted-foreground"}`}>{p.role}</span></TableCell>
-                          <TableCell className="font-medium">{p.name || "-"}</TableCell>
+                          <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell className="text-xs">{p.specialty || "-"}</TableCell>
-                          <TableCell className="text-right">{g.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{c.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{r.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{m.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{e.toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">-</TableCell>
-                          <TableCell className="text-right font-semibold">{t.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-xs">{grade}</TableCell>
+                          <TableCell className="text-right">{yrs.toFixed(1)}</TableCell>
+                          <TableCell className="text-right">{pc}</TableCell>
+                          <TableCell className={`text-right ${ov > 0 ? "text-amber-600 font-medium" : ""}`}>{ov}</TableCell>
+                          <TableCell className="text-right">{edu.toFixed(0)}</TableCell>
+                          <TableCell className="text-right">{tr.toFixed(2)}</TableCell>
                         </TableRow>
                       );
                     });
                   })()}
                 </TableBody>
               </Table>
-              <div className="p-2 text-xs text-muted-foreground border-t">※ 각 인력 점수는 항목별 자기평가 점수를 동일 역할 인원수로 균등 배분한 값입니다. (자동연동 전 임시 계산)</div>
+              <div className="p-2 text-xs text-muted-foreground border-t">※ 각 항목은 기술자명 일치 기준으로 인적사항·경력·실적·중첩도·교육 메뉴에서 자동 산출됩니다.</div>
             </Card>
 
-            {/* 항목별 점수표 */}
+            {/* 항목별 점수표 — 자동/보정 */}
             <Card className="overflow-x-auto">
-              <div className="p-3 font-semibold text-sm border-b bg-muted/30">항목별 점수표</div>
+              <div className="p-3 font-semibold text-sm border-b bg-muted/30 flex items-center justify-between">
+                <span>항목별 점수표</span>
+                <span className="text-xs font-normal text-muted-foreground">보정값을 비우면 자동값이 사용됩니다</span>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-48">평가항목</TableHead>
+                    <TableHead className="w-20">코드</TableHead>
                     <TableHead>평가요소</TableHead>
-                    <TableHead className="w-24 text-right">배점</TableHead>
-                    <TableHead className="w-32 text-right">자기평가</TableHead>
-                    <TableHead className="w-32">산출근거</TableHead>
+                    <TableHead className="w-20 text-right">배점</TableHead>
+                    <TableHead className="w-24 text-right">자동</TableHead>
+                    <TableHead className="w-28 text-right">보정</TableHead>
+                    <TableHead className="w-24 text-right">최종</TableHead>
+                    <TableHead className="w-40">산출근거</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {criteria.map((sec) => {
-                    const secSum = sec.items.reduce((s, it) => s + Number(scores[it.code] || 0), 0);
+                    const secSum = sec.items.reduce((s, it) => s + effectiveScore(it.code, it.max), 0);
                     return (
-                      <>
-                        <TableRow key={`s-${sec.code}`} className="bg-muted/40 font-semibold">
+                      <React.Fragment key={sec.code}>
+                        <TableRow className="bg-muted/40 font-semibold">
                           <TableCell colSpan={2}>{sec.code}. {sec.label}</TableCell>
                           <TableCell className="text-right">[{sec.max}]</TableCell>
+                          <TableCell colSpan={2}></TableCell>
                           <TableCell className="text-right text-primary">{secSum.toFixed(2)}</TableCell>
                           <TableCell></TableCell>
                         </TableRow>
-                        {sec.items.map((it) => (
-                          <TableRow key={it.code}>
-                            <TableCell className="text-xs text-muted-foreground pl-6">{it.code}</TableCell>
-                            <TableCell>{it.label}</TableCell>
-                            <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
-                            <TableCell>
-                              <Input className="text-right h-8" type="number" step="0.01" value={scores[it.code] ?? ""}
-                                onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? 0 : Number(e.target.value) })}
-                              />
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">자동계산 예정</TableCell>
-                          </TableRow>
-                        ))}
-                      </>
+                        {sec.items.map((it) => {
+                          const auto = autoFor(it.code, it.max);
+                          const manual = scores[it.code];
+                          const final = (manual !== undefined && manual !== null) ? Number(manual) : auto.value;
+                          return (
+                            <TableRow key={it.code}>
+                              <TableCell className="text-xs text-muted-foreground pl-6">{it.code}</TableCell>
+                              <TableCell>{it.label}</TableCell>
+                              <TableCell className="text-right">{it.max}{it.note ? ` ${it.note}` : ""}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">{auto.value.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Input className="text-right h-8" type="number" step="0.01" placeholder="자동"
+                                  value={manual ?? ""}
+                                  onChange={(e) => setScores({ ...scores, [it.code]: e.target.value === "" ? null : Number(e.target.value) })}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right font-medium">{final.toFixed(2)}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{auto.basis}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </React.Fragment>
                     );
                   })}
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell colSpan={2}>합 계</TableCell>
                     <TableCell className="text-right">{totalMax}</TableCell>
+                    <TableCell colSpan={2}></TableCell>
                     <TableCell className="text-right text-primary text-base">{totalScore.toFixed(2)}</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
