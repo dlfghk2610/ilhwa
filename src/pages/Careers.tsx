@@ -438,6 +438,17 @@ function TechnicianDetail({
   const [activeTab, setActiveTab] = useState<"recognition" | "overlap">("recognition");
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
+  const [entrySearch, setEntrySearch] = useState("");
+
+  const filteredEntries = useMemo(() => {
+    const q = entrySearch.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e: any) =>
+      [e.project_name, e.client, e.evaluation_category, e.specialty, e.service_field, e.participation_company, e.participation_position, e.duties, e.notes]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [entries, entrySearch]);
 
   // 수기 민간 지정 (DB의 career_entries.manual_private_override에 저장 → 모든 디바이스에서 공유)
   const setPrivateOverride = async (entryId: string, value: boolean | null) => {
