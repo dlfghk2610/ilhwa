@@ -145,45 +145,59 @@ function ColorEditor({ value, onChange }: { value: string; onChange: (v: string)
 export function ThemeSettings() {
   const { user } = useAuth();
   const uid = user?.id;
-  const [color, setColor] = useState<string>(DEFAULT_PRIMARY);
-  const [sidebarColor, setSidebarColor] = useState<string>(DEFAULT_SIDEBAR);
-  const [backgroundColor, setBackgroundColor] = useState<string>(DEFAULT_BACKGROUND);
+
+  // Lazily initialize from localStorage so the very first render already has the user's colors.
+  const initialPrimary = () =>
+    (typeof window !== "undefined" &&
+      (localStorage.getItem(primaryKey(uid)) || localStorage.getItem(PRIMARY_BASE))) ||
+    DEFAULT_PRIMARY;
+  const initialSidebar = () =>
+    (typeof window !== "undefined" &&
+      (localStorage.getItem(sidebarKey(uid)) || localStorage.getItem(SIDEBAR_BASE))) ||
+    DEFAULT_SIDEBAR;
+  const initialBackground = () =>
+    (typeof window !== "undefined" &&
+      (localStorage.getItem(backgroundKey(uid)) || localStorage.getItem(BACKGROUND_BASE))) ||
+    DEFAULT_BACKGROUND;
+
+  const [color, setColor] = useState<string>(initialPrimary);
+  const [sidebarColor, setSidebarColor] = useState<string>(initialSidebar);
+  const [backgroundColor, setBackgroundColor] = useState<string>(initialBackground);
   const loadedUidRef = useRef<string | null | undefined>(undefined);
 
-  // Load when user (scope) changes — try DB first for signed-in users, fall back to localStorage
+  // Load when user (scope) changes — apply localStorage values SYNCHRONOUSLY first, then refine from DB.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const lsP = localStorage.getItem(primaryKey(uid));
-      const lsS = localStorage.getItem(sidebarKey(uid));
-      const lsB = localStorage.getItem(backgroundKey(uid));
-      let c = lsP || localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY;
-      let s = lsS || localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR;
-      let b = lsB || localStorage.getItem(BACKGROUND_BASE) || DEFAULT_BACKGROUND;
 
-      if (uid) {
+    // 1) Synchronous apply from localStorage — prevents flicker on remount/navigation
+    const lsP = localStorage.getItem(primaryKey(uid)) || localStorage.getItem(PRIMARY_BASE) || DEFAULT_PRIMARY;
+    const lsS = localStorage.getItem(sidebarKey(uid)) || localStorage.getItem(SIDEBAR_BASE) || DEFAULT_SIDEBAR;
+    const lsB = localStorage.getItem(backgroundKey(uid)) || localStorage.getItem(BACKGROUND_BASE) || DEFAULT_BACKGROUND;
+    applyPrimary(lsP);
+    applySidebar(lsS);
+    applyBackground(lsB);
+    setColor(lsP);
+    setSidebarColor(lsS);
+    setBackgroundColor(lsB);
+    loadedUidRef.current = uid ?? null;
+
+    // 2) Refine from DB if signed in (may override localStorage if user changed theme on another device)
+    if (uid) {
+      (async () => {
         const { data } = await supabase
           .from("profiles")
           .select("theme_primary, theme_sidebar, theme_background")
           .eq("id", uid)
           .maybeSingle();
         if (cancelled) return;
-        if (data?.theme_primary) c = data.theme_primary;
-        if (data?.theme_sidebar) s = data.theme_sidebar;
-        if (data?.theme_background) b = data.theme_background;
-      }
-
-      if (cancelled) return;
-      setColor(c);
-      setSidebarColor(s);
-      setBackgroundColor(b);
-      applyPrimary(c);
-      applySidebar(s);
-      applyBackground(b);
-      loadedUidRef.current = uid ?? null;
-    })();
+        if (data?.theme_primary && data.theme_primary !== lsP) { setColor(data.theme_primary); applyPrimary(data.theme_primary); }
+        if (data?.theme_sidebar && data.theme_sidebar !== lsS) { setSidebarColor(data.theme_sidebar); applySidebar(data.theme_sidebar); }
+        if (data?.theme_background && data.theme_background !== lsB) { setBackgroundColor(data.theme_background); applyBackground(data.theme_background); }
+      })();
+    }
     return () => { cancelled = true; };
   }, [uid]);
+
 
   // Persist + apply on change
   useEffect(() => {
