@@ -10,7 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, X, ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
+import { Search, Plus, X, ChevronLeft, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 // @ts-ignore
