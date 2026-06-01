@@ -815,8 +815,9 @@ export default function Performances() {
         </Card>
 
         <Card className="p-3">
-          <Label className="text-xs text-muted-foreground">사업명 검색</Label>
-          <Input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="사업명으로 필터링" className="mt-1" />
+          <Label className="text-xs text-muted-foreground">검색</Label>
+          <Input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} className="mt-1" />
+
         </Card>
 
         {selectedTech && (
