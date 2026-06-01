@@ -233,55 +233,59 @@ function UploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>새 사업 PQ 등록</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>사업명</Label>
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="예: ○○시 복합문화공간 건립 설계공모" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>발주처</Label>
-            <Input value={client} onChange={(e) => setClient(e.target.value)} placeholder="예: ○○시청" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>수행연도</Label>
-            <Input value={year} onChange={(e) => setYear(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>공고일</Label>
-            <Input type="date" value={noticeDate} onChange={(e) => setNoticeDate(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>평가종류</Label>
-            <Select value={evaluationType} onValueChange={setEvaluationType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {EVALUATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>공종 카테고리</Label>
-            <Select value={projectType} onValueChange={setProjectType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PROJECT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>PDF 파일 (미리보기용)</Label>
-            <Input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
-            {pdfFile && <p className="text-xs text-muted-foreground truncate">{pdfFile.name}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label>HWP 파일 (다운로드용)</Label>
-            <Input type="file" accept=".hwp,.hwpx" onChange={(e) => setHwpFile(e.target.files?.[0] ?? null)} />
-            {hwpFile && <p className="text-xs text-muted-foreground truncate">{hwpFile.name}</p>}
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle>새 사업 PQ 등록</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>사업명</Label>
+              <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="예: ○○시 복합문화공간 건립 설계공모" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>발주처</Label>
+              <Input value={client} onChange={(e) => setClient(e.target.value)} placeholder="예: ○○시청" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>수행연도</Label>
+              <Input value={year} onChange={(e) => setYear(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>공고일</Label>
+              <Input type="date" value={noticeDate} onChange={(e) => setNoticeDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>평가종류</Label>
+              <Select value={evaluationType} onValueChange={setEvaluationType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EVALUATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>공종 카테고리</Label>
+              <Select value={projectType} onValueChange={setProjectType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROJECT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>PDF 파일 (미리보기용)</Label>
+              <Input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
+              {pdfFile && <p className="text-xs text-muted-foreground truncate">{pdfFile.name}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>HWP 파일 (다운로드용)</Label>
+              <Input type="file" accept=".hwp,.hwpx" onChange={(e) => setHwpFile(e.target.files?.[0] ?? null)} />
+              {hwpFile && <p className="text-xs text-muted-foreground truncate">{hwpFile.name}</p>}
+            </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>취소</Button>
           <Button onClick={submit} disabled={loading}>
             {loading ? "PDF 처리 중..." : "등록"}
