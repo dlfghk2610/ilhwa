@@ -199,16 +199,10 @@ export default function Careers() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return techs;
-    return techs.filter((t) => {
-      const techFields = [t.name, t.specialty, t.company, t.position, t.notes];
-      if (techFields.filter(Boolean).some((v) => String(v).toLowerCase().includes(q))) return true;
-      const careers = careersByName[t.name] || [];
-      if (careers.some((c: any) => [c.company, c.department, c.position, c.duties].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))) return true;
-      const entries = entriesByTechId[t.id] || [];
-      if (entries.some((e: any) => [e.project_name, e.client, e.evaluation_category, e.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))) return true;
-      return false;
-    });
-  }, [techs, search, careersByName, entriesByTechId]);
+    return techs.filter((t) =>
+      [t.name, t.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [techs, search]);
 
 
   const openNewTech = () => { setEditingTech(null); setTechForm({}); setTechDialogOpen(true); };
@@ -444,6 +438,17 @@ function TechnicianDetail({
   const [activeTab, setActiveTab] = useState<"recognition" | "overlap">("recognition");
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [calcStandard, setCalcStandard] = useState<string>(tech.calc_standard || "건설기술인협회");
+  const [entrySearch, setEntrySearch] = useState("");
+
+  const filteredEntries = useMemo(() => {
+    const q = entrySearch.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e: any) =>
+      [e.project_name, e.client, e.evaluation_category, e.specialty, e.service_field, e.participation_company, e.participation_position, e.duties, e.notes]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [entries, entrySearch]);
 
   // 수기 민간 지정 (DB의 career_entries.manual_private_override에 저장 → 모든 디바이스에서 공유)
   const setPrivateOverride = async (entryId: string, value: boolean | null) => {
@@ -838,6 +843,16 @@ function TechnicianDetail({
         </div>
       </Card>
 
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="사업명·발주처·평가분야·전문분야 등 검색"
+          value={entrySearch}
+          onChange={(e) => setEntrySearch(e.target.value)}
+        />
+      </div>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "recognition" | "overlap")}>
         <TabsList>
           <TabsTrigger value="recognition">① 인정일 계산</TabsTrigger>
@@ -845,11 +860,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} setPrivateOverride={setPrivateOverride} />}
+            : <RecognitionView entries={filteredEntries} tech={tech} excludePrivate={excludePrivate} setPrivateOverride={setPrivateOverride} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <OverlapView entries={filteredEntries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
 
