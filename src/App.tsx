@@ -44,6 +44,7 @@ const App = () => (
           <Route path="/pq-educations" element={<ProtectedRoute><PqEducations /></ProtectedRoute>} />
           <Route path="/pq-calculator" element={<ProtectedRoute><PqCalculator /></ProtectedRoute>} />
           <Route path="/pq-calculator/:projectId" element={<ProtectedRoute><PqCalculator /></ProtectedRoute>} />
+          <Route path="/pq-forms" element={<ProtectedRoute><PqForms /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
