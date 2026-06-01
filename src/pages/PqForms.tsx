@@ -350,7 +350,7 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+        <div className="flex items-center px-4 py-3 border-b bg-card pr-12">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
@@ -358,7 +358,6 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
               <p className="text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluationType}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
 
         {/* Split body */}
