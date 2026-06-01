@@ -10,7 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, X, ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
+import { Search, Plus, X, ChevronLeft, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 // @ts-ignore
@@ -36,44 +40,6 @@ type PqItem = {
 const EVALUATION_TYPES = ["PQ", "SOQ", "TP", "기술제안서"];
 const PROJECT_TYPES = ["건축", "토목", "조경", "도시계획", "환경", "기타"];
 
-// ---------- Mock data ----------
-function makePlaceholderThumb(label: string, color: string) {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 297'>
-    <rect width='210' height='297' fill='white'/>
-    <rect x='0' y='0' width='210' height='40' fill='${color}'/>
-    <text x='105' y='26' font-family='sans-serif' font-size='16' fill='white' text-anchor='middle' font-weight='bold'>${label}</text>
-    <rect x='20' y='60' width='170' height='8' fill='#cbd5e1'/>
-    <rect x='20' y='78' width='140' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='96' width='160' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='120' width='170' height='60' fill='#f1f5f9'/>
-    <rect x='20' y='195' width='170' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='213' width='120' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='231' width='150' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='260' width='80' height='8' fill='#cbd5e1'/>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function buildMockItem(
-  id: string, projectName: string, client: string, noticeDate: string,
-  evaluationType: string, projectType: string, year: string, color: string,
-): PqItem {
-  const pages = 20;
-  const thumbnails = Array.from({ length: pages }, (_, i) =>
-    makePlaceholderThumb(`${projectName.slice(0, 6)} ${i + 1}p`, color),
-  );
-  return {
-    id, projectName, client, noticeDate, evaluationType, projectType, year,
-    pageCount: pages, thumbnails,
-  };
-}
-
-const MOCK: PqItem[] = [
-  buildMockItem("m1", "○○시 복합문화공간 건립 설계공모", "○○시청", "2025-03-12", "PQ", "건축", "2025", "#2563eb"),
-  buildMockItem("m2", "□□ 도시재생 기본계획 수립용역", "□□광역시", "2024-11-20", "SOQ", "도시계획", "2024", "#0d9488"),
-  buildMockItem("m3", "△△ 하천 정비 기본 및 실시설계", "△△청", "2024-08-05", "기술제안서", "토목", "2024", "#9333ea"),
-  buildMockItem("m4", "◇◇ 친환경 캠퍼스 마스터플랜", "◇◇대학교", "2023-12-01", "PQ", "조경", "2023", "#ea580c"),
-];
 
 // ---------- Helpers ----------
 async function renderPdfThumbnails(file: File): Promise<{ pageCount: number; thumbs: string[]; pdfUrl: string }> {
@@ -96,10 +62,11 @@ async function renderPdfThumbnails(file: File): Promise<{ pageCount: number; thu
 
 // ---------- Page ----------
 export default function PqForms() {
-  const [items, setItems] = useState<PqItem[]>(MOCK);
+  const [items, setItems] = useState<PqItem[]>([]);
   const [search, setSearch] = useState("");
   const [openUpload, setOpenUpload] = useState(false);
   const [activeItem, setActiveItem] = useState<PqItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -135,7 +102,11 @@ export default function PqForms() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {items.length === 0 ? (
+          <Card><CardContent className="py-16 text-center text-muted-foreground">
+            등록된 PQ가 없습니다. 우측 상단 [새 사업 PQ 등록] 버튼으로 추가하세요.
+          </CardContent></Card>
+        ) : filtered.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">검색 결과가 없습니다.</CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -143,8 +114,17 @@ export default function PqForms() {
               <Card
                 key={it.id}
                 onClick={() => setActiveItem(it)}
-                className="overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className="relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); setDeleteId(it.id); }}
+                  aria-label="삭제"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
                 <div className="aspect-[210/297] bg-muted overflow-hidden border-b">
                   <img
                     src={it.thumbnails[0]}
@@ -177,6 +157,34 @@ export default function PqForms() {
       />
 
       <ViewerDialog item={activeItem} onClose={() => setActiveItem(null)} />
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>이 PQ를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              삭제된 항목은 복구할 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setItems((arr) => {
+                  const target = arr.find((x) => x.id === deleteId);
+                  if (target?.pdfUrl) URL.revokeObjectURL(target.pdfUrl);
+                  if (target?.hwpUrl) URL.revokeObjectURL(target.hwpUrl);
+                  return arr.filter((x) => x.id !== deleteId);
+                });
+                setDeleteId(null);
+                toast.success("삭제되었습니다.");
+              }}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
@@ -342,7 +350,7 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+        <div className="flex items-center px-4 py-3 border-b bg-card pr-12">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
@@ -350,7 +358,6 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
               <p className="text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluationType}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
 
         {/* Split body */}
