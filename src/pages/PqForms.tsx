@@ -301,7 +301,7 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
       if (item.pdfUrl) {
         setRendering(true);
         try {
-          const pdf = await pdfjsLib.getDocument(item.pdfUrl).promise;
+          const pdf = await pdfjsLib.getDocument({ url: item.pdfUrl }).promise;
           const p = await pdf.getPage(page);
           const viewport = p.getViewport({ scale: 1.6 });
           const canvas = document.createElement("canvas");
