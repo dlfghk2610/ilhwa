@@ -102,7 +102,11 @@ export default function PqForms() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {items.length === 0 ? (
+          <Card><CardContent className="py-16 text-center text-muted-foreground">
+            등록된 PQ가 없습니다. 우측 상단 [새 사업 PQ 등록] 버튼으로 추가하세요.
+          </CardContent></Card>
+        ) : filtered.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">검색 결과가 없습니다.</CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -110,8 +114,17 @@ export default function PqForms() {
               <Card
                 key={it.id}
                 onClick={() => setActiveItem(it)}
-                className="overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className="relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); setDeleteId(it.id); }}
+                  aria-label="삭제"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
                 <div className="aspect-[210/297] bg-muted overflow-hidden border-b">
                   <img
                     src={it.thumbnails[0]}
@@ -144,6 +157,34 @@ export default function PqForms() {
       />
 
       <ViewerDialog item={activeItem} onClose={() => setActiveItem(null)} />
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>이 PQ를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              삭제된 항목은 복구할 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setItems((arr) => {
+                  const target = arr.find((x) => x.id === deleteId);
+                  if (target?.pdfUrl) URL.revokeObjectURL(target.pdfUrl);
+                  if (target?.hwpUrl) URL.revokeObjectURL(target.hwpUrl);
+                  return arr.filter((x) => x.id !== deleteId);
+                });
+                setDeleteId(null);
+                toast.success("삭제되었습니다.");
+              }}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
