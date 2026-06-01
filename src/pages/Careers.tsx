@@ -113,9 +113,11 @@ export default function Careers() {
   const [deleteTech, setDeleteTech] = useState<Technician | null>(null);
 
   const [techStats, setTechStats] = useState<Record<string, TechStat>>({});
+  const [entriesByTechId, setEntriesByTechId] = useState<Record<string, any[]>>({});
   const [profilesByName, setProfilesByName] = useState<Record<string, PersonalProfile>>({});
   const [careersByName, setCareersByName] = useState<Record<string, PersonalCareerRow[]>>({});
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+
 
   const loadPersonalData = async () => {
     const [{ data: pData }, { data: cData }] = await Promise.all([
