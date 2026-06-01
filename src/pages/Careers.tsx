@@ -199,16 +199,10 @@ export default function Careers() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return techs;
-    return techs.filter((t) => {
-      const techFields = [t.name, t.specialty, t.company, t.position, t.notes];
-      if (techFields.filter(Boolean).some((v) => String(v).toLowerCase().includes(q))) return true;
-      const careers = careersByName[t.name] || [];
-      if (careers.some((c: any) => [c.company, c.department, c.position, c.duties].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))) return true;
-      const entries = entriesByTechId[t.id] || [];
-      if (entries.some((e: any) => [e.project_name, e.client, e.evaluation_category, e.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))) return true;
-      return false;
-    });
-  }, [techs, search, careersByName, entriesByTechId]);
+    return techs.filter((t) =>
+      [t.name, t.specialty].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [techs, search]);
 
 
   const openNewTech = () => { setEditingTech(null); setTechForm({}); setTechDialogOpen(true); };
