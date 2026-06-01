@@ -843,6 +843,16 @@ function TechnicianDetail({
         </div>
       </Card>
 
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="사업명·발주처·평가분야·전문분야 등 검색"
+          value={entrySearch}
+          onChange={(e) => setEntrySearch(e.target.value)}
+        />
+      </div>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "recognition" | "overlap")}>
         <TabsList>
           <TabsTrigger value="recognition">① 인정일 계산</TabsTrigger>
@@ -850,11 +860,11 @@ function TechnicianDetail({
         </TabsList>
         <TabsContent value="recognition">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <RecognitionView entries={entries} tech={tech} excludePrivate={excludePrivate} setPrivateOverride={setPrivateOverride} />}
+            : <RecognitionView entries={filteredEntries} tech={tech} excludePrivate={excludePrivate} setPrivateOverride={setPrivateOverride} />}
         </TabsContent>
         <TabsContent value="overlap">
           {loading ? <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
-            : <OverlapView entries={entries} tech={tech} excludePrivate={excludePrivate} />}
+            : <OverlapView entries={filteredEntries} tech={tech} excludePrivate={excludePrivate} />}
         </TabsContent>
       </Tabs>
 
