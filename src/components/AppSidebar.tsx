@@ -19,7 +19,8 @@ const items = [
   { title: "PQ 기술자 교육현황", url: "/pq-educations", icon: GraduationCap },
   { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2 },
   { title: "PQ 개발·투자·활용실적", url: "/pq-dev-records", icon: FlaskConical },
-  
+  { title: "PQ 작성양식관리", url: "/pq-forms", icon: FolderArchive },
+
   { title: "실적 데이터베이스 관리", url: "/performance-database", icon: Database },
   { title: "타회사 실적 데이터베이스 관리", url: "/external-performance-database", icon: Building },
 ];
