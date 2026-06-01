@@ -40,44 +40,6 @@ type PqItem = {
 const EVALUATION_TYPES = ["PQ", "SOQ", "TP", "기술제안서"];
 const PROJECT_TYPES = ["건축", "토목", "조경", "도시계획", "환경", "기타"];
 
-// ---------- Mock data ----------
-function makePlaceholderThumb(label: string, color: string) {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 297'>
-    <rect width='210' height='297' fill='white'/>
-    <rect x='0' y='0' width='210' height='40' fill='${color}'/>
-    <text x='105' y='26' font-family='sans-serif' font-size='16' fill='white' text-anchor='middle' font-weight='bold'>${label}</text>
-    <rect x='20' y='60' width='170' height='8' fill='#cbd5e1'/>
-    <rect x='20' y='78' width='140' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='96' width='160' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='120' width='170' height='60' fill='#f1f5f9'/>
-    <rect x='20' y='195' width='170' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='213' width='120' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='231' width='150' height='8' fill='#e2e8f0'/>
-    <rect x='20' y='260' width='80' height='8' fill='#cbd5e1'/>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function buildMockItem(
-  id: string, projectName: string, client: string, noticeDate: string,
-  evaluationType: string, projectType: string, year: string, color: string,
-): PqItem {
-  const pages = 20;
-  const thumbnails = Array.from({ length: pages }, (_, i) =>
-    makePlaceholderThumb(`${projectName.slice(0, 6)} ${i + 1}p`, color),
-  );
-  return {
-    id, projectName, client, noticeDate, evaluationType, projectType, year,
-    pageCount: pages, thumbnails,
-  };
-}
-
-const MOCK: PqItem[] = [
-  buildMockItem("m1", "○○시 복합문화공간 건립 설계공모", "○○시청", "2025-03-12", "PQ", "건축", "2025", "#2563eb"),
-  buildMockItem("m2", "□□ 도시재생 기본계획 수립용역", "□□광역시", "2024-11-20", "SOQ", "도시계획", "2024", "#0d9488"),
-  buildMockItem("m3", "△△ 하천 정비 기본 및 실시설계", "△△청", "2024-08-05", "기술제안서", "토목", "2024", "#9333ea"),
-  buildMockItem("m4", "◇◇ 친환경 캠퍼스 마스터플랜", "◇◇대학교", "2023-12-01", "PQ", "조경", "2023", "#ea580c"),
-];
 
 // ---------- Helpers ----------
 async function renderPdfThumbnails(file: File): Promise<{ pageCount: number; thumbs: string[]; pdfUrl: string }> {
