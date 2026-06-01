@@ -112,7 +112,7 @@ export default function PqForms() {
   }, [items, search]);
 
   return (
-    <AppLayout>
+    <AppLayout title="PQ 작성양식관리">
       <div className="space-y-6 p-4 md:p-6 animate-in fade-in duration-300">
         <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
           <div>
