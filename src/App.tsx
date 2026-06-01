@@ -17,6 +17,7 @@ import ExternalPerformanceDatabase from "./pages/ExternalPerformanceDatabase.tsx
 import PqDevRecords from "./pages/PqDevRecords.tsx";
 import PqEducations from "./pages/PqEducations.tsx";
 import PqCalculator from "./pages/PqCalculator.tsx";
+import PqForms from "./pages/PqForms.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
