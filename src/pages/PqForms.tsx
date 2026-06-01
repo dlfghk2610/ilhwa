@@ -62,10 +62,11 @@ async function renderPdfThumbnails(file: File): Promise<{ pageCount: number; thu
 
 // ---------- Page ----------
 export default function PqForms() {
-  const [items, setItems] = useState<PqItem[]>(MOCK);
+  const [items, setItems] = useState<PqItem[]>([]);
   const [search, setSearch] = useState("");
   const [openUpload, setOpenUpload] = useState(false);
   const [activeItem, setActiveItem] = useState<PqItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
