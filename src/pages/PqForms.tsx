@@ -352,55 +352,29 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
 
   return (
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
+      <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
         {/* Top bar */}
-        <div className="flex items-center px-4 py-3 border-b bg-card pr-12">
+        <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 border-b bg-card pr-12 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
-              <DialogTitle className="text-base truncate">{item.projectName}</DialogTitle>
-              <p className="text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluationType}</p>
+              <DialogTitle className="text-sm sm:text-base truncate">{item.projectName}</DialogTitle>
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluationType}</p>
             </div>
           </div>
         </div>
 
-        {/* Split body */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[320px_1fr]">
-          {/* Left gallery */}
-          <ScrollArea className="border-r bg-muted/30 h-full">
-            <div className="grid grid-cols-2 gap-2 p-3">
-              {item.thumbnails.map((src, i) => {
-                const n = i + 1;
-                const active = n === page;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setPage(n)}
-                    className={`group relative rounded-md overflow-hidden border-2 bg-background transition-all ${
-                      active ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/40"
-                    }`}
-                  >
-                    <img src={src} alt={`page ${n}`} className="w-full aspect-[210/297] object-cover" />
-                    <span className={`absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded ${
-                      active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"
-                    }`}>
-                      {n}p
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-
-          {/* Right canvas */}
-          <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0">
+        {/* Split body: mobile = stacked (canvas top, strip bottom), md = sidebar + canvas */}
+        <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_1fr]">
+          {/* Right canvas (rendered first on mobile so it stays on top) */}
+          <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1 md:flex-none md:h-auto">
             <Button
               variant="secondary" size="icon"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 shadow"
+              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
               onClick={goPrev} disabled={page <= 1}
             ><ChevronLeft className="h-5 w-5" /></Button>
 
-            <div className="h-full w-full flex items-center justify-center p-4 overflow-auto">
+            <div className="h-full w-full flex items-center justify-center p-2 sm:p-4 overflow-auto">
               {largeImg ? (
                 <img
                   key={page}
@@ -409,25 +383,71 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
                   className="max-h-full max-w-full shadow-xl rounded-sm animate-in fade-in zoom-in-95 duration-200"
                 />
               ) : (
-                <div className="text-muted-foreground">{rendering ? "페이지 렌더링 중..." : "미리보기 없음"}</div>
+                <div className="text-muted-foreground text-sm">{rendering ? "페이지 렌더링 중..." : "미리보기 없음"}</div>
               )}
             </div>
 
             <Button
               variant="secondary" size="icon"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 shadow"
+              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
               onClick={goNext} disabled={page >= item.pageCount}
             ><ChevronRight className="h-5 w-5" /></Button>
 
-            <div className="absolute top-3 right-3 bg-background/80 backdrop-blur px-2.5 py-1 rounded text-xs font-medium">
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-background/80 backdrop-blur px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-xs font-medium">
               {page} / {item.pageCount}
             </div>
           </div>
+
+          {/* Page strip / gallery */}
+          <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-28 md:h-auto shrink-0 md:shrink">
+            {/* Mobile: horizontal strip */}
+            <div className="flex md:hidden gap-2 p-2">
+              {item.thumbnails.map((src, i) => {
+                const n = i + 1;
+                const active = n === page;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setPage(n)}
+                    className={`relative rounded-md overflow-hidden border-2 bg-background transition-all shrink-0 ${
+                      active ? "border-primary ring-2 ring-primary/30" : "border-transparent"
+                    }`}
+                  >
+                    <img src={src} alt={`page ${n}`} className="h-20 w-14 object-cover" />
+                    <span className={`absolute bottom-0.5 left-0.5 text-[9px] px-1 py-0.5 rounded ${
+                      active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"
+                    }`}>{n}p</span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Desktop: 2-col grid */}
+            <div className="hidden md:grid grid-cols-2 gap-2 p-3">
+              {item.thumbnails.map((src, i) => {
+                const n = i + 1;
+                const active = n === page;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setPage(n)}
+                    className={`relative rounded-md overflow-hidden border-2 bg-background transition-all ${
+                      active ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/40"
+                    }`}
+                  >
+                    <img src={src} alt={`page ${n}`} className="w-full aspect-[210/297] object-cover" />
+                    <span className={`absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded ${
+                      active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"
+                    }`}>{n}p</span>
+                  </button>
+                );
+              })}
+            </div>
+          </ScrollArea>
         </div>
 
         {/* Bottom action bar */}
-        <div className="border-t bg-card px-4 py-3 flex items-center justify-center">
-          <Button size="lg" onClick={downloadHwp} className="gap-2">
+        <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-center shrink-0">
+          <Button size="lg" onClick={downloadHwp} className="gap-2 w-full sm:w-auto">
             <Download className="h-5 w-5" />
             원본 HWP 파일 다운로드
           </Button>
