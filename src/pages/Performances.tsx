@@ -115,6 +115,11 @@ function getEffectiveParticipant(r: Row, techName: string): Participant | null {
       const found = ((phases[i].participants || []) as Participant[]).find((p) => p.name === techName);
       if (found) return found;
     }
+    // phases에 참여자 정보가 없으면 상위 participants로 폴백
+    const hasAnyPhaseParticipants = phases.some((ph: any) => Array.isArray(ph?.participants) && ph.participants.length > 0);
+    if (!hasAnyPhaseParticipants) {
+      return (r.participants || []).find((p) => p.name === techName) || null;
+    }
     return null;
   }
   return (r.participants || []).find((p) => p.name === techName) || null;
