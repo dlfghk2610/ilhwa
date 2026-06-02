@@ -538,6 +538,11 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
       // PQ유사용역(similar_services) 동기화: 자사 실적만 반영
       if (!external) {
+        const simPhases = (payload.phases || []).map((p: any) => ({
+          ...p,
+          amount: p.amount ?? p.share_amount ?? null,
+          pdf_path: p.pdf_path || p.cert_pdf_path || cert_pdf_path || null,
+        }));
         const simPayload: any = {
           project_name: payload.project_name,
           client: payload.client,
@@ -551,7 +556,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           participation_rate: payload.share_rate,
           share_amount: payload.share_amount,
           company_share_rate: payload.company_share_rate,
-          phases: payload.phases,
+          phases: simPhases,
           cert_pdf_path,
           is_private: payload.is_private,
           is_under_90days: payload.is_under_90days,
