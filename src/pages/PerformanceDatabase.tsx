@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -937,33 +937,42 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     aria-label="전체선택"
                   />
                 </TableHead>
+                <TableHead className="w-8 2xl:hidden" />
                 {external && <TableHead>타회사명</TableHead>}
                 <TableHead>사업명</TableHead>
                 <TableHead>발주처</TableHead>
-                <TableHead>계약기간</TableHead>
-                <TableHead className="text-right">계약금액</TableHead>
+                <TableHead className="hidden lg:table-cell">계약기간</TableHead>
+                <TableHead className="text-right hidden xl:table-cell">계약금액</TableHead>
                 <TableHead className="text-right">지분금액</TableHead>
-                <TableHead>평가</TableHead>
-                <TableHead>사업종류</TableHead>
-                <TableHead>참여인원</TableHead>
-                <TableHead>파일</TableHead>
+                <TableHead className="hidden xl:table-cell">평가</TableHead>
+                <TableHead className="hidden 2xl:table-cell">사업종류</TableHead>
+                <TableHead className="hidden lg:table-cell">참여인원</TableHead>
+                <TableHead className="hidden xl:table-cell">파일</TableHead>
                 <TableHead className="text-right">관리</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={external ? 12 : 11} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 13 : 12} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={external ? 12 : 11} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={external ? 13 : 12} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
               ) : filtered.map((r) => {
                 const noCompletion = !r.completion_date;
+                const isOpen = expanded.has(r.id);
+                const colSpan = external ? 13 : 12;
                 return (
-                <TableRow key={r.id}>
+                <React.Fragment key={r.id}>
+                <TableRow>
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.has(r.id)}
                       onCheckedChange={(c) => toggleRowSelection(r.id, !!c)}
                     />
+                  </TableCell>
+                  <TableCell className="2xl:hidden p-1">
+                    <Button size="icon" variant="ghost" onClick={() => toggleExpand(r.id)} title={isOpen ? "접기" : "펼치기"}>
+                      {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
                   </TableCell>
                   {external && <TableCell className="font-medium">{(r as any).external_company_name ?? "-"}</TableCell>}
                   <TableCell className="font-medium">
@@ -971,13 +980,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     {r.is_private && <Badge variant="outline" className="ml-2">민간</Badge>}
                   </TableCell>
                   <TableCell>{r.client ?? "-"}</TableCell>
-                  <TableCell className="whitespace-pre">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</TableCell>
-                  <TableCell className="text-right">{fmt(r.contract_amount)}</TableCell>
+                  <TableCell className="whitespace-pre hidden lg:table-cell">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</TableCell>
+                  <TableCell className="text-right hidden xl:table-cell">{fmt(r.contract_amount)}</TableCell>
                   <TableCell className="text-right">{fmt(r.share_amount)}</TableCell>
-                  <TableCell><div className="flex flex-wrap gap-1">{r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div></TableCell>
-                  <TableCell><div className="flex flex-wrap gap-1">{r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</div></TableCell>
-                  <TableCell>{r.participants.length}명</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden xl:table-cell"><div className="flex flex-wrap gap-1">{r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div></TableCell>
+                  <TableCell className="hidden 2xl:table-cell"><div className="flex flex-wrap gap-1">{r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</div></TableCell>
+                  <TableCell className="hidden lg:table-cell">{r.participants.length}명</TableCell>
+                  <TableCell className="hidden xl:table-cell">
                     <div className="flex gap-1">
                       {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
                       {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
@@ -989,6 +998,25 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                     <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} title="삭제"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </TableCell>
                 </TableRow>
+                {isOpen && (
+                  <TableRow className="2xl:hidden bg-muted/30 hover:bg-muted/30">
+                    <TableCell colSpan={colSpan}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm px-2 py-1">
+                        <div className="lg:hidden"><span className="text-muted-foreground mr-2">계약기간:</span><span className="whitespace-pre-line">{r.contract_periods.map((p) => `${isoToDisplay(p.start)} ~ ${isoToDisplay(p.end)}`).join("\n") || "-"}</span></div>
+                        <div className="xl:hidden"><span className="text-muted-foreground mr-2">계약금액:</span>{fmt(r.contract_amount) || "-"}</div>
+                        <div className="xl:hidden"><span className="text-muted-foreground mr-2">평가:</span><span className="inline-flex flex-wrap gap-1 align-middle">{r.evaluation_types.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</span></div>
+                        <div className="2xl:hidden"><span className="text-muted-foreground mr-2">사업종류:</span><span className="inline-flex flex-wrap gap-1 align-middle">{r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</span></div>
+                        <div className="lg:hidden"><span className="text-muted-foreground mr-2">참여인원:</span>{r.participants.length}명</div>
+                        <div className="xl:hidden flex items-center gap-2 flex-wrap"><span className="text-muted-foreground">파일:</span>
+                          {r.cert_pdf_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)}><FileText className="h-3 w-3 mr-1" />실적증명</Button>}
+                          {r.participant_file_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)}><Download className="h-3 w-3 mr-1" />참여자</Button>}
+                          {!r.cert_pdf_path && !r.participant_file_path && <span>-</span>}
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                </React.Fragment>
                 );
               })}
             </TableBody>
