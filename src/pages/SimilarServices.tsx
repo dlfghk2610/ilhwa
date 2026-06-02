@@ -380,7 +380,6 @@ export default function SimilarServices() {
 
   const filtered = rows.filter((r) => {
     if ((r as any).is_private && excludePrivate) return false;
-    if (computeUnder90(r) && !includeUnder90) return false;
     if ((r as any).is_lh_completion && !includeLh) return false;
     if ((r as any).is_progress && !includeProgress) return false;
     if ((r as any).is_dual_participation && !includeDual) return false;
@@ -452,7 +451,12 @@ export default function SimilarServices() {
         const cr = s.row;
         const inner = Array.isArray(cr.phases) ? cr.phases : [];
         if (inner.length > 0) {
-          return inner.map((ip) => ({ ...ip, label: ip.label || s.label || `${i + 1}차` }));
+          return inner.map((ip) => ({
+            ...ip,
+            label: s.label || ip.label || `${i + 1}차`,
+            amount: ip.amount ?? (ip as any).share_amount ?? cr.share_amount,
+            pdf_path: ip.pdf_path || (ip as any).cert_pdf_path || cr.cert_pdf_path,
+          }));
         }
         return [{
           label: s.label || `${i + 1}차`,
@@ -488,7 +492,8 @@ export default function SimilarServices() {
         _children: children,
       });
     });
-    out.sort((a, b) => {
+    const visible = out.filter((r) => includeUnder90 || !computeUnder90(r));
+    visible.sort((a, b) => {
       const av = a.start_date ?? "";
       const bv = b.start_date ?? "";
       if (!av && !bv) return 0;
@@ -496,8 +501,8 @@ export default function SimilarServices() {
       if (!bv) return -1;
       return av.localeCompare(bv);
     });
-    return out;
-  }, [filtered]);
+    return visible;
+  }, [filtered, includeUnder90]);
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
