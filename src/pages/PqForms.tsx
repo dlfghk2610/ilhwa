@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, X, ChevronLeft, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, Download, FileText, Trash2, Loader2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -19,64 +19,87 @@ import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 // @ts-ignore
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-type PqItem = {
+type PqRow = {
   id: string;
-  projectName: string;
+  user_id: string;
+  project_name: string;
   client: string;
-  noticeDate: string;
-  evaluationType: string;
-  projectType: string;
+  notice_date: string;
+  evaluation_type: string;
+  project_type: string;
   year: string;
-  pdfUrl?: string;          // object URL or remote
-  hwpUrl?: string;          // object URL or remote
-  hwpFileName?: string;
-  pageCount: number;
-  thumbnails: string[];     // dataURL per page (or placeholder)
+  page_count: number;
+  cover_thumb: string | null;
+  pdf_path: string | null;
+  hwp_path: string | null;
+  hwp_file_name: string | null;
 };
 
 const EVALUATION_TYPES = ["PQ", "SOQ", "TP", "기술제안서"];
 const PROJECT_TYPES = ["건축", "토목", "조경", "도시계획", "환경", "기타"];
+const BUCKET = "pq-files";
 
-
-// ---------- Helpers ----------
-async function renderPdfThumbnails(file: File): Promise<{ pageCount: number; thumbs: string[]; pdfUrl: string }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdfUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: "application/pdf" }));
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
-  const thumbs: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 0.4 });
-    const canvas = document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext("2d")!;
-    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    thumbs.push(canvas.toDataURL("image/jpeg", 0.7));
-  }
-  return { pageCount: pdf.numPages, thumbs, pdfUrl };
+async function renderCoverThumb(file: File): Promise<{ pageCount: number; cover: string }> {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 0.5 });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext("2d")!;
+  await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+  return { pageCount: pdf.numPages, cover: canvas.toDataURL("image/jpeg", 0.7) };
 }
 
-// ---------- Page ----------
 export default function PqForms() {
-  const [items, setItems] = useState<PqItem[]>([]);
+  const { user } = useAuth();
+  const [items, setItems] = useState<PqRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openUpload, setOpenUpload] = useState(false);
-  const [activeItem, setActiveItem] = useState<PqItem | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<PqRow | null>(null);
+  const [deleteRow, setDeleteRow] = useState<PqRow | null>(null);
+
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("pq_forms")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
+    else setItems((data ?? []) as PqRow[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter(
       (it) =>
-        it.projectName.toLowerCase().includes(q) ||
+        it.project_name.toLowerCase().includes(q) ||
         it.client.toLowerCase().includes(q),
     );
   }, [items, search]);
+
+  const handleDelete = async () => {
+    if (!deleteRow) return;
+    const paths = [deleteRow.pdf_path, deleteRow.hwp_path].filter(Boolean) as string[];
+    if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
+    const { error } = await supabase.from("pq_forms").delete().eq("id", deleteRow.id);
+    if (error) { toast.error(error.message); return; }
+    setItems((arr) => arr.filter((x) => x.id !== deleteRow.id));
+    setDeleteRow(null);
+    toast.success("삭제되었습니다.");
+  };
 
   return (
     <AppLayout title="PQ 작성양식관리">
@@ -96,13 +119,17 @@ export default function PqForms() {
                 className="pl-9"
               />
             </div>
-            <Button onClick={() => setOpenUpload(true)}>
+            <Button onClick={() => setOpenUpload(true)} disabled={!user}>
               <Plus className="h-4 w-4" /> 새 사업 PQ 등록
             </Button>
           </div>
         </div>
 
-        {items.length === 0 ? (
+        {loading ? (
+          <Card><CardContent className="py-16 text-center text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> 불러오는 중...
+          </CardContent></Card>
+        ) : items.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">
             등록된 PQ가 없습니다. 우측 상단 [새 사업 PQ 등록] 버튼으로 추가하세요.
           </CardContent></Card>
@@ -120,28 +147,34 @@ export default function PqForms() {
                   variant="destructive"
                   size="icon"
                   className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); setDeleteId(it.id); }}
+                  onClick={(e) => { e.stopPropagation(); setDeleteRow(it); }}
                   aria-label="삭제"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
                 <div className="aspect-[210/297] bg-muted overflow-hidden border-b">
-                  <img
-                    src={it.thumbnails[0]}
-                    alt={it.projectName}
-                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  />
+                  {it.cover_thumb ? (
+                    <img
+                      src={it.cover_thumb}
+                      alt={it.project_name}
+                      className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <FileText className="h-10 w-10" />
+                    </div>
+                  )}
                 </div>
                 <CardContent className="p-3 space-y-2">
-                  <h3 className="font-semibold line-clamp-2 leading-tight">{it.projectName}</h3>
+                  <h3 className="font-semibold line-clamp-2 leading-tight">{it.project_name}</h3>
                   <div className="text-xs text-muted-foreground space-y-0.5">
                     <div>발주처: {it.client}</div>
-                    <div>공고일: {it.noticeDate}</div>
+                    <div>공고일: {it.notice_date}</div>
                   </div>
                   <div className="flex flex-wrap gap-1 pt-1">
-                    <Badge variant="secondary">{it.evaluationType}</Badge>
-                    <Badge variant="outline">{it.projectType}</Badge>
-                    <Badge variant="outline">{it.pageCount}p</Badge>
+                    <Badge variant="secondary">{it.evaluation_type}</Badge>
+                    <Badge variant="outline">{it.project_type}</Badge>
+                    <Badge variant="outline">{it.page_count}p</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -153,35 +186,21 @@ export default function PqForms() {
       <UploadDialog
         open={openUpload}
         onOpenChange={setOpenUpload}
-        onCreate={(it) => setItems((arr) => [it, ...arr])}
+        userId={user?.id}
+        onCreated={(row) => setItems((arr) => [row, ...arr])}
       />
 
       <ViewerDialog item={activeItem} onClose={() => setActiveItem(null)} />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+      <AlertDialog open={!!deleteRow} onOpenChange={(v) => !v && setDeleteRow(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>이 PQ를 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              삭제된 항목은 복구할 수 없습니다.
-            </AlertDialogDescription>
+            <AlertDialogDescription>삭제된 항목은 복구할 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setItems((arr) => {
-                  const target = arr.find((x) => x.id === deleteId);
-                  if (target?.pdfUrl) URL.revokeObjectURL(target.pdfUrl);
-                  if (target?.hwpUrl) URL.revokeObjectURL(target.hwpUrl);
-                  return arr.filter((x) => x.id !== deleteId);
-                });
-                setDeleteId(null);
-                toast.success("삭제되었습니다.");
-              }}
-            >
-              삭제
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>삭제</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -189,10 +208,9 @@ export default function PqForms() {
   );
 }
 
-// ---------- Upload Dialog ----------
 function UploadDialog({
-  open, onOpenChange, onCreate,
-}: { open: boolean; onOpenChange: (v: boolean) => void; onCreate: (it: PqItem) => void }) {
+  open, onOpenChange, userId, onCreated,
+}: { open: boolean; onOpenChange: (v: boolean) => void; userId?: string; onCreated: (row: PqRow) => void }) {
   const [projectName, setProjectName] = useState("");
   const [client, setClient] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -203,29 +221,47 @@ function UploadDialog({
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const reset = () => {
-    setProjectName(""); setClient(""); setPdfFile(null); setHwpFile(null);
-  };
+  const reset = () => { setProjectName(""); setClient(""); setPdfFile(null); setHwpFile(null); };
 
   const submit = async () => {
+    if (!userId) return toast.error("로그인이 필요합니다.");
     if (!projectName.trim() || !client.trim()) return toast.error("사업명과 발주처를 입력하세요.");
     if (!pdfFile || !hwpFile) return toast.error("PDF와 HWP 파일을 모두 첨부하세요.");
     setLoading(true);
     try {
-      const { pageCount, thumbs, pdfUrl } = await renderPdfThumbnails(pdfFile);
-      const hwpUrl = URL.createObjectURL(hwpFile);
-      const item: PqItem = {
-        id: `u-${Date.now()}`,
-        projectName, client, noticeDate, evaluationType, projectType, year,
-        pdfUrl, hwpUrl, hwpFileName: hwpFile.name,
-        pageCount, thumbnails: thumbs,
-      };
-      onCreate(item);
+      const { pageCount, cover } = await renderCoverThumb(pdfFile);
+      const stamp = Date.now();
+      const safe = (s: string) => s.replace(/[^\w.\-]+/g, "_");
+      const pdfPath = `${userId}/${stamp}-${safe(pdfFile.name)}`;
+      const hwpPath = `${userId}/${stamp}-${safe(hwpFile.name)}`;
+
+      const up1 = await supabase.storage.from(BUCKET).upload(pdfPath, pdfFile, { contentType: "application/pdf" });
+      if (up1.error) throw up1.error;
+      const up2 = await supabase.storage.from(BUCKET).upload(hwpPath, hwpFile);
+      if (up2.error) { await supabase.storage.from(BUCKET).remove([pdfPath]); throw up2.error; }
+
+      const { data, error } = await supabase.from("pq_forms").insert({
+        user_id: userId,
+        project_name: projectName,
+        client,
+        notice_date: noticeDate,
+        evaluation_type: evaluationType,
+        project_type: projectType,
+        year,
+        page_count: pageCount,
+        cover_thumb: cover,
+        pdf_path: pdfPath,
+        hwp_path: hwpPath,
+        hwp_file_name: hwpFile.name,
+      }).select("*").single();
+      if (error) { await supabase.storage.from(BUCKET).remove([pdfPath, hwpPath]); throw error; }
+
+      onCreated(data as PqRow);
       toast.success("PQ가 등록되었습니다.");
       reset();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(`PDF 처리 실패: ${e?.message ?? e}`);
+      toast.error(`등록 실패: ${e?.message ?? e}`);
     } finally {
       setLoading(false);
     }
@@ -288,7 +324,7 @@ function UploadDialog({
         <DialogFooter className="px-6 py-4 border-t shrink-0 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>취소</Button>
           <Button onClick={submit} disabled={loading}>
-            {loading ? "PDF 처리 중..." : "등록"}
+            {loading ? "업로드 중..." : "등록"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -296,77 +332,94 @@ function UploadDialog({
   );
 }
 
-// ---------- Viewer Dialog ----------
-function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => void }) {
+function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => void }) {
   const [page, setPage] = useState(1);
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [largeImg, setLargeImg] = useState<string | null>(null);
+  const [thumbs, setThumbs] = useState<string[]>([]);
   const [rendering, setRendering] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const itemIdRef = useRef<string | null>(null);
 
-  useEffect(() => { setPage(1); setLargeImg(null); }, [item?.id]);
-
-  // Render high-res page if real PDF, else use thumbnail
   useEffect(() => {
+    setPage(1); setLargeImg(null); setThumbs([]); setPdfDoc(null);
+    if (!item || !item.pdf_path) return;
+    itemIdRef.current = item.id;
     let cancelled = false;
-    if (!item) return;
     (async () => {
-      if (item.pdfUrl) {
-        setRendering(true);
-        try {
-          const pdf = await pdfjsLib.getDocument({ url: item.pdfUrl }).promise;
-          const p = await pdf.getPage(page);
-          const viewport = p.getViewport({ scale: 1.6 });
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext("2d")!;
-          await p.render({ canvasContext: ctx, viewport, canvas }).promise;
-          if (!cancelled) setLargeImg(canvas.toDataURL("image/jpeg", 0.85));
-        } catch {
-          if (!cancelled) setLargeImg(item.thumbnails[page - 1] ?? null);
-        } finally {
-          if (!cancelled) setRendering(false);
-        }
-      } else {
-        setLargeImg(item.thumbnails[page - 1] ?? null);
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(item.pdf_path!, 3600);
+      if (error || !data?.signedUrl || cancelled) return;
+      const pdf = await pdfjsLib.getDocument({ url: data.signedUrl }).promise;
+      if (cancelled || itemIdRef.current !== item.id) return;
+      setPdfDoc(pdf);
+      // Render thumbnails progressively
+      const list: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        if (cancelled || itemIdRef.current !== item.id) return;
+        const p = await pdf.getPage(i);
+        const vp = p.getViewport({ scale: 0.25 });
+        const c = document.createElement("canvas");
+        c.width = vp.width; c.height = vp.height;
+        await p.render({ canvasContext: c.getContext("2d")!, viewport: vp, canvas: c }).promise;
+        list.push(c.toDataURL("image/jpeg", 0.6));
+        if (!cancelled && itemIdRef.current === item.id) setThumbs([...list]);
       }
     })();
     return () => { cancelled = true; };
-  }, [item, page]);
+  }, [item?.id]);
+
+  useEffect(() => {
+    if (!pdfDoc || !item) return;
+    let cancelled = false;
+    (async () => {
+      setRendering(true);
+      try {
+        const p = await pdfDoc.getPage(page);
+        const vp = p.getViewport({ scale: 1.6 });
+        const c = document.createElement("canvas");
+        c.width = vp.width; c.height = vp.height;
+        await p.render({ canvasContext: c.getContext("2d")!, viewport: vp, canvas: c }).promise;
+        if (!cancelled) setLargeImg(c.toDataURL("image/jpeg", 0.85));
+      } finally {
+        if (!cancelled) setRendering(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pdfDoc, page, item]);
 
   if (!item) return null;
 
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
-  const goNext = () => setPage((p) => Math.min(item.pageCount, p + 1));
+  const goNext = () => setPage((p) => Math.min(item.page_count, p + 1));
 
-  const downloadHwp = () => {
-    if (item.hwpUrl) {
-      const a = document.createElement("a");
-      a.href = item.hwpUrl;
-      a.download = item.hwpFileName ?? `${item.projectName}.hwp`;
-      document.body.appendChild(a); a.click(); a.remove();
-    } else {
-      toast.info("샘플 데이터에는 첨부된 HWP 파일이 없습니다. 새 사업을 등록해 보세요.");
-    }
+  const downloadHwp = async () => {
+    if (!item.hwp_path) return toast.info("HWP 파일이 없습니다.");
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(item.hwp_path, 60, {
+      download: item.hwp_file_name ?? `${item.project_name}.hwp`,
+    });
+    if (error || !data?.signedUrl) return toast.error("다운로드 링크 생성 실패");
+    const a = document.createElement("a");
+    a.href = data.signedUrl;
+    a.download = item.hwp_file_name ?? `${item.project_name}.hwp`;
+    document.body.appendChild(a); a.click(); a.remove();
   };
+
+  // fallback first-page cover if thumbs not yet loaded
+  const stripSrcs = thumbs.length ? thumbs : (item.cover_thumb ? [item.cover_thumb] : []);
 
   return (
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
-        {/* Top bar */}
         <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 border-b bg-card pr-12 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
-              <DialogTitle className="text-sm sm:text-base truncate">{item.projectName}</DialogTitle>
-              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluationType}</p>
+              <DialogTitle className="text-sm sm:text-base truncate">{item.project_name}</DialogTitle>
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{item.client} · {item.year} · {item.evaluation_type}</p>
             </div>
           </div>
         </div>
 
-        {/* Split body: mobile = stacked (canvas top, strip bottom), md = sidebar + canvas */}
         <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_1fr]">
-          {/* Right canvas (rendered first on mobile so it stays on top) */}
           <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1 md:flex-none md:h-auto">
             <Button
               variant="secondary" size="icon"
@@ -383,26 +436,26 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
                   className="max-h-full max-w-full shadow-xl rounded-sm animate-in fade-in zoom-in-95 duration-200"
                 />
               ) : (
-                <div className="text-muted-foreground text-sm">{rendering ? "페이지 렌더링 중..." : "미리보기 없음"}</div>
+                <div className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {rendering ? "페이지 렌더링 중..." : "PDF 로딩 중..."}
+                </div>
               )}
             </div>
 
             <Button
               variant="secondary" size="icon"
               className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
-              onClick={goNext} disabled={page >= item.pageCount}
+              onClick={goNext} disabled={page >= item.page_count}
             ><ChevronRight className="h-5 w-5" /></Button>
 
             <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-background/80 backdrop-blur px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-xs font-medium">
-              {page} / {item.pageCount}
+              {page} / {item.page_count}
             </div>
           </div>
 
-          {/* Page strip / gallery */}
           <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-28 md:h-auto shrink-0 md:shrink">
-            {/* Mobile: horizontal strip */}
             <div className="flex md:hidden gap-2 p-2">
-              {item.thumbnails.map((src, i) => {
+              {stripSrcs.map((src, i) => {
                 const n = i + 1;
                 const active = n === page;
                 return (
@@ -421,9 +474,8 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
                 );
               })}
             </div>
-            {/* Desktop: 2-col grid */}
             <div className="hidden md:grid grid-cols-2 gap-2 p-3">
-              {item.thumbnails.map((src, i) => {
+              {stripSrcs.map((src, i) => {
                 const n = i + 1;
                 const active = n === page;
                 return (
@@ -445,7 +497,6 @@ function ViewerDialog({ item, onClose }: { item: PqItem | null; onClose: () => v
           </ScrollArea>
         </div>
 
-        {/* Bottom action bar */}
         <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-center shrink-0">
           <Button size="lg" onClick={downloadHwp} className="gap-2 w-full sm:w-auto">
             <Download className="h-5 w-5" />

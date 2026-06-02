@@ -577,6 +577,60 @@ export type Database = {
         }
         Relationships: []
       }
+      pq_forms: {
+        Row: {
+          client: string
+          cover_thumb: string | null
+          created_at: string
+          evaluation_type: string
+          hwp_file_name: string | null
+          hwp_path: string | null
+          id: string
+          notice_date: string
+          page_count: number
+          pdf_path: string | null
+          project_name: string
+          project_type: string
+          updated_at: string
+          user_id: string
+          year: string
+        }
+        Insert: {
+          client: string
+          cover_thumb?: string | null
+          created_at?: string
+          evaluation_type: string
+          hwp_file_name?: string | null
+          hwp_path?: string | null
+          id?: string
+          notice_date: string
+          page_count?: number
+          pdf_path?: string | null
+          project_name: string
+          project_type: string
+          updated_at?: string
+          user_id: string
+          year: string
+        }
+        Update: {
+          client?: string
+          cover_thumb?: string | null
+          created_at?: string
+          evaluation_type?: string
+          hwp_file_name?: string | null
+          hwp_path?: string | null
+          id?: string
+          notice_date?: string
+          page_count?: number
+          pdf_path?: string | null
+          project_name?: string
+          project_type?: string
+          updated_at?: string
+          user_id?: string
+          year?: string
+        }
+        Relationships: []
+      }
       pq_score_criteria: {
         Row: {
           created_at: string
