@@ -396,22 +396,37 @@ export default function SimilarServices() {
     return av.localeCompare(bv);
   });
 
-  // 사업명에서 "N차" 접미사 분리 (예: "사업명 1차", "사업명(2차)", "사업명-3차", "사업명 2-1차")
+  // 사업명에서 차수 표기를 추출/제거.
+  // 인식 형태: "1차", "2차", "1-2차", "1~2차", "(1차)", "(1차~2차)",
+  //            "1차년도", "1차분", "1차년차", "1차년도 1차분" 등.
+  // 위치: 문자열 어디든(끝/중간) 매칭하여 base에서 모두 제거하고 첫 라벨을 대표 라벨로 사용.
   const parsePhase = (name: string): { base: string; label: string | null } => {
-    const s = (name || "").trim();
-    const m = s.match(/^(.*?)[\s\-_,·]*[(\[]?\s*(\d+(?:[-~]\d+)?\s*차)\s*[)\]]?\s*$/);
-    if (m && m[1].trim()) return { base: m[1].trim(), label: m[2].replace(/\s+/g, "") };
-    return { base: s, label: null };
+    let s = (name || "").trim();
+    const labels: string[] = [];
+    // 숫자(범위 가능) + 차 + (년도|년차|분)? — 앞뒤 괄호/공백/구분자 허용, 단어 경계 보장
+    const re = /[\s\-_,·]*[(\[]?\s*(\d+(?:\s*[-~]\s*\d+)?)\s*차(?:년도|년차|분)?\s*[)\]]?(?=$|[\s\-_,·(\[\])])/g;
+    s = s.replace(re, (_m, num: string) => {
+      labels.push(`${num.replace(/\s+/g, "")}차`);
+      return " ";
+    });
+    // 정리: 남은 빈 괄호/연속 공백/꼬리 구분자 제거
+    s = s
+      .replace(/[(\[]\s*[)\]]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^[\s\-_,·)\]]+|[\s\-_,·(\[]+$/g, "")
+      .trim();
+    return { base: s || (name || "").trim(), label: labels[0] ?? null };
   };
 
-  // 같은 base 사업명 + 발주처로 차수 묶기
+  // 같은 base 사업명으로 차수 묶기 (발주처가 달라져도 합산)
   type GroupedRow = Row & { _childIds: string[]; _children: Row[] };
   const groupedFiltered = useMemo<GroupedRow[]>(() => {
     const groups = new Map<string, { base: string; client: string; items: { row: Row; label: string | null }[] }>();
     for (const r of filtered) {
       const { base, label } = parsePhase(r.project_name);
-      const key = `${base}__${r.client ?? ""}`;
+      const key = base;
       const g = groups.get(key) ?? { base, client: r.client ?? "", items: [] };
+      if (!g.client && r.client) g.client = r.client;
       g.items.push({ row: r, label });
       groups.set(key, g);
     }
