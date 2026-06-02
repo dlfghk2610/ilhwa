@@ -605,9 +605,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   async function handleCopy(r: Row) {
     if (!user) return;
     const { id, ...rest } = r as any;
+    // 차수 자동 증가: 1차, (2차), 1차년도, 1차분, 1~2차, 1-2차 등 모두 인식해서 마지막 숫자+1로 변경
+    function bumpPhase(name: string): string {
+      const phaseRegex = /(\d+)(\s*[-~]\s*(\d+))?\s*(차년도|차년차|차분|차|단계)/g;
+      let lastMatch: { idx: number; len: number; num: number; suffix: string } | null = null;
+      let m: RegExpExecArray | null;
+      while ((m = phaseRegex.exec(name)) !== null) {
+        const num = parseInt(m[3] || m[1], 10);
+        lastMatch = { idx: m.index, len: m[0].length, num, suffix: m[4] };
+      }
+      if (lastMatch) {
+        const next = lastMatch.num + 1;
+        const replacement = `${next}${lastMatch.suffix}`;
+        return name.slice(0, lastMatch.idx) + replacement + name.slice(lastMatch.idx + lastMatch.len);
+      }
+      return `${name} (복사)`;
+    }
+    const newName = bumpPhase(r.project_name);
     const payload = {
       ...rest,
-      project_name: `${r.project_name} (복사)`,
+      project_name: newName,
       created_by: user.id,
     };
     delete (payload as any).created_at;
