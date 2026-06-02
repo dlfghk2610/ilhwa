@@ -591,8 +591,11 @@ export type Database = {
           pdf_path: string | null
           project_name: string
           project_type: string
+          tags: string[]
           updated_at: string
           user_id: string
+          xlsx_file_name: string | null
+          xlsx_path: string | null
           year: string
         }
         Insert: {
@@ -608,8 +611,11 @@ export type Database = {
           pdf_path?: string | null
           project_name: string
           project_type: string
+          tags?: string[]
           updated_at?: string
           user_id: string
+          xlsx_file_name?: string | null
+          xlsx_path?: string | null
           year: string
         }
         Update: {
@@ -625,8 +631,11 @@ export type Database = {
           pdf_path?: string | null
           project_name?: string
           project_type?: string
+          tags?: string[]
           updated_at?: string
           user_id?: string
+          xlsx_file_name?: string | null
+          xlsx_path?: string | null
           year?: string
         }
         Relationships: []

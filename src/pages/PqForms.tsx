@@ -10,7 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, ChevronLeft, ChevronRight, Download, FileText, Trash2, Loader2 } from "lucide-react";
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
+import { Search, Plus, ChevronLeft, ChevronRight, Download, FileText, Trash2, Loader2, Pencil, X, FileSpreadsheet } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -19,6 +22,7 @@ import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 // @ts-ignore
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -38,6 +42,9 @@ type PqRow = {
   pdf_path: string | null;
   hwp_path: string | null;
   hwp_file_name: string | null;
+  xlsx_path: string | null;
+  xlsx_file_name: string | null;
+  tags: string[];
 };
 
 const EVALUATION_TYPES = ["PQ", "SOQ", "TP", "기술제안서"];
@@ -62,7 +69,8 @@ export default function PqForms() {
   const [items, setItems] = useState<PqRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [openUpload, setOpenUpload] = useState(false);
+  const [openForm, setOpenForm] = useState(false);
+  const [editRow, setEditRow] = useState<PqRow | null>(null);
   const [activeItem, setActiveItem] = useState<PqRow | null>(null);
   const [deleteRow, setDeleteRow] = useState<PqRow | null>(null);
 
@@ -80,19 +88,26 @@ export default function PqForms() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
 
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((i) => i.tags?.forEach((t) => s.add(t)));
+    return Array.from(s).sort();
+  }, [items]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter(
       (it) =>
         it.project_name.toLowerCase().includes(q) ||
-        it.client.toLowerCase().includes(q),
+        it.client.toLowerCase().includes(q) ||
+        (it.tags ?? []).some((t) => t.toLowerCase().includes(q)),
     );
   }, [items, search]);
 
   const handleDelete = async () => {
     if (!deleteRow) return;
-    const paths = [deleteRow.pdf_path, deleteRow.hwp_path].filter(Boolean) as string[];
+    const paths = [deleteRow.pdf_path, deleteRow.hwp_path, deleteRow.xlsx_path].filter(Boolean) as string[];
     if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
     const { error } = await supabase.from("pq_forms").delete().eq("id", deleteRow.id);
     if (error) { toast.error(error.message); return; }
@@ -101,29 +116,47 @@ export default function PqForms() {
     toast.success("삭제되었습니다.");
   };
 
+  const openNew = () => { setEditRow(null); setOpenForm(true); };
+  const openEdit = (row: PqRow) => { setEditRow(row); setOpenForm(true); };
+
   return (
     <AppLayout title="PQ 작성양식관리">
       <div className="space-y-6 p-4 md:p-6 animate-in fade-in duration-300">
         <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
           <div>
             <h1 className="text-2xl font-bold">PQ 작성양식관리</h1>
-            <p className="text-sm text-muted-foreground">완료된 PQ 작성본을 갤러리에서 미리보고 원본 HWP 파일을 다운로드합니다.</p>
+            <p className="text-sm text-muted-foreground">완료된 PQ 작성본을 갤러리에서 미리보고 원본 파일을 다운로드합니다.</p>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="사업명 또는 발주처 검색"
+                placeholder="사업명 / 발주처 / 태그 검색"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <Button onClick={() => setOpenUpload(true)} disabled={!user}>
+            <Button onClick={openNew} disabled={!user}>
               <Plus className="h-4 w-4" /> 새 사업 PQ 등록
             </Button>
           </div>
         </div>
+
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {allTags.map((t) => (
+              <Badge
+                key={t}
+                variant={search.trim().toLowerCase() === t.toLowerCase() ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSearch(search.trim().toLowerCase() === t.toLowerCase() ? "" : t)}
+              >
+                #{t}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground flex items-center justify-center gap-2">
@@ -143,15 +176,26 @@ export default function PqForms() {
                 onClick={() => setActiveItem(it)}
                 className="relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); setDeleteRow(it); }}
-                  aria-label="삭제"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => { e.stopPropagation(); openEdit(it); }}
+                    aria-label="수정"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => { e.stopPropagation(); setDeleteRow(it); }}
+                    aria-label="삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="aspect-[210/297] bg-muted overflow-hidden border-b">
                   {it.cover_thumb ? (
                     <img
@@ -174,8 +218,16 @@ export default function PqForms() {
                   <div className="flex flex-wrap gap-1 pt-1">
                     <Badge variant="secondary">{it.evaluation_type}</Badge>
                     <Badge variant="outline">{it.project_type}</Badge>
-                    <Badge variant="outline">{it.page_count}p</Badge>
+                    {it.page_count > 0 && <Badge variant="outline">{it.page_count}p</Badge>}
+                    {it.xlsx_path && <Badge variant="outline" className="gap-1"><FileSpreadsheet className="h-3 w-3" />XLSX</Badge>}
                   </div>
+                  {it.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {it.tags.map((t) => (
+                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">#{t}</span>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -183,11 +235,13 @@ export default function PqForms() {
         )}
       </div>
 
-      <UploadDialog
-        open={openUpload}
-        onOpenChange={setOpenUpload}
+      <FormDialog
+        open={openForm}
+        onOpenChange={setOpenForm}
         userId={user?.id}
+        editRow={editRow}
         onCreated={(row) => setItems((arr) => [row, ...arr])}
+        onUpdated={(row) => setItems((arr) => arr.map((x) => x.id === row.id ? row : x))}
       />
 
       <ViewerDialog item={activeItem} onClose={() => setActiveItem(null)} />
@@ -208,40 +262,128 @@ export default function PqForms() {
   );
 }
 
-function UploadDialog({
-  open, onOpenChange, userId, onCreated,
-}: { open: boolean; onOpenChange: (v: boolean) => void; userId?: string; onCreated: (row: PqRow) => void }) {
+function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
+  const [input, setInput] = useState("");
+  const add = (raw: string) => {
+    const v = raw.trim().replace(/^#+/, "");
+    if (!v) return;
+    if (tags.includes(v)) { setInput(""); return; }
+    onChange([...tags, v]);
+    setInput("");
+  };
+  const remove = (t: string) => onChange(tags.filter((x) => x !== t));
+  return (
+    <div className="border rounded-md px-2 py-1.5 flex flex-wrap gap-1 items-center min-h-10">
+      {tags.map((t) => (
+        <span key={t} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded">
+          #{t}
+          <button type="button" onClick={() => remove(t)} className="hover:opacity-70"><X className="h-3 w-3" /></button>
+        </span>
+      ))}
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(input); }
+          else if (e.key === "Backspace" && !input && tags.length) { remove(tags[tags.length - 1]); }
+        }}
+        onBlur={() => input && add(input)}
+        placeholder={tags.length ? "" : "태그 입력 후 Enter (예: 도서관, 신축)"}
+        className="flex-1 min-w-[120px] bg-transparent text-sm outline-none px-1"
+      />
+    </div>
+  );
+}
+
+function FormDialog({
+  open, onOpenChange, userId, editRow, onCreated, onUpdated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  userId?: string;
+  editRow: PqRow | null;
+  onCreated: (row: PqRow) => void;
+  onUpdated: (row: PqRow) => void;
+}) {
+  const isEdit = !!editRow;
   const [projectName, setProjectName] = useState("");
   const [client, setClient] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [projectType, setProjectType] = useState("건축");
   const [evaluationType, setEvaluationType] = useState("PQ");
   const [noticeDate, setNoticeDate] = useState(new Date().toISOString().slice(0, 10));
+  const [tags, setTags] = useState<string[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
+  const [xlsxFile, setXlsxFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const reset = () => { setProjectName(""); setClient(""); setPdfFile(null); setHwpFile(null); };
+  useEffect(() => {
+    if (!open) return;
+    if (editRow) {
+      setProjectName(editRow.project_name);
+      setClient(editRow.client);
+      setYear(editRow.year);
+      setProjectType(editRow.project_type);
+      setEvaluationType(editRow.evaluation_type);
+      setNoticeDate(editRow.notice_date);
+      setTags(editRow.tags ?? []);
+    } else {
+      setProjectName(""); setClient(""); setYear(new Date().getFullYear().toString());
+      setProjectType("건축"); setEvaluationType("PQ");
+      setNoticeDate(new Date().toISOString().slice(0, 10));
+      setTags([]);
+    }
+    setPdfFile(null); setHwpFile(null); setXlsxFile(null);
+  }, [open, editRow]);
 
   const submit = async () => {
     if (!userId) return toast.error("로그인이 필요합니다.");
     if (!projectName.trim() || !client.trim()) return toast.error("사업명과 발주처를 입력하세요.");
-    if (!pdfFile || !hwpFile) return toast.error("PDF와 HWP 파일을 모두 첨부하세요.");
+    if (!isEdit && (!pdfFile || !hwpFile)) return toast.error("PDF와 HWP 파일을 모두 첨부하세요.");
     setLoading(true);
+    const uploadedPaths: string[] = [];
     try {
-      const { pageCount, cover } = await renderCoverThumb(pdfFile);
       const stamp = Date.now();
       const safe = (s: string) => s.replace(/[^\w.\-]+/g, "_");
-      const pdfPath = `${userId}/${stamp}-${safe(pdfFile.name)}`;
-      const hwpPath = `${userId}/${stamp}-${safe(hwpFile.name)}`;
 
-      const up1 = await supabase.storage.from(BUCKET).upload(pdfPath, pdfFile, { contentType: "application/pdf" });
-      if (up1.error) throw up1.error;
-      const up2 = await supabase.storage.from(BUCKET).upload(hwpPath, hwpFile);
-      if (up2.error) { await supabase.storage.from(BUCKET).remove([pdfPath]); throw up2.error; }
+      let pdfPath = editRow?.pdf_path ?? null;
+      let hwpPath = editRow?.hwp_path ?? null;
+      let hwpName = editRow?.hwp_file_name ?? null;
+      let xlsxPath = editRow?.xlsx_path ?? null;
+      let xlsxName = editRow?.xlsx_file_name ?? null;
+      let cover = editRow?.cover_thumb ?? null;
+      let pageCount = editRow?.page_count ?? 0;
+      const toRemove: string[] = [];
 
-      const { data, error } = await supabase.from("pq_forms").insert({
-        user_id: userId,
+      if (pdfFile) {
+        const r = await renderCoverThumb(pdfFile);
+        cover = r.cover; pageCount = r.pageCount;
+        const p = `${userId}/${stamp}-${safe(pdfFile.name)}`;
+        const up = await supabase.storage.from(BUCKET).upload(p, pdfFile, { contentType: "application/pdf" });
+        if (up.error) throw up.error;
+        uploadedPaths.push(p);
+        if (editRow?.pdf_path) toRemove.push(editRow.pdf_path);
+        pdfPath = p;
+      }
+      if (hwpFile) {
+        const p = `${userId}/${stamp}-${safe(hwpFile.name)}`;
+        const up = await supabase.storage.from(BUCKET).upload(p, hwpFile);
+        if (up.error) throw up.error;
+        uploadedPaths.push(p);
+        if (editRow?.hwp_path) toRemove.push(editRow.hwp_path);
+        hwpPath = p; hwpName = hwpFile.name;
+      }
+      if (xlsxFile) {
+        const p = `${userId}/${stamp}-${safe(xlsxFile.name)}`;
+        const up = await supabase.storage.from(BUCKET).upload(p, xlsxFile);
+        if (up.error) throw up.error;
+        uploadedPaths.push(p);
+        if (editRow?.xlsx_path) toRemove.push(editRow.xlsx_path);
+        xlsxPath = p; xlsxName = xlsxFile.name;
+      }
+
+      const payload = {
         project_name: projectName,
         client,
         notice_date: noticeDate,
@@ -252,16 +394,28 @@ function UploadDialog({
         cover_thumb: cover,
         pdf_path: pdfPath,
         hwp_path: hwpPath,
-        hwp_file_name: hwpFile.name,
-      }).select("*").single();
-      if (error) { await supabase.storage.from(BUCKET).remove([pdfPath, hwpPath]); throw error; }
+        hwp_file_name: hwpName,
+        xlsx_path: xlsxPath,
+        xlsx_file_name: xlsxName,
+        tags,
+      };
 
-      onCreated(data as PqRow);
-      toast.success("PQ가 등록되었습니다.");
-      reset();
+      if (isEdit && editRow) {
+        const { data, error } = await supabase.from("pq_forms").update(payload).eq("id", editRow.id).select("*").single();
+        if (error) throw error;
+        if (toRemove.length) await supabase.storage.from(BUCKET).remove(toRemove);
+        onUpdated(data as PqRow);
+        toast.success("수정되었습니다.");
+      } else {
+        const { data, error } = await supabase.from("pq_forms").insert({ user_id: userId, ...payload }).select("*").single();
+        if (error) throw error;
+        onCreated(data as PqRow);
+        toast.success("PQ가 등록되었습니다.");
+      }
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(`등록 실패: ${e?.message ?? e}`);
+      if (uploadedPaths.length) await supabase.storage.from(BUCKET).remove(uploadedPaths);
+      toast.error(`${isEdit ? "수정" : "등록"} 실패: ${e?.message ?? e}`);
     } finally {
       setLoading(false);
     }
@@ -271,7 +425,7 @@ function UploadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>새 사업 PQ 등록</DialogTitle>
+          <DialogTitle>{isEdit ? "PQ 수정" : "새 사업 PQ 등록"}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6 py-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
@@ -309,22 +463,34 @@ function UploadDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>PDF 파일 (미리보기용)</Label>
-              <Input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
-              {pdfFile && <p className="text-xs text-muted-foreground truncate">{pdfFile.name}</p>}
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>태그 (검색용)</Label>
+              <TagInput tags={tags} onChange={setTags} />
             </div>
             <div className="space-y-1.5">
-              <Label>HWP 파일 (다운로드용)</Label>
+              <Label>PDF 파일 (미리보기용) {isEdit && <span className="text-xs text-muted-foreground">교체 시에만 선택</span>}</Label>
+              <Input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
+              {pdfFile ? <p className="text-xs text-muted-foreground truncate">{pdfFile.name}</p>
+                : isEdit && editRow?.pdf_path && <p className="text-xs text-muted-foreground truncate">기존: {editRow.pdf_path.split("/").pop()}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>HWP 파일 {isEdit && <span className="text-xs text-muted-foreground">교체 시에만 선택</span>}</Label>
               <Input type="file" accept=".hwp,.hwpx" onChange={(e) => setHwpFile(e.target.files?.[0] ?? null)} />
-              {hwpFile && <p className="text-xs text-muted-foreground truncate">{hwpFile.name}</p>}
+              {hwpFile ? <p className="text-xs text-muted-foreground truncate">{hwpFile.name}</p>
+                : isEdit && editRow?.hwp_file_name && <p className="text-xs text-muted-foreground truncate">기존: {editRow.hwp_file_name}</p>}
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Excel 파일 (선택, 미리보기 + 다운로드)</Label>
+              <Input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setXlsxFile(e.target.files?.[0] ?? null)} />
+              {xlsxFile ? <p className="text-xs text-muted-foreground truncate">{xlsxFile.name}</p>
+                : isEdit && editRow?.xlsx_file_name && <p className="text-xs text-muted-foreground truncate">기존: {editRow.xlsx_file_name}</p>}
             </div>
           </div>
         </div>
         <DialogFooter className="px-6 py-4 border-t shrink-0 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>취소</Button>
           <Button onClick={submit} disabled={loading}>
-            {loading ? "업로드 중..." : "등록"}
+            {loading ? (isEdit ? "수정 중..." : "업로드 중...") : (isEdit ? "수정 저장" : "등록")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -333,6 +499,7 @@ function UploadDialog({
 }
 
 function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => void }) {
+  const [tab, setTab] = useState<"pdf" | "xlsx">("pdf");
   const [page, setPage] = useState(1);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [largeImg, setLargeImg] = useState<string | null>(null);
@@ -340,8 +507,15 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
   const [rendering, setRendering] = useState(false);
   const itemIdRef = useRef<string | null>(null);
 
+  // xlsx preview
+  const [xlsxSheets, setXlsxSheets] = useState<{ name: string; html: string }[]>([]);
+  const [xlsxSheetIdx, setXlsxSheetIdx] = useState(0);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
+
   useEffect(() => {
     setPage(1); setLargeImg(null); setThumbs([]); setPdfDoc(null);
+    setXlsxSheets([]); setXlsxSheetIdx(0);
+    setTab(item?.pdf_path ? "pdf" : (item?.xlsx_path ? "xlsx" : "pdf"));
     if (!item || !item.pdf_path) return;
     itemIdRef.current = item.id;
     let cancelled = false;
@@ -351,7 +525,6 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
       const pdf = await pdfjsLib.getDocument({ url: data.signedUrl }).promise;
       if (cancelled || itemIdRef.current !== item.id) return;
       setPdfDoc(pdf);
-      // Render thumbnails progressively
       const list: string[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         if (cancelled || itemIdRef.current !== item.id) return;
@@ -386,31 +559,54 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
     return () => { cancelled = true; };
   }, [pdfDoc, page, item]);
 
+  // Load xlsx preview when switching to xlsx tab
+  useEffect(() => {
+    if (!item?.xlsx_path || tab !== "xlsx" || xlsxSheets.length) return;
+    let cancelled = false;
+    (async () => {
+      setXlsxLoading(true);
+      try {
+        const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(item.xlsx_path!, 3600);
+        if (error || !data?.signedUrl) throw error ?? new Error("링크 생성 실패");
+        const res = await fetch(data.signedUrl);
+        const buf = await res.arrayBuffer();
+        const wb = XLSX.read(buf);
+        const sheets = wb.SheetNames.map((name) => ({
+          name,
+          html: XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false }),
+        }));
+        if (!cancelled) setXlsxSheets(sheets);
+      } catch (e: any) {
+        if (!cancelled) toast.error(`엑셀 미리보기 실패: ${e?.message ?? e}`);
+      } finally {
+        if (!cancelled) setXlsxLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [item?.id, tab, xlsxSheets.length]);
+
   if (!item) return null;
 
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
   const goNext = () => setPage((p) => Math.min(item.page_count, p + 1));
 
-  const downloadHwp = async () => {
-    if (!item.hwp_path) return toast.info("HWP 파일이 없습니다.");
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(item.hwp_path, 60, {
-      download: item.hwp_file_name ?? `${item.project_name}.hwp`,
-    });
+  const downloadStored = async (path: string | null, fallbackName: string) => {
+    if (!path) return toast.info("파일이 없습니다.");
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60, { download: fallbackName });
     if (error || !data?.signedUrl) return toast.error("다운로드 링크 생성 실패");
     const a = document.createElement("a");
     a.href = data.signedUrl;
-    a.download = item.hwp_file_name ?? `${item.project_name}.hwp`;
+    a.download = fallbackName;
     document.body.appendChild(a); a.click(); a.remove();
   };
 
-  // fallback first-page cover if thumbs not yet loaded
   const stripSrcs = thumbs.length ? thumbs : (item.cover_thumb ? [item.cover_thumb] : []);
 
   return (
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
         <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 border-b bg-card pr-12 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <FileText className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0">
               <DialogTitle className="text-sm sm:text-base truncate">{item.project_name}</DialogTitle>
@@ -419,89 +615,111 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_1fr]">
-          <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1 md:flex-none md:h-auto">
-            <Button
-              variant="secondary" size="icon"
-              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
-              onClick={goPrev} disabled={page <= 1}
-            ><ChevronLeft className="h-5 w-5" /></Button>
-
-            <div className="h-full w-full flex items-center justify-center p-2 sm:p-4 overflow-auto">
-              {largeImg ? (
-                <img
-                  key={page}
-                  src={largeImg}
-                  alt={`page ${page}`}
-                  className="max-h-full max-w-full shadow-xl rounded-sm animate-in fade-in zoom-in-95 duration-200"
-                />
-              ) : (
-                <div className="text-muted-foreground text-sm flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> {rendering ? "페이지 렌더링 중..." : "PDF 로딩 중..."}
-                </div>
-              )}
-            </div>
-
-            <Button
-              variant="secondary" size="icon"
-              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
-              onClick={goNext} disabled={page >= item.page_count}
-            ><ChevronRight className="h-5 w-5" /></Button>
-
-            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-background/80 backdrop-blur px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-xs font-medium">
-              {page} / {item.page_count}
-            </div>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 min-h-0 flex flex-col">
+          <div className="px-3 sm:px-4 pt-2 border-b shrink-0">
+            <TabsList>
+              <TabsTrigger value="pdf" disabled={!item.pdf_path}>PDF 미리보기</TabsTrigger>
+              <TabsTrigger value="xlsx" disabled={!item.xlsx_path}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel 미리보기
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-28 md:h-auto shrink-0 md:shrink">
-            <div className="flex md:hidden gap-2 p-2">
-              {stripSrcs.map((src, i) => {
-                const n = i + 1;
-                const active = n === page;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setPage(n)}
-                    className={`relative rounded-md overflow-hidden border-2 bg-background transition-all shrink-0 ${
-                      active ? "border-primary ring-2 ring-primary/30" : "border-transparent"
-                    }`}
-                  >
-                    <img src={src} alt={`page ${n}`} className="h-20 w-14 object-cover" />
-                    <span className={`absolute bottom-0.5 left-0.5 text-[9px] px-1 py-0.5 rounded ${
-                      active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"
-                    }`}>{n}p</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="hidden md:grid grid-cols-2 gap-2 p-3">
-              {stripSrcs.map((src, i) => {
-                const n = i + 1;
-                const active = n === page;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setPage(n)}
-                    className={`relative rounded-md overflow-hidden border-2 bg-background transition-all ${
-                      active ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/40"
-                    }`}
-                  >
-                    <img src={src} alt={`page ${n}`} className="w-full aspect-[210/297] object-cover" />
-                    <span className={`absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded ${
-                      active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"
-                    }`}>{n}p</span>
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </div>
+          <TabsContent value="pdf" className="flex-1 min-h-0 m-0">
+            <div className="h-full flex flex-col md:grid md:grid-cols-[320px_1fr]">
+              <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1 md:flex-none md:h-auto">
+                <Button variant="secondary" size="icon"
+                  className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
+                  onClick={goPrev} disabled={page <= 1}
+                ><ChevronLeft className="h-5 w-5" /></Button>
 
-        <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-center shrink-0">
-          <Button size="lg" onClick={downloadHwp} className="gap-2 w-full sm:w-auto">
-            <Download className="h-5 w-5" />
-            원본 HWP 파일 다운로드
-          </Button>
+                <div className="h-full w-full flex items-center justify-center p-2 sm:p-4 overflow-auto">
+                  {largeImg ? (
+                    <img key={page} src={largeImg} alt={`page ${page}`}
+                      className="max-h-full max-w-full shadow-xl rounded-sm animate-in fade-in zoom-in-95 duration-200" />
+                  ) : (
+                    <div className="text-muted-foreground text-sm flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> {rendering ? "페이지 렌더링 중..." : "PDF 로딩 중..."}
+                    </div>
+                  )}
+                </div>
+
+                <Button variant="secondary" size="icon"
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
+                  onClick={goNext} disabled={page >= item.page_count}
+                ><ChevronRight className="h-5 w-5" /></Button>
+
+                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-background/80 backdrop-blur px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-xs font-medium">
+                  {page} / {item.page_count}
+                </div>
+              </div>
+
+              <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-28 md:h-auto shrink-0 md:shrink">
+                <div className="flex md:hidden gap-2 p-2">
+                  {stripSrcs.map((src, i) => {
+                    const n = i + 1; const active = n === page;
+                    return (
+                      <button key={i} onClick={() => setPage(n)}
+                        className={`relative rounded-md overflow-hidden border-2 bg-background transition-all shrink-0 ${active ? "border-primary ring-2 ring-primary/30" : "border-transparent"}`}>
+                        <img src={src} alt={`page ${n}`} className="h-20 w-14 object-cover" />
+                        <span className={`absolute bottom-0.5 left-0.5 text-[9px] px-1 py-0.5 rounded ${active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"}`}>{n}p</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="hidden md:grid grid-cols-2 gap-2 p-3">
+                  {stripSrcs.map((src, i) => {
+                    const n = i + 1; const active = n === page;
+                    return (
+                      <button key={i} onClick={() => setPage(n)}
+                        className={`relative rounded-md overflow-hidden border-2 bg-background transition-all ${active ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/40"}`}>
+                        <img src={src} alt={`page ${n}`} className="w-full aspect-[210/297] object-cover" />
+                        <span className={`absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded ${active ? "bg-primary text-primary-foreground" : "bg-background/80 text-foreground"}`}>{n}p</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="xlsx" className="flex-1 min-h-0 m-0 flex flex-col">
+            {xlsxSheets.length > 1 && (
+              <div className="flex gap-1 px-3 py-2 border-b overflow-x-auto shrink-0">
+                {xlsxSheets.map((s, i) => (
+                  <Button key={s.name} size="sm" variant={i === xlsxSheetIdx ? "default" : "outline"}
+                    onClick={() => setXlsxSheetIdx(i)}>{s.name}</Button>
+                ))}
+              </div>
+            )}
+            <div className="flex-1 min-h-0 overflow-auto p-3 bg-muted/10">
+              {xlsxLoading ? (
+                <div className="h-full flex items-center justify-center text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> 엑셀 불러오는 중...
+                </div>
+              ) : xlsxSheets[xlsxSheetIdx] ? (
+                <div
+                  className="excel-preview bg-background rounded shadow-sm p-2"
+                  dangerouslySetInnerHTML={{ __html: xlsxSheets[xlsxSheetIdx].html }}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">엑셀 파일이 없습니다.</div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center justify-center gap-2 shrink-0">
+          {item.hwp_path && (
+            <Button size="lg" onClick={() => downloadStored(item.hwp_path, item.hwp_file_name ?? `${item.project_name}.hwp`)} className="gap-2">
+              <Download className="h-5 w-5" /> HWP 다운로드
+            </Button>
+          )}
+          {item.xlsx_path && (
+            <Button size="lg" variant="secondary" onClick={() => downloadStored(item.xlsx_path, item.xlsx_file_name ?? `${item.project_name}.xlsx`)} className="gap-2">
+              <FileSpreadsheet className="h-5 w-5" /> Excel 다운로드
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
