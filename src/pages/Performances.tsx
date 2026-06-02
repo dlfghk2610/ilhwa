@@ -110,19 +110,16 @@ type Row = {
 function getEffectiveParticipant(r: Row, techName: string): Participant | null {
   const isPost = (r.evaluation_types || []).includes("사후");
   const phases = Array.isArray(r.phases) ? r.phases : [];
+  const topLevelParticipant = (r.participants || []).find((p) => p.name === techName) || null;
   if (isPost && phases.length > 0) {
     for (let i = phases.length - 1; i >= 0; i--) {
       const found = ((phases[i].participants || []) as Participant[]).find((p) => p.name === techName);
       if (found) return found;
     }
-    // phases에 참여자 정보가 없으면 상위 participants로 폴백
-    const hasAnyPhaseParticipants = phases.some((ph: any) => Array.isArray(ph?.participants) && ph.participants.length > 0);
-    if (!hasAnyPhaseParticipants) {
-      return (r.participants || []).find((p) => p.name === techName) || null;
-    }
-    return null;
+    // 차수 참여자 정보가 비어 있거나 누락된 경우 상위 참여자 입력값으로 폴백
+    return topLevelParticipant;
   }
-  return (r.participants || []).find((p) => p.name === techName) || null;
+  return topLevelParticipant;
 }
 
 function getEffectiveParticipants(r: Row): Participant[] {
@@ -523,7 +520,9 @@ export default function Performances() {
             contract_start_date: ph.start_date || null,
             contract_end_date: ph.end_date || null,
             completion_date: ph.end_date || (r as any).completion_date,
-            participants: (ph.participants || []) as Participant[],
+            participants: Array.isArray(ph.participants) && ph.participants.length > 0 ? (ph.participants as Participant[]) : (r.participants || []),
+            cert_pdf_path: ph.cert_pdf_path || r.cert_pdf_path,
+            participant_file_path: ph.participant_file_path || r.participant_file_path,
             phases: [],
           } as Row));
         }
