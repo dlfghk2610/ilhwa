@@ -859,6 +859,12 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       if (error) throw error;
       if (!external) {
         const simRecords = records.map((p) => ({
+          const simPhases = (p.phases || []).map((ph: any) => ({
+            ...ph,
+            amount: ph.amount ?? ph.share_amount ?? null,
+            pdf_path: ph.pdf_path || ph.cert_pdf_path || p.cert_pdf_path || null,
+          }));
+          return ({
           created_by: user.id,
           project_name: p.project_name,
           client: p.client,
@@ -872,7 +878,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           participation_rate: p.share_rate,
           share_amount: p.share_amount,
           company_share_rate: p.company_share_rate,
-          phases: p.phases || [],
+          phases: simPhases,
           cert_pdf_path: null,
           is_private: p.is_private,
           is_under_90days: p.is_under_90days,
@@ -880,7 +886,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           is_progress: p.is_progress,
           is_dual_participation: p.is_dual_participation,
           notes: p.notes,
-        }));
+          });
+        });
         const names = Array.from(new Set(simRecords.map((s) => s.project_name)));
         const { data: existing } = await supabase.from("similar_services").select("id,project_name").eq("created_by", user.id).in("project_name", names);
         const existingByName = new Map<string, string>();
