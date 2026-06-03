@@ -254,9 +254,14 @@ export default function Performances() {
 
   // 재직/퇴사/PQ 상태는 실적관리 페이지 자체에서만 로컬 저장 (경력관리와 분리)
   const STATUS_LS_KEY = "perf_emp_status.v2";
+  const STATUS_LS_KEY_OLD = "perf_emp_status";
   const loadLocalStatus = (): Record<string, "active" | "retired" | "pq"> => {
-    try { return JSON.parse(localStorage.getItem(STATUS_LS_KEY) || "{}"); }
-    catch { return {}; }
+    try {
+      const cur = JSON.parse(localStorage.getItem(STATUS_LS_KEY) || "{}");
+      const old = JSON.parse(localStorage.getItem(STATUS_LS_KEY_OLD) || "{}");
+      // 옛 키에 있던 값도 보존 (현재 키 우선)
+      return { ...old, ...cur };
+    } catch { return {}; }
   };
   const saveLocalStatus = (m: Record<string, "active" | "retired" | "pq">) => {
     try { localStorage.setItem(STATUS_LS_KEY, JSON.stringify(m)); } catch {}
