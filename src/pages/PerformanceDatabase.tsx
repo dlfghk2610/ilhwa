@@ -476,7 +476,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         return { ...rest, cert_pdf_path: phCert, participant_file_path: phPart };
       }));
 
-      let cleanedPeriods = form.contract_periods.filter((p) => p.start || p.end);
+      let cleanedPeriods = form.contract_periods
+        .filter((p) => p.start || p.end)
+        .sort((a, b) => (a.start || a.end || "").localeCompare(b.start || b.end || "") || (a.end || "").localeCompare(b.end || ""));
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
       // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일/금액 합산을 대표값으로
