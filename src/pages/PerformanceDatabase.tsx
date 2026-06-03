@@ -186,6 +186,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [missingPdfOnly, setMissingPdfOnly] = useState(false);
   const toggleExpand = (id: string) => setExpanded((prev) => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
@@ -645,12 +646,24 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
-        .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
-    );
-  }, [rows, search]);
+    let base = rows;
+    if (q) {
+      base = base.filter((r) =>
+        [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
+          .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
+      );
+    }
+    if (missingPdfOnly) {
+      base = base.filter((r) => {
+        const phases: any[] = Array.isArray((r as any).phases) ? (r as any).phases : [];
+        const hasCert = !!r.cert_pdf_path || phases.some((p) => p?.cert_pdf_path);
+        const hasPart = !!r.participant_file_path || phases.some((p) => p?.participant_file_path);
+        return !hasCert || !hasPart;
+      });
+    }
+    return base;
+  }, [rows, search, missingPdfOnly]);
+
 
   const bulkDeletableIds = useMemo(
     () => filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id),
@@ -934,6 +947,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+          <Button
+            variant={missingPdfOnly ? "default" : "outline"}
+            onClick={() => setMissingPdfOnly((v) => !v)}
+            title="실적증명서/참여자명단 PDF가 없는 실적만 보기"
+          >
+            <FileText className="h-4 w-4 mr-1" />PDF 미첨부만 {missingPdfOnly ? "해제" : "보기"}
+          </Button>
           <Button
             variant="destructive"
             disabled={bulkDeletableIds.length === 0}
