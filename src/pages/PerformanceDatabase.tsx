@@ -186,6 +186,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [missingPdfOnly, setMissingPdfOnly] = useState(false);
   const toggleExpand = (id: string) => setExpanded((prev) => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
