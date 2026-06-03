@@ -646,12 +646,24 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
-        .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
-    );
-  }, [rows, search]);
+    let base = rows;
+    if (q) {
+      base = base.filter((r) =>
+        [r.project_name, r.client, (r as any).external_company_name, ...(r.participants?.map((p) => p.name) ?? []), ...r.service_types, ...r.evaluation_types]
+          .filter(Boolean).some((s) => String(s).toLowerCase().includes(q))
+      );
+    }
+    if (missingPdfOnly) {
+      base = base.filter((r) => {
+        const phases: any[] = Array.isArray((r as any).phases) ? (r as any).phases : [];
+        const hasCert = !!r.cert_pdf_path || phases.some((p) => p?.cert_pdf_path);
+        const hasPart = !!r.participant_file_path || phases.some((p) => p?.participant_file_path);
+        return !hasCert || !hasPart;
+      });
+    }
+    return base;
+  }, [rows, search, missingPdfOnly]);
+
 
   const bulkDeletableIds = useMemo(
     () => filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id),
