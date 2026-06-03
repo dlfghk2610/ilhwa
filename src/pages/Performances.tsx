@@ -1067,10 +1067,10 @@ export default function Performances() {
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
               <Tabs value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)} className="w-full">
                 <TabsList className="grid w-full max-w-md grid-cols-4">
-                  <TabsTrigger value="all">전체</TabsTrigger>
                   <TabsTrigger value="pq">PQ</TabsTrigger>
                   <TabsTrigger value="active">재직중</TabsTrigger>
                   <TabsTrigger value="retired">퇴사자</TabsTrigger>
+                  <TabsTrigger value="all">전체</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
