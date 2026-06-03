@@ -222,7 +222,7 @@ export default function Performances() {
 
   // 전체보기 탭 상태
   const [tab, setTab] = useState<string>("single");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired" | "pq">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "retired" | "pq">("pq");
   const [techCompanyMap, setTechCompanyMap] = useState<Map<string, { id?: string; company: string; status: "active" | "retired" | "pq" }>>(new Map());
   const [expandedAllRows, setExpandedAllRows] = useState<Set<string>>(new Set());
   const toggleAllRow = (name: string) => setExpandedAllRows((prev) => {
