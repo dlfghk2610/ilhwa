@@ -948,6 +948,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
           <Button
+            variant={missingPdfOnly ? "default" : "outline"}
+            onClick={() => setMissingPdfOnly((v) => !v)}
+            title="실적증명서/참여자명단 PDF가 없는 실적만 보기"
+          >
+            <FileText className="h-4 w-4 mr-1" />PDF 미첨부만 {missingPdfOnly ? "해제" : "보기"}
+          </Button>
+          <Button
             variant="destructive"
             disabled={bulkDeletableIds.length === 0}
             onClick={() => setBulkDeleteOpen(true)}
