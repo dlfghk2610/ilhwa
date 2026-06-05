@@ -481,23 +481,26 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         .sort((a, b) => (a.start || a.end || "").localeCompare(b.start || b.end || "") || (a.end || "").localeCompare(b.end || ""));
       let earliestStart = cleanedPeriods.map((p) => p.start).filter(Boolean).sort()[0] || null;
       let latestEnd = cleanedPeriods.map((p) => p.end).filter(Boolean).sort().slice(-1)[0] || null;
-      // 차수가 입력된 경우 첫 차수의 착수일/마지막 차수의 준공일/금액 합산을 대표값으로
+      // 차수가 입력된 경우, 상단(폼)의 계약기간/금액이 비어있을 때만 차수 데이터로 폴백.
+      // (사용자가 상단에 직접 입력한 값은 항상 우선)
       let phaseContractTotal: number | null = null;
       let phaseShareTotal: number | null = null;
       if (form.phases.length > 0) {
         const phasePeriods = form.phases
           .filter((p) => p.start_date || p.end_date)
           .map((p) => ({ start: p.start_date || "", end: p.end_date || "" }));
-        if (phasePeriods.length > 0) cleanedPeriods = phasePeriods;
+        const topHasPeriods = cleanedPeriods.length > 0;
+        if (!topHasPeriods && phasePeriods.length > 0) cleanedPeriods = phasePeriods;
         const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
         const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
-        if (firstPhaseStart) earliestStart = firstPhaseStart;
-        if (lastPhaseEnd) latestEnd = lastPhaseEnd;
+        if (!earliestStart && firstPhaseStart) earliestStart = firstPhaseStart;
+        if (!latestEnd && lastPhaseEnd) latestEnd = lastPhaseEnd;
         const cSum = form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
         const sSum = form.phases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
-        if (cSum > 0) phaseContractTotal = cSum;
-        if (sSum > 0) phaseShareTotal = sSum;
+        if (cSum > 0 && !form.contract_amount) phaseContractTotal = cSum;
+        if (sSum > 0 && !form.share_amount) phaseShareTotal = sSum;
       }
+
 
       const payload: any = {
         project_name: form.project_name.trim(),
