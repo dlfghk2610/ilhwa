@@ -391,7 +391,7 @@ export default function SimilarServices() {
     };
     const phases = Array.isArray(r.phases) ? r.phases : [];
     let total = 0;
-    if (phases.length > 0) {
+    if (shouldUseRowPhases(r)) {
       total = phases.reduce((s, p) => s + dayDiff(p.start_date, p.end_date), 0);
     }
     if (total === 0) total = dayDiff(r.start_date, r.completion_date);
@@ -470,7 +470,7 @@ export default function SimilarServices() {
       const phases: Phase[] = sorted.flatMap((s, i) => {
         const cr = s.row;
         const inner = Array.isArray(cr.phases) ? cr.phases : [];
-        if (inner.length > 0) {
+        if (shouldUseRowPhases(cr)) {
           return inner.map((ip) => ({
             ...ip,
             label: s.label || ip.label || `${i + 1}차`,
