@@ -72,6 +72,21 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
+const getPhaseKey = (value?: string | null) => {
+  const matches = Array.from(String(value ?? "").matchAll(/(\d+)(?:\s*[-~]\s*(\d+))?\s*(?:차년도|차년차|차분|차|단계)/g));
+  const m = matches[matches.length - 1];
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
+};
+
+const shouldUseRowPhases = (r: Row) => {
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (phases.length === 0) return false;
+  const projectKey = getPhaseKey(r.project_name);
+  if (!projectKey) return true;
+  return phases.some((p) => getPhaseKey(p.label) === projectKey);
+};
+
 export default function SimilarServices() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
@@ -167,6 +182,9 @@ export default function SimilarServices() {
   // 사후(차수) 입력 시 계약금액 = 차수 계약금액 합계 (수기 수정 가능, 차수 변경 시 재반영)
   useEffect(() => {
     if (form.phases.length === 0) return;
+    const projectPhaseKey = getPhaseKey(form.project_name);
+    const phaseKeys = form.phases.map((p) => getPhaseKey(p.label)).filter(Boolean);
+    if (projectPhaseKey && !phaseKeys.includes(projectPhaseKey)) return;
     if (phasesContractTotal === 0) return;
     setForm((prev) => {
       const next = String(Math.round(phasesContractTotal));
@@ -179,6 +197,9 @@ export default function SimilarServices() {
   // 자동 계산: 차수 입력 시엔 차수 합계로 / 아니면 계약금액 × 참여지분율
   useEffect(() => {
     if (form.phases.length > 0) {
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = form.phases.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      if (projectPhaseKey && !phaseKeys.includes(projectPhaseKey)) return;
       setForm((prev) => ({ ...prev, share_amount: String(Math.round(phasesTotal)) }));
       return;
     }
@@ -304,12 +325,17 @@ export default function SimilarServices() {
           end_date: p.end_date || null,
           pdf_path,
         }));
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = phasesPayload.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      const effectivePhases = projectPhaseKey && phasesPayload.length > 0 && !phaseKeys.includes(projectPhaseKey)
+        ? []
+        : phasesPayload;
 
       let derivedStart = txt(form.start_date);
       let derivedCompletion = txt(form.completion_date);
-      if (phasesPayload.length > 0) {
-        const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
-        const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+      if (effectivePhases.length > 0) {
+        const firstStart = effectivePhases.find((p) => p.start_date)?.start_date ?? null;
+        const lastEnd = [...effectivePhases].reverse().find((p) => p.end_date)?.end_date ?? null;
         if (firstStart) derivedStart = firstStart;
         if (lastEnd) derivedCompletion = lastEnd;
       }
@@ -334,7 +360,7 @@ export default function SimilarServices() {
         is_lh_completion: form.is_lh_completion,
         is_progress: form.is_progress,
         notes: txt(form.notes),
-        phases: phasesPayload,
+        phases: effectivePhases,
         cert_pdf_path: certPath,
       };
 
@@ -371,7 +397,7 @@ export default function SimilarServices() {
     };
     const phases = Array.isArray(r.phases) ? r.phases : [];
     let total = 0;
-    if (phases.length > 0) {
+    if (shouldUseRowPhases(r)) {
       total = phases.reduce((s, p) => s + dayDiff(p.start_date, p.end_date), 0);
     }
     if (total === 0) total = dayDiff(r.start_date, r.completion_date);
@@ -450,7 +476,7 @@ export default function SimilarServices() {
       const phases: Phase[] = sorted.flatMap((s, i) => {
         const cr = s.row;
         const inner = Array.isArray(cr.phases) ? cr.phases : [];
-        if (inner.length > 0) {
+        if (shouldUseRowPhases(cr)) {
           return inner.map((ip) => ({
             ...ip,
             label: s.label || ip.label || `${i + 1}차`,

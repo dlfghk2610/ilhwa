@@ -121,6 +121,18 @@ const formatPeriodDisplay = (start?: string, end?: string) => {
   return s || e || "";
 };
 
+const getPhaseKey = (value?: string | null) => {
+  const matches = Array.from(String(value ?? "").matchAll(/(\d+)(?:\s*[-~]\s*(\d+))?\s*(?:차년도|차년차|차분|차|단계)/g));
+  const m = matches[matches.length - 1];
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
+};
+
+const getPhaseLabelFromName = (name: string) => {
+  const key = getPhaseKey(name);
+  return key ? `${key}차` : null;
+};
+
 // 참여기간 단일 텍스트 입력 (자유 형식 → ISO 자동 반영)
 function PeriodTextInput({ start, end, onChange, className }: { start?: string; end?: string; onChange: (start: string, end: string) => void; className?: string }) {
   const [text, setText] = useState<string>(formatPeriodDisplay(start, end));
@@ -476,6 +488,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         return { ...rest, cert_pdf_path: phCert, participant_file_path: phPart };
       }));
 
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = phasesUploaded.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      // 기존에 복제되며 원본 차수 JSON이 따라온 데이터는 현재 사업명 차수와 다르면 독립 단일차수로 저장
+      const effectivePhases = projectPhaseKey && phasesUploaded.length > 0 && !phaseKeys.includes(projectPhaseKey)
+        ? []
+        : phasesUploaded;
+
       let cleanedPeriods = form.contract_periods
         .filter((p) => p.start || p.end)
         .sort((a, b) => (a.start || a.end || "").localeCompare(b.start || b.end || "") || (a.end || "").localeCompare(b.end || ""));
@@ -485,18 +504,18 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       // (사용자가 상단에 직접 입력한 값은 항상 우선)
       let phaseContractTotal: number | null = null;
       let phaseShareTotal: number | null = null;
-      if (form.phases.length > 0) {
-        const phasePeriods = form.phases
+      if (effectivePhases.length > 0) {
+        const phasePeriods = effectivePhases
           .filter((p) => p.start_date || p.end_date)
           .map((p) => ({ start: p.start_date || "", end: p.end_date || "" }));
         const topHasPeriods = cleanedPeriods.length > 0;
         if (!topHasPeriods && phasePeriods.length > 0) cleanedPeriods = phasePeriods;
-        const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
-        const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
+        const firstPhaseStart = effectivePhases.find((p) => p.start_date)?.start_date || null;
+        const lastPhaseEnd = [...effectivePhases].reverse().find((p) => p.end_date)?.end_date || null;
         if (!earliestStart && firstPhaseStart) earliestStart = firstPhaseStart;
         if (!latestEnd && lastPhaseEnd) latestEnd = lastPhaseEnd;
-        const cSum = form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
-        const sSum = form.phases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
+        const cSum = effectivePhases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
+        const sSum = effectivePhases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
         if (cSum > 0 && !form.contract_amount) phaseContractTotal = cSum;
         if (sSum > 0 && !form.share_amount) phaseShareTotal = sSum;
       }
@@ -521,7 +540,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         participants: form.participants,
         participant_file_path,
         cert_pdf_path,
-        phases: phasesUploaded,
+        phases: effectivePhases,
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
         is_lh_completion: form.is_lh_completion,
@@ -544,17 +563,35 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
       // PQ유사용역(similar_services) 동기화: 자사 실적만 반영
       if (!external) {
-        const simPhases = (payload.phases || []).map((p: any) => ({
-          ...p,
-          amount: p.amount ?? p.share_amount ?? null,
-          pdf_path: p.pdf_path || p.cert_pdf_path || cert_pdf_path || null,
-        }));
+        const ownPhaseLabel = getPhaseLabelFromName(payload.project_name);
+        const simPhases = payload.phases.length > 0
+          ? payload.phases.map((p: any) => ({
+              ...p,
+              amount: p.amount ?? p.share_amount ?? null,
+              pdf_path: p.pdf_path || p.cert_pdf_path || cert_pdf_path || null,
+            }))
+          : ownPhaseLabel
+            ? [{
+                label: ownPhaseLabel,
+                amount: payload.share_amount ?? null,
+                contract_amount: payload.contract_amount ?? null,
+                share_rate: payload.share_rate ?? null,
+                share_amount: payload.share_amount ?? null,
+                contract_date: payload.contract_date ?? null,
+                start_date: earliestStart,
+                end_date: latestEnd,
+                pdf_path: cert_pdf_path || null,
+                cert_pdf_path: cert_pdf_path || null,
+                participant_file_path: participant_file_path || null,
+                participants: payload.participants || [],
+              }]
+            : [];
         const simPayload: any = {
           project_name: payload.project_name,
           client: payload.client,
           contract_amount: payload.contract_amount,
           contract_date: payload.contract_date,
-          completion_date: payload.completion_date,
+          completion_date: latestEnd,
           start_date: earliestStart,
           service_overview: payload.service_overview,
           service_type: (form.service_types || []).join(", ") || null,

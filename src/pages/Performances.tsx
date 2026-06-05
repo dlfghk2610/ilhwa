@@ -103,7 +103,22 @@ type Row = {
   participant_file_path: string | null;
   cert_pdf_path: string | null;
   is_private: boolean;
-  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null; cert_pdf_path?: string | null; participant_file_path?: string | null }>;
+  phases?: Array<{ label?: string; participants?: Participant[]; start_date?: string | null; end_date?: string | null; cert_pdf_path?: string | null; participant_file_path?: string | null; contract_amount?: number | null; share_amount?: number | null }>;
+};
+
+const getPhaseKey = (value?: string | null) => {
+  const matches = Array.from(String(value ?? "").matchAll(/(\d+)(?:\s*[-~]\s*(\d+))?\s*(?:차년도|차년차|차분|차|단계)/g));
+  const m = matches[matches.length - 1];
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
+};
+
+const shouldUseRowPhases = (r: Row) => {
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (phases.length === 0) return false;
+  const projectKey = getPhaseKey(r.project_name);
+  if (!projectKey) return true;
+  return phases.some((p) => getPhaseKey(p.label) === projectKey);
 };
 
 // 사후 + phases 입력시: 마지막 차수의 참여자 정보만 사용 (제일 마지막 차수만 건수 집계)
@@ -111,7 +126,7 @@ function getEffectiveParticipant(r: Row, techName: string): Participant | null {
   const isPost = (r.evaluation_types || []).includes("사후");
   const phases = Array.isArray(r.phases) ? r.phases : [];
   const topLevelParticipant = (r.participants || []).find((p) => p.name === techName) || null;
-  if (isPost && phases.length > 0) {
+  if (isPost && shouldUseRowPhases(r)) {
     for (let i = phases.length - 1; i >= 0; i--) {
       const found = ((phases[i].participants || []) as Participant[]).find((p) => p.name === techName);
       if (found) return found;
@@ -125,7 +140,7 @@ function getEffectiveParticipant(r: Row, techName: string): Participant | null {
 function getEffectiveParticipants(r: Row): Participant[] {
   const isPost = (r.evaluation_types || []).includes("사후");
   const phases = Array.isArray(r.phases) ? r.phases : [];
-  if (isPost && phases.length > 0) {
+  if (isPost && shouldUseRowPhases(r)) {
     const seen = new Set<string>();
     const all: Participant[] = [];
     for (const ph of phases) {
@@ -516,7 +531,7 @@ export default function Performances() {
       const expanded: Row[] = rows.flatMap((r) => {
         const isPost = (r.evaluation_types || []).includes("사후");
         const phases = Array.isArray(r.phases) ? r.phases : [];
-        if (isPost && phases.length > 0) {
+        if (isPost && shouldUseRowPhases(r)) {
           return phases.map((ph, idx) => {
             const labelMatch = String((ph as any)?.label || "").match(/(\d+(?:-\d+)?)/);
             const phaseNo = labelMatch ? labelMatch[1] : String(idx + 1);
@@ -528,6 +543,8 @@ export default function Performances() {
             contract_start_date: ph.start_date || null,
             contract_end_date: ph.end_date || null,
             completion_date: ph.end_date || (r as any).completion_date,
+            contract_amount: (ph as any).contract_amount ?? r.contract_amount,
+            share_amount: (ph as any).share_amount ?? r.share_amount,
             participants: Array.isArray(ph.participants) && ph.participants.length > 0 ? (ph.participants as Participant[]) : (r.participants || []),
             cert_pdf_path: ph.cert_pdf_path || r.cert_pdf_path,
             participant_file_path: ph.participant_file_path || r.participant_file_path,
