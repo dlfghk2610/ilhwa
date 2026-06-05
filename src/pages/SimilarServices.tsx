@@ -72,6 +72,21 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
+const getPhaseKey = (value?: string | null) => {
+  const matches = Array.from(String(value ?? "").matchAll(/(\d+)(?:\s*[-~]\s*(\d+))?\s*(?:차년도|차년차|차분|차|단계)/g));
+  const m = matches[matches.length - 1];
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
+};
+
+const shouldUseRowPhases = (r: Row) => {
+  const phases = Array.isArray(r.phases) ? r.phases : [];
+  if (phases.length === 0) return false;
+  const projectKey = getPhaseKey(r.project_name);
+  if (!projectKey) return true;
+  return phases.some((p) => getPhaseKey(p.label) === projectKey);
+};
+
 export default function SimilarServices() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
