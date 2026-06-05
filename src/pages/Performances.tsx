@@ -517,10 +517,13 @@ export default function Performances() {
         const isPost = (r.evaluation_types || []).includes("사후");
         const phases = Array.isArray(r.phases) ? r.phases : [];
         if (isPost && phases.length > 0) {
-          return phases.map((ph, idx) => ({
+          return phases.map((ph, idx) => {
+            const labelMatch = String((ph as any)?.label || "").match(/(\d+(?:-\d+)?)/);
+            const phaseNo = labelMatch ? labelMatch[1] : String(idx + 1);
+            return ({
             ...r,
             id: `${r.id}__p${idx}`,
-            project_name: `${(r.project_name || "").replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim()} (${idx + 1}차)`,
+            project_name: `${(r.project_name || "").replace(/\s*\(\s*\d+\s*차\s*\)\s*$/, "").trim()} (${phaseNo}차)`,
             contract_periods: [{ start: ph.start_date || undefined, end: ph.end_date || undefined }] as Period[],
             contract_start_date: ph.start_date || null,
             contract_end_date: ph.end_date || null,
@@ -529,7 +532,8 @@ export default function Performances() {
             cert_pdf_path: ph.cert_pdf_path || r.cert_pdf_path,
             participant_file_path: ph.participant_file_path || r.participant_file_path,
             phases: [],
-          } as Row));
+          } as Row);
+          });
         }
         return [r];
       });
