@@ -121,6 +121,18 @@ const formatPeriodDisplay = (start?: string, end?: string) => {
   return s || e || "";
 };
 
+const getPhaseKey = (value?: string | null) => {
+  const matches = Array.from(String(value ?? "").matchAll(/(\d+)(?:\s*[-~]\s*(\d+))?\s*(?:차년도|차년차|차분|차|단계)/g));
+  const m = matches[matches.length - 1];
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
+};
+
+const getPhaseLabelFromName = (name: string) => {
+  const key = getPhaseKey(name);
+  return key ? `${key}차` : null;
+};
+
 // 참여기간 단일 텍스트 입력 (자유 형식 → ISO 자동 반영)
 function PeriodTextInput({ start, end, onChange, className }: { start?: string; end?: string; onChange: (start: string, end: string) => void; className?: string }) {
   const [text, setText] = useState<string>(formatPeriodDisplay(start, end));
