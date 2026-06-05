@@ -336,8 +336,8 @@ export default function SimilarServices() {
       if (effectivePhases.length > 0) {
         const firstStart = effectivePhases.find((p) => p.start_date)?.start_date ?? null;
         const lastEnd = [...effectivePhases].reverse().find((p) => p.end_date)?.end_date ?? null;
-        if (firstStart) derivedStart = firstStart;
-        if (lastEnd) derivedCompletion = lastEnd;
+        if (firstStart && !derivedStart) derivedStart = firstStart;
+        if (lastEnd && !derivedCompletion) derivedCompletion = lastEnd;
       }
 
       const payload: any = {
