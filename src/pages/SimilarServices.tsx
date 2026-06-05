@@ -472,8 +472,17 @@ export default function SimilarServices() {
       const sumContract = children.reduce((s, c) => s + (Number(c.contract_amount) || 0), 0);
       const sumShare = children.reduce((s, c) => s + (Number(c.share_amount) || 0), 0);
       const dates = (vs: (string | null)[]) => vs.filter((v): v is string => !!v).sort();
-      const starts = dates(children.map((c) => c.start_date));
-      const ends = dates(children.map((c) => c.completion_date));
+      const starts = dates(children.map((c) => {
+        const inner = Array.isArray(c.phases) ? c.phases : [];
+        const phaseStarts = inner.map((p: any) => p?.start_date).filter((v: any): v is string => !!v).sort();
+        return c.start_date || phaseStarts[0] || null;
+      }));
+      const ends = dates(children.map((c) => {
+        const inner = Array.isArray(c.phases) ? c.phases : [];
+        const phaseEnds = inner.map((p: any) => p?.end_date).filter((v: any): v is string => !!v).sort();
+        return c.completion_date || phaseEnds[phaseEnds.length - 1] || null;
+      }));
+
       out.push({
         ...head,
         id: `group:${g.base}::${g.client}`,
