@@ -628,10 +628,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     const payload = {
       ...rest,
       project_name: newName,
+      // 복제본은 독립된 단일 차수 레코드로 처리 (원본의 차수 jsonb는 비움)
+      phases: [],
       created_by: user.id,
     };
     delete (payload as any).created_at;
     delete (payload as any).updated_at;
+
     const { error } = await supabase.from("performance_records").insert(payload);
     if (error) { toast.error(error.message); return; }
     toast.success("복사 완료");
