@@ -532,7 +532,8 @@ export default function Performances() {
             cert_pdf_path: ph.cert_pdf_path || r.cert_pdf_path,
             participant_file_path: ph.participant_file_path || r.participant_file_path,
             phases: [],
-          } as Row));
+          } as Row);
+          });
         }
         return [r];
       });
