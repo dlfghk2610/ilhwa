@@ -556,17 +556,35 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
       // PQ유사용역(similar_services) 동기화: 자사 실적만 반영
       if (!external) {
-        const simPhases = (payload.phases || []).map((p: any) => ({
-          ...p,
-          amount: p.amount ?? p.share_amount ?? null,
-          pdf_path: p.pdf_path || p.cert_pdf_path || cert_pdf_path || null,
-        }));
+        const ownPhaseLabel = getPhaseLabelFromName(payload.project_name);
+        const simPhases = payload.phases.length > 0
+          ? payload.phases.map((p: any) => ({
+              ...p,
+              amount: p.amount ?? p.share_amount ?? null,
+              pdf_path: p.pdf_path || p.cert_pdf_path || cert_pdf_path || null,
+            }))
+          : ownPhaseLabel
+            ? [{
+                label: ownPhaseLabel,
+                amount: payload.share_amount ?? null,
+                contract_amount: payload.contract_amount ?? null,
+                share_rate: payload.share_rate ?? null,
+                share_amount: payload.share_amount ?? null,
+                contract_date: payload.contract_date ?? null,
+                start_date: earliestStart,
+                end_date: latestEnd,
+                pdf_path: cert_pdf_path || null,
+                cert_pdf_path: cert_pdf_path || null,
+                participant_file_path: participant_file_path || null,
+                participants: payload.participants || [],
+              }]
+            : [];
         const simPayload: any = {
           project_name: payload.project_name,
           client: payload.client,
           contract_amount: payload.contract_amount,
           contract_date: payload.contract_date,
-          completion_date: payload.completion_date,
+          completion_date: latestEnd,
           start_date: earliestStart,
           service_overview: payload.service_overview,
           service_type: (form.service_types || []).join(", ") || null,
