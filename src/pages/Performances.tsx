@@ -606,7 +606,8 @@ export default function Performances() {
       return base.map((t) => {
         const isPhase = t.isPostEval && t.phaseNum != null;
         const last = isPhase ? lastPhaseByGroup.get(t.groupKey) : undefined;
-        const isLastPhase = !!(isPhase && last && last.num === t.phaseNum);
+        // 그룹 내 집계 후보가 없으면(전부 90/120일 미만 등) 이 행을 마지막 차수로 간주
+        const isLastPhase = !!(isPhase && (!last || last.num === t.phaseNum));
         const lastPhaseLabel = last?.label ?? null;
         return { ...t, isPhase, isLastPhase, lastPhaseLabel };
       });
