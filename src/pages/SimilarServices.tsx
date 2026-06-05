@@ -182,6 +182,9 @@ export default function SimilarServices() {
   // 사후(차수) 입력 시 계약금액 = 차수 계약금액 합계 (수기 수정 가능, 차수 변경 시 재반영)
   useEffect(() => {
     if (form.phases.length === 0) return;
+    const projectPhaseKey = getPhaseKey(form.project_name);
+    const phaseKeys = form.phases.map((p) => getPhaseKey(p.label)).filter(Boolean);
+    if (projectPhaseKey && !phaseKeys.includes(projectPhaseKey)) return;
     if (phasesContractTotal === 0) return;
     setForm((prev) => {
       const next = String(Math.round(phasesContractTotal));
@@ -194,6 +197,9 @@ export default function SimilarServices() {
   // 자동 계산: 차수 입력 시엔 차수 합계로 / 아니면 계약금액 × 참여지분율
   useEffect(() => {
     if (form.phases.length > 0) {
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = form.phases.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      if (projectPhaseKey && !phaseKeys.includes(projectPhaseKey)) return;
       setForm((prev) => ({ ...prev, share_amount: String(Math.round(phasesTotal)) }));
       return;
     }
