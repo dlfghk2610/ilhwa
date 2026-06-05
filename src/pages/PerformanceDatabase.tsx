@@ -670,6 +670,17 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       project_name: newName,
       // 복제본은 독립된 단일 차수 레코드로 처리 (원본의 차수 jsonb는 비움)
       phases: [],
+      // 복제 시 차수별로 달라질 수 있는 계약/기간/금액/PDF 정보는 초기화하여
+      // 사용자가 새 차수 값을 명시적으로 입력하도록 강제한다.
+      contract_periods: [],
+      contract_start_date: null,
+      contract_end_date: null,
+      contract_date: null,
+      completion_date: null,
+      contract_amount: null,
+      share_amount: null,
+      cert_pdf_path: null,
+      participant_file_path: null,
       created_by: user.id,
     };
     delete (payload as any).created_at;
