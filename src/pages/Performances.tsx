@@ -531,7 +531,7 @@ export default function Performances() {
       const expanded: Row[] = rows.flatMap((r) => {
         const isPost = (r.evaluation_types || []).includes("사후");
         const phases = Array.isArray(r.phases) ? r.phases : [];
-        if (isPost && phases.length > 0) {
+        if (isPost && shouldUseRowPhases(r)) {
           return phases.map((ph, idx) => {
             const labelMatch = String((ph as any)?.label || "").match(/(\d+(?:-\d+)?)/);
             const phaseNo = labelMatch ? labelMatch[1] : String(idx + 1);
@@ -543,6 +543,8 @@ export default function Performances() {
             contract_start_date: ph.start_date || null,
             contract_end_date: ph.end_date || null,
             completion_date: ph.end_date || (r as any).completion_date,
+            contract_amount: (ph as any).contract_amount ?? r.contract_amount,
+            share_amount: (ph as any).share_amount ?? r.share_amount,
             participants: Array.isArray(ph.participants) && ph.participants.length > 0 ? (ph.participants as Participant[]) : (r.participants || []),
             cert_pdf_path: ph.cert_pdf_path || r.cert_pdf_path,
             participant_file_path: ph.participant_file_path || r.participant_file_path,
