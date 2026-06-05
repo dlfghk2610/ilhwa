@@ -319,12 +319,17 @@ export default function SimilarServices() {
           end_date: p.end_date || null,
           pdf_path,
         }));
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = phasesPayload.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      const effectivePhases = projectPhaseKey && phasesPayload.length > 0 && !phaseKeys.includes(projectPhaseKey)
+        ? []
+        : phasesPayload;
 
       let derivedStart = txt(form.start_date);
       let derivedCompletion = txt(form.completion_date);
-      if (phasesPayload.length > 0) {
-        const firstStart = phasesPayload.find((p) => p.start_date)?.start_date ?? null;
-        const lastEnd = [...phasesPayload].reverse().find((p) => p.end_date)?.end_date ?? null;
+      if (effectivePhases.length > 0) {
+        const firstStart = effectivePhases.find((p) => p.start_date)?.start_date ?? null;
+        const lastEnd = [...effectivePhases].reverse().find((p) => p.end_date)?.end_date ?? null;
         if (firstStart) derivedStart = firstStart;
         if (lastEnd) derivedCompletion = lastEnd;
       }
@@ -349,7 +354,7 @@ export default function SimilarServices() {
         is_lh_completion: form.is_lh_completion,
         is_progress: form.is_progress,
         notes: txt(form.notes),
-        phases: phasesPayload,
+        phases: effectivePhases,
         cert_pdf_path: certPath,
       };
 
