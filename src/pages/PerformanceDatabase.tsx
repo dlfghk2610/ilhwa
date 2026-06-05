@@ -488,6 +488,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         return { ...rest, cert_pdf_path: phCert, participant_file_path: phPart };
       }));
 
+      const projectPhaseKey = getPhaseKey(form.project_name);
+      const phaseKeys = phasesUploaded.map((p) => getPhaseKey(p.label)).filter(Boolean);
+      // 기존에 복제되며 원본 차수 JSON이 따라온 데이터는 현재 사업명 차수와 다르면 독립 단일차수로 저장
+      const effectivePhases = projectPhaseKey && phasesUploaded.length > 0 && !phaseKeys.includes(projectPhaseKey)
+        ? []
+        : phasesUploaded;
+
       let cleanedPeriods = form.contract_periods
         .filter((p) => p.start || p.end)
         .sort((a, b) => (a.start || a.end || "").localeCompare(b.start || b.end || "") || (a.end || "").localeCompare(b.end || ""));
@@ -497,18 +504,18 @@ export default function PerformanceDatabase({ external = false }: { external?: b
       // (사용자가 상단에 직접 입력한 값은 항상 우선)
       let phaseContractTotal: number | null = null;
       let phaseShareTotal: number | null = null;
-      if (form.phases.length > 0) {
-        const phasePeriods = form.phases
+      if (effectivePhases.length > 0) {
+        const phasePeriods = effectivePhases
           .filter((p) => p.start_date || p.end_date)
           .map((p) => ({ start: p.start_date || "", end: p.end_date || "" }));
         const topHasPeriods = cleanedPeriods.length > 0;
         if (!topHasPeriods && phasePeriods.length > 0) cleanedPeriods = phasePeriods;
-        const firstPhaseStart = form.phases.find((p) => p.start_date)?.start_date || null;
-        const lastPhaseEnd = [...form.phases].reverse().find((p) => p.end_date)?.end_date || null;
+        const firstPhaseStart = effectivePhases.find((p) => p.start_date)?.start_date || null;
+        const lastPhaseEnd = [...effectivePhases].reverse().find((p) => p.end_date)?.end_date || null;
         if (!earliestStart && firstPhaseStart) earliestStart = firstPhaseStart;
         if (!latestEnd && lastPhaseEnd) latestEnd = lastPhaseEnd;
-        const cSum = form.phases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
-        const sSum = form.phases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
+        const cSum = effectivePhases.reduce((s, p) => s + (Number(p.contract_amount) || 0), 0);
+        const sSum = effectivePhases.reduce((s, p) => s + (Number(p.share_amount) || 0), 0);
         if (cSum > 0 && !form.contract_amount) phaseContractTotal = cSum;
         if (sSum > 0 && !form.share_amount) phaseShareTotal = sSum;
       }
@@ -533,7 +540,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
         participants: form.participants,
         participant_file_path,
         cert_pdf_path,
-        phases: phasesUploaded,
+        phases: effectivePhases,
         is_private: form.is_private,
         is_under_90days: form.is_under_90days,
         is_lh_completion: form.is_lh_completion,
