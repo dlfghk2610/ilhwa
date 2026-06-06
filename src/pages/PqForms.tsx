@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
-import { Search, Plus, ChevronLeft, ChevronRight, Download, FileText, Trash2, Loader2, Pencil, X, FileSpreadsheet } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, Download, FileText, Trash2, Loader2, Pencil, X, FileSpreadsheet, FolderPlus, Folder as FolderIcon, GripVertical, ArrowLeft } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -25,6 +25,7 @@ import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -45,11 +46,23 @@ type PqRow = {
   xlsx_path: string | null;
   xlsx_file_name: string | null;
   tags: string[];
+  folder_id: string | null;
+  updated_at?: string;
+};
+
+type PqFolder = {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
 };
 
 const EVALUATION_TYPES = ["PQ", "SOQ", "TP", "기술제안서"];
 const PROJECT_TYPES = ["건축", "토목", "조경", "도시계획", "환경", "기타"];
 const BUCKET = "pq-files";
+
+const DRAG_MIME = "application/x-pq-item";
 
 async function renderCoverThumb(file: File): Promise<{ pageCount: number; cover: string }> {
   const buf = await file.arrayBuffer();
@@ -67,22 +80,32 @@ async function renderCoverThumb(file: File): Promise<{ pageCount: number; cover:
 export default function PqForms() {
   const { user } = useAuth();
   const [items, setItems] = useState<PqRow[]>([]);
+  const [folders, setFolders] = useState<PqFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openForm, setOpenForm] = useState(false);
   const [editRow, setEditRow] = useState<PqRow | null>(null);
   const [activeItem, setActiveItem] = useState<PqRow | null>(null);
   const [deleteRow, setDeleteRow] = useState<PqRow | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<PqFolder | null>(null);
+  const [folderNameDraft, setFolderNameDraft] = useState("");
+  const [deleteFolder, setDeleteFolder] = useState<PqFolder | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dragOverRoot, setDragOverRoot] = useState(false);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("pq_forms")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    else setItems((data ?? []) as PqRow[]);
+    const [itemsRes, foldersRes] = await Promise.all([
+      supabase.from("pq_forms").select("*").order("created_at", { ascending: false }),
+      supabase.from("pq_folders").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (itemsRes.error) toast.error(itemsRes.error.message);
+    else setItems((itemsRes.data ?? []) as PqRow[]);
+    if (foldersRes.error) toast.error(foldersRes.error.message);
+    else setFolders((foldersRes.data ?? []) as PqFolder[]);
     setLoading(false);
   };
 
@@ -94,16 +117,45 @@ export default function PqForms() {
     return Array.from(s).sort();
   }, [items]);
 
-  const filtered = useMemo(() => {
+  const currentFolder = useMemo(
+    () => folders.find((f) => f.id === currentFolderId) ?? null,
+    [folders, currentFolderId],
+  );
+
+  const matchesSearch = (it: PqRow) => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (it) =>
-        it.project_name.toLowerCase().includes(q) ||
-        it.client.toLowerCase().includes(q) ||
-        (it.tags ?? []).some((t) => t.toLowerCase().includes(q)),
+    if (!q) return true;
+    return (
+      it.project_name.toLowerCase().includes(q) ||
+      it.client.toLowerCase().includes(q) ||
+      (it.tags ?? []).some((t) => t.toLowerCase().includes(q))
     );
-  }, [items, search]);
+  };
+
+  // 표시할 항목들: 검색 중일 땐 폴더 무시하고 전체 검색, 아니면 현재 폴더의 항목만
+  const isSearching = search.trim().length > 0;
+  const visibleItems = useMemo(() => {
+    if (isSearching) return items.filter(matchesSearch);
+    return items.filter((it) => (it.folder_id ?? null) === currentFolderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, currentFolderId, search]);
+
+  // 루트에서만 폴더 카드 표시 (검색 중이면 폴더 숨김)
+  const visibleFolders = useMemo(() => {
+    if (isSearching || currentFolderId) return [];
+    return folders;
+  }, [folders, currentFolderId, isSearching]);
+
+  const itemsByFolder = useMemo(() => {
+    const map = new Map<string, PqRow[]>();
+    items.forEach((it) => {
+      if (!it.folder_id) return;
+      const arr = map.get(it.folder_id) ?? [];
+      arr.push(it);
+      map.set(it.folder_id, arr);
+    });
+    return map;
+  }, [items]);
 
   const handleDelete = async () => {
     if (!deleteRow) return;
@@ -118,6 +170,92 @@ export default function PqForms() {
 
   const openNew = () => { setEditRow(null); setOpenForm(true); };
   const openEdit = (row: PqRow) => { setEditRow(row); setOpenForm(true); };
+
+  const openNewFolder = () => { setEditingFolder(null); setFolderNameDraft(""); setFolderDialogOpen(true); };
+  const openEditFolder = (f: PqFolder) => { setEditingFolder(f); setFolderNameDraft(f.name); setFolderDialogOpen(true); };
+
+  const submitFolder = async () => {
+    if (!user) return;
+    const name = folderNameDraft.trim();
+    if (!name) return toast.error("폴더 이름을 입력하세요.");
+    if (editingFolder) {
+      const { data, error } = await supabase
+        .from("pq_folders").update({ name }).eq("id", editingFolder.id).select("*").single();
+      if (error) return toast.error(error.message);
+      setFolders((arr) => arr.map((f) => f.id === editingFolder.id ? (data as PqFolder) : f));
+      toast.success("폴더 이름이 수정되었습니다.");
+    } else {
+      const { data, error } = await supabase
+        .from("pq_folders").insert({ user_id: user.id, name }).select("*").single();
+      if (error) return toast.error(error.message);
+      setFolders((arr) => [data as PqFolder, ...arr]);
+      toast.success("폴더가 생성되었습니다.");
+    }
+    setFolderDialogOpen(false);
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!deleteFolder) return;
+    const { error } = await supabase.from("pq_folders").delete().eq("id", deleteFolder.id);
+    if (error) return toast.error(error.message);
+    setFolders((arr) => arr.filter((f) => f.id !== deleteFolder.id));
+    // 안에 있던 항목들은 ON DELETE SET NULL로 폴더 밖으로 이동됨
+    setItems((arr) => arr.map((it) => it.folder_id === deleteFolder.id ? { ...it, folder_id: null } : it));
+    if (currentFolderId === deleteFolder.id) setCurrentFolderId(null);
+    setDeleteFolder(null);
+    toast.success("폴더가 삭제되었습니다. 내부 사업들은 폴더 밖으로 이동되었습니다.");
+  };
+
+  const moveItemToFolder = async (itemId: string, folderId: string | null) => {
+    const target = items.find((x) => x.id === itemId);
+    if (!target) return;
+    if ((target.folder_id ?? null) === folderId) return;
+    // 낙관적 업데이트
+    setItems((arr) => arr.map((x) => x.id === itemId ? { ...x, folder_id: folderId } : x));
+    const { error } = await supabase.from("pq_forms").update({ folder_id: folderId }).eq("id", itemId);
+    if (error) {
+      // 롤백
+      setItems((arr) => arr.map((x) => x.id === itemId ? { ...x, folder_id: target.folder_id ?? null } : x));
+      toast.error(`이동 실패: ${error.message}`);
+      return;
+    }
+    const folderName = folderId ? (folders.find((f) => f.id === folderId)?.name ?? "폴더") : null;
+    toast.success(folderName ? `'${folderName}'(으)로 이동했습니다.` : "폴더 밖으로 이동했습니다.");
+  };
+
+  const onItemDragStart = (e: React.DragEvent, item: PqRow) => {
+    e.dataTransfer.setData(DRAG_MIME, item.id);
+    e.dataTransfer.setData("text/plain", item.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onFolderDragOver = (e: React.DragEvent, folderId: string) => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverFolderId !== folderId) setDragOverFolderId(folderId);
+  };
+
+  const onFolderDrop = (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData("text/plain");
+    setDragOverFolderId(null);
+    if (id) moveItemToFolder(id, folderId);
+  };
+
+  // 폴더 내부에서 루트로 이동시키는 드롭 존
+  const onRootDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverRoot(true);
+  };
+  const onRootDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData("text/plain");
+    setDragOverRoot(false);
+    if (id) moveItemToFolder(id, null);
+  };
 
   return (
     <AppLayout title="PQ 작성양식관리">
@@ -137,6 +275,9 @@ export default function PqForms() {
                 className="pl-9"
               />
             </div>
+            <Button variant="outline" onClick={openNewFolder} disabled={!user}>
+              <FolderPlus className="h-4 w-4" /> 새 폴더
+            </Button>
             <Button onClick={openNew} disabled={!user}>
               <Plus className="h-4 w-4" /> 새 사업 PQ 등록
             </Button>
@@ -158,49 +299,166 @@ export default function PqForms() {
           </div>
         )}
 
+        {/* 폴더 안에 있을 때: 뒤로가기 + 드롭존 */}
+        {currentFolder && !isSearching && (
+          <div
+            onDragOver={onRootDragOver}
+            onDragLeave={() => setDragOverRoot(false)}
+            onDrop={onRootDrop}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-md border bg-card transition-colors",
+              dragOverRoot && "border-primary border-dashed bg-primary/5",
+            )}
+          >
+            <Button variant="ghost" size="sm" onClick={() => setCurrentFolderId(null)} className="gap-1">
+              <ArrowLeft className="h-4 w-4" /> 전체
+            </Button>
+            <span className="text-muted-foreground">/</span>
+            <FolderIcon className="h-4 w-4 text-primary" />
+            <span className="font-medium">{currentFolder.name}</span>
+            {dragOverRoot && (
+              <span className="ml-auto text-xs text-primary">여기에 놓으면 폴더 밖으로 이동</span>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground flex items-center justify-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> 불러오는 중...
           </CardContent></Card>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && folders.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">
             등록된 PQ가 없습니다. 우측 상단 [새 사업 PQ 등록] 버튼으로 추가하세요.
           </CardContent></Card>
-        ) : filtered.length === 0 ? (
-          <Card><CardContent className="py-16 text-center text-muted-foreground">검색 결과가 없습니다.</CardContent></Card>
+        ) : visibleItems.length === 0 && visibleFolders.length === 0 ? (
+          <Card><CardContent className="py-16 text-center text-muted-foreground">
+            {isSearching ? "검색 결과가 없습니다." : "이 폴더는 비어 있습니다. 카드를 드래그해서 옮길 수 있습니다."}
+          </CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((it) => (
+            {visibleFolders.map((f) => {
+              const inside = itemsByFolder.get(f.id) ?? [];
+              const previews = inside
+                .map((x) => x.cover_thumb)
+                .filter((x): x is string => !!x)
+                .slice(0, 3);
+              const latest = inside
+                .map((x) => x.updated_at ?? "")
+                .sort()
+                .reverse()[0];
+              const isOver = dragOverFolderId === f.id;
+              return (
+                <Card
+                  key={`folder-${f.id}`}
+                  onClick={() => setCurrentFolderId(f.id)}
+                  onDragOver={(e) => onFolderDragOver(e, f.id)}
+                  onDragLeave={() => setDragOverFolderId((cur) => cur === f.id ? null : cur)}
+                  onDrop={(e) => onFolderDrop(e, f.id)}
+                  className={cn(
+                    "relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-2",
+                    isOver ? "border-primary border-dashed bg-primary/5 scale-[1.01]" : "border-transparent",
+                  )}
+                >
+                  {/* 드래그 핸들 (장식용 - 폴더 자체는 드래그 불가) */}
+                  <div className="absolute top-2 left-2 z-10 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <div className="h-7 w-7 rounded bg-background/80 backdrop-blur flex items-center justify-center">
+                      <FolderIcon className="h-4 w-4 text-primary" />
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="secondary" size="icon" className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); openEditFolder(f); }}
+                      aria-label="폴더 수정"
+                    ><Pencil className="h-4 w-4" /></Button>
+                    <Button
+                      variant="destructive" size="icon" className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); setDeleteFolder(f); }}
+                      aria-label="폴더 삭제"
+                    ><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                  {/* 계단식 표지 미리보기 */}
+                  <div className="aspect-[210/297] bg-gradient-to-br from-muted/60 to-muted overflow-hidden border-b relative flex items-center justify-center p-4">
+                    {previews.length === 0 ? (
+                      <FolderIcon className="h-20 w-20 text-muted-foreground/40" />
+                    ) : (
+                      <div className="relative w-[70%] aspect-[210/297]">
+                        {previews.map((src, i) => {
+                          const offset = (previews.length - 1 - i) * 10;
+                          const z = i + 1;
+                          return (
+                            <img
+                              key={i}
+                              src={src}
+                              alt=""
+                              style={{
+                                top: `${offset}px`,
+                                left: `${offset}px`,
+                                right: `-${offset}px`,
+                                bottom: `-${offset}px`,
+                                zIndex: z,
+                              }}
+                              className="absolute w-full h-full object-cover rounded-sm shadow-lg border border-border bg-background"
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2 bg-background/90 backdrop-blur px-2 py-0.5 rounded text-[11px] font-medium border">
+                      {inside.length}개
+                    </div>
+                  </div>
+                  <CardContent className="p-3 space-y-1">
+                    <h3 className="font-semibold line-clamp-1 leading-tight flex items-center gap-1.5">
+                      <FolderIcon className="h-4 w-4 text-primary shrink-0" />
+                      {f.name}
+                    </h3>
+                    <div className="text-xs text-muted-foreground">
+                      프로젝트 {inside.length}개
+                      {latest && ` · 최근 수정 ${latest.slice(0, 10)}`}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {visibleItems.map((it) => (
               <Card
                 key={it.id}
+                draggable
+                onDragStart={(e) => onItemDragStart(e, it)}
                 onClick={() => setActiveItem(it)}
-                className="relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className="relative overflow-hidden cursor-pointer group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 active:opacity-50"
               >
+                {/* 드래그 핸들 */}
+                <div
+                  className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="드래그하여 이동"
+                  title="드래그하여 폴더로 이동"
+                >
+                  <div className="h-7 w-7 rounded bg-background/80 backdrop-blur border flex items-center justify-center">
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
                 <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-8 w-8"
+                    variant="secondary" size="icon" className="h-8 w-8"
                     onClick={(e) => { e.stopPropagation(); openEdit(it); }}
                     aria-label="수정"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  ><Pencil className="h-4 w-4" /></Button>
                   <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8"
+                    variant="destructive" size="icon" className="h-8 w-8"
                     onClick={(e) => { e.stopPropagation(); setDeleteRow(it); }}
                     aria-label="삭제"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  ><Trash2 className="h-4 w-4" /></Button>
                 </div>
                 <div className="aspect-[210/297] bg-muted overflow-hidden border-b">
                   {it.cover_thumb ? (
                     <img
                       src={it.cover_thumb}
                       alt={it.project_name}
+                      draggable={false}
                       className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                     />
                   ) : (
@@ -240,6 +498,8 @@ export default function PqForms() {
         onOpenChange={setOpenForm}
         userId={user?.id}
         editRow={editRow}
+        defaultFolderId={currentFolderId}
+        folders={folders}
         onCreated={(row) => setItems((arr) => [row, ...arr])}
         onUpdated={(row) => setItems((arr) => arr.map((x) => x.id === row.id ? row : x))}
       />
@@ -258,6 +518,43 @@ export default function PqForms() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteFolder} onOpenChange={(v) => !v && setDeleteFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>이 폴더를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              폴더 안에 있던 사업들은 삭제되지 않고 폴더 밖(전체)으로 이동됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteFolder}>삭제</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingFolder ? "폴더 이름 수정" : "새 폴더"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>폴더 이름</Label>
+            <Input
+              value={folderNameDraft}
+              onChange={(e) => setFolderNameDraft(e.target.value)}
+              placeholder="예: 2026 도로 건설 프로젝트"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") submitFolder(); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderDialogOpen(false)}>취소</Button>
+            <Button onClick={submitFolder}>{editingFolder ? "수정" : "생성"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
@@ -296,12 +593,14 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) 
 }
 
 function FormDialog({
-  open, onOpenChange, userId, editRow, onCreated, onUpdated,
+  open, onOpenChange, userId, editRow, defaultFolderId, folders, onCreated, onUpdated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   userId?: string;
   editRow: PqRow | null;
+  defaultFolderId: string | null;
+  folders: PqFolder[];
   onCreated: (row: PqRow) => void;
   onUpdated: (row: PqRow) => void;
 }) {
@@ -313,6 +612,7 @@ function FormDialog({
   const [evaluationType, setEvaluationType] = useState("PQ");
   const [noticeDate, setNoticeDate] = useState(new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState<string[]>([]);
+  const [folderId, setFolderId] = useState<string | "none">("none");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [xlsxFile, setXlsxFile] = useState<File | null>(null);
@@ -328,14 +628,16 @@ function FormDialog({
       setEvaluationType(editRow.evaluation_type);
       setNoticeDate(editRow.notice_date);
       setTags(editRow.tags ?? []);
+      setFolderId(editRow.folder_id ?? "none");
     } else {
       setProjectName(""); setClient(""); setYear(new Date().getFullYear().toString());
       setProjectType("건축"); setEvaluationType("PQ");
       setNoticeDate(new Date().toISOString().slice(0, 10));
       setTags([]);
+      setFolderId(defaultFolderId ?? "none");
     }
     setPdfFile(null); setHwpFile(null); setXlsxFile(null);
-  }, [open, editRow]);
+  }, [open, editRow, defaultFolderId]);
 
   const submit = async () => {
     if (!userId) return toast.error("로그인이 필요합니다.");
@@ -398,6 +700,7 @@ function FormDialog({
         xlsx_path: xlsxPath,
         xlsx_file_name: xlsxName,
         tags,
+        folder_id: folderId === "none" ? null : folderId,
       };
 
       if (isEdit && editRow) {
@@ -454,12 +757,22 @@ function FormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 md:col-span-2">
+            <div className="space-y-1.5">
               <Label>공종 카테고리</Label>
               <Select value={projectType} onValueChange={setProjectType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PROJECT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>폴더</Label>
+              <Select value={folderId} onValueChange={(v) => setFolderId(v as any)}>
+                <SelectTrigger><SelectValue placeholder="폴더 없음" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">폴더 없음 (전체)</SelectItem>
+                  {folders.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -577,12 +577,37 @@ export type Database = {
         }
         Relationships: []
       }
+      pq_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pq_forms: {
         Row: {
           client: string
           cover_thumb: string | null
           created_at: string
           evaluation_type: string
+          folder_id: string | null
           hwp_file_name: string | null
           hwp_path: string | null
           id: string
@@ -603,6 +628,7 @@ export type Database = {
           cover_thumb?: string | null
           created_at?: string
           evaluation_type: string
+          folder_id?: string | null
           hwp_file_name?: string | null
           hwp_path?: string | null
           id?: string
@@ -623,6 +649,7 @@ export type Database = {
           cover_thumb?: string | null
           created_at?: string
           evaluation_type?: string
+          folder_id?: string | null
           hwp_file_name?: string | null
           hwp_path?: string | null
           id?: string
@@ -638,7 +665,15 @@ export type Database = {
           xlsx_path?: string | null
           year?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pq_forms_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "pq_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pq_score_criteria: {
         Row: {
