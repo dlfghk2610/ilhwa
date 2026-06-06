@@ -331,7 +331,8 @@ export default function Performances() {
     } catch (e: any) { toast.error(e?.message ?? "다운로드 실패"); }
   }
 
-  // 선택된 행 (착수일 오름차순). 차수 행(`${id}__p${idx}`)도 해당 차수 데이터로 변환.
+  // 선택된 행 (참여기간 오름차순 - 기술자 선택시, 미선택시 착수일).
+  // 차수 행(`${id}__p${idx}`)도 해당 차수 데이터로 변환.
   function getTargets(): Row[] {
     const base: Row[] = [];
     techSelectedRowIds.forEach((sid) => {
@@ -352,8 +353,9 @@ export default function Performances() {
           contract_end_date: ph.end_date || null,
           completion_date: ph.end_date || (orig as any).completion_date,
           participants: (ph.participants || []) as Participant[],
-          cert_pdf_path: ph.cert_pdf_path ?? null,
-          participant_file_path: ph.participant_file_path ?? null,
+          // 차수에 별도 PDF가 없으면 사업 전체(row-level) PDF로 fallback
+          cert_pdf_path: ph.cert_pdf_path ?? orig.cert_pdf_path ?? null,
+          participant_file_path: ph.participant_file_path ?? orig.participant_file_path ?? null,
           phases: [],
           evaluation_types: (orig.evaluation_types || []).filter((t) => t !== "사후"),
         } as Row);
@@ -362,9 +364,18 @@ export default function Performances() {
         if (r) base.push(r);
       }
     });
+    const tech = selectedTech.trim();
+    const partStartOf = (r: Row): string => {
+      if (!tech) return "";
+      const p = r.participants?.find((x) => x.name === tech);
+      if (!p) return "";
+      const periods = getPeriods(p);
+      const starts = periods.map((pd) => pd.start || "").filter(Boolean).sort();
+      return starts[0] ?? "";
+    };
     return base.sort((a, b) => {
-      const av = a.contract_start_date ?? "";
-      const bv = b.contract_start_date ?? "";
+      const av = tech ? partStartOf(a) || (a.contract_start_date ?? "") : (a.contract_start_date ?? "");
+      const bv = tech ? partStartOf(b) || (b.contract_start_date ?? "") : (b.contract_start_date ?? "");
       if (!av && !bv) return 0;
       if (!av) return 1;
       if (!bv) return -1;
