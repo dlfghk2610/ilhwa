@@ -542,10 +542,12 @@ export type Database = {
           course_name: string
           created_at: string
           created_by: string
+          end_date: string | null
           hours: number | null
           id: string
           institution: string | null
           notes: string | null
+          start_date: string | null
           technician_name: string
           updated_at: string
         }
@@ -555,10 +557,12 @@ export type Database = {
           course_name: string
           created_at?: string
           created_by: string
+          end_date?: string | null
           hours?: number | null
           id?: string
           institution?: string | null
           notes?: string | null
+          start_date?: string | null
           technician_name: string
           updated_at?: string
         }
@@ -568,10 +572,12 @@ export type Database = {
           course_name?: string
           created_at?: string
           created_by?: string
+          end_date?: string | null
           hours?: number | null
           id?: string
           institution?: string | null
           notes?: string | null
+          start_date?: string | null
           technician_name?: string
           updated_at?: string
         }
