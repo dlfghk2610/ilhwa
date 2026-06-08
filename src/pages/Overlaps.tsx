@@ -952,7 +952,7 @@ export default function Overlaps() {
                     <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
                   ) : technicians.map((t) => {
                     const total = techOverlapTotals.get(t.name) || 0;
-                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
+                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
                     const over = total - 250_000_000;
                     return (
                       <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
