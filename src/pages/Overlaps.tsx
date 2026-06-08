@@ -672,6 +672,7 @@ export default function Overlaps() {
       const info = remainInfo(r);
       const o = overlapAmount(r);
       const eEnd = effectiveEndDate(r);
+      const eEndLabel = effectiveEndLabel(r);
       const eContract = effectiveContract(r);
       return {
         연번: i + 1,
@@ -679,14 +680,14 @@ export default function Overlaps() {
         발주처: r.client || "",
         계약금액: eContract ?? "",
         착수일: r.start_date || "",
-        준공예정일: eEnd || "",
-        "총계약기간(일)": diffDays(r.start_date, eEnd),
+        준공예정일: eEndLabel === "-" ? "" : eEndLabel,
+        "총계약기간(일)": eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r),
         "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
         중복금액: o.label ?? (o.value === null ? "" : o.value),
         과업중지일: effectiveSuspensionDate(r) || "",
         중지사유: r.suspension_reason || "",
         협의완료일: effectiveAgreementDate(r) || "",
-        참여인력: (r.participants || []).map((p) => p.name).join(", "),
+        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.name).join(", "),
         비고: r.notes || "",
       };
     });
