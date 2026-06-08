@@ -479,7 +479,7 @@ export default function Overlaps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, announcementDate, useAbsolute, unit]);
 
-  const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "" }] });
+  const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "", start_date: "", end_date: "" }] });
   const updateParticipant = (i: number, patch: Partial<Participant>) => {
     const next = [...(form.participants || [])];
     next[i] = { ...next[i], ...patch };
