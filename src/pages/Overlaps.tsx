@@ -21,13 +21,14 @@ import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, Ch
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 
-type Participant = { name: string; role?: string };
+type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null };
 
 type Amendment = {
   id: string;
   change_date: string | null;
   contract_amount_new: number | null;
   end_date_new: string | null;
+  end_date_new_text?: string | null;
   pdf_path: string | null;
   note?: string | null;
 };
@@ -47,6 +48,7 @@ type OverlapRow = {
   contract_amount: number | null;
   start_date: string | null;
   end_date: string | null;
+  end_date_text: string | null;
   // legacy single-suspension fields (kept for back-compat reads)
   suspension_date: string | null;
   suspension_reason: string | null;
