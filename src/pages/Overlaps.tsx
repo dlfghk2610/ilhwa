@@ -245,7 +245,7 @@ export default function Overlaps() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
     setSubmitting(true);
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
-    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.pdf_path);
+    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.end_date_new_text || a.pdf_path);
     const cleanSuspensions = (form.suspensions || []).filter(s => s.suspension_date || s.resume_date || s.suspension_pdf_path || s.resume_pdf_path);
     const payload: any = {
       project_name: form.project_name,
