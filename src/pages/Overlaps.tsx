@@ -891,7 +891,7 @@ export default function Overlaps() {
                       <div>{fmtContract(eContract)}{eContract !== r.contract_amount && <span className="ml-1 text-orange-600">(변경)</span>}</div>
                       <div className="text-muted-foreground">착수일</div><div>{fmtDateCell(r.start_date)}</div>
                       <div className="text-muted-foreground">준공예정일</div>
-                      <div>{fmtDateCell(eEnd)}{eEnd !== r.end_date && <span className="ml-1 text-orange-600">(변경)</span>}</div>
+                      <div>{effectiveEndLabel(r)}{(eEnd !== r.end_date) && <span className="ml-1 text-orange-600">(변경)</span>}</div>
                       <div className="text-muted-foreground">잔여일수</div><div>{remainText}</div>
                       <div className="text-muted-foreground">과업중지일</div><div>{fmtDateCell(susp)}{susp && r.suspension_reason ? ` (${r.suspension_reason})` : ""}</div>
                       <div className="text-muted-foreground">협의완료일</div><div>{fmtDateCell(agree)}</div>
