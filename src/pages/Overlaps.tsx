@@ -216,6 +216,7 @@ export default function Overlaps() {
       contract_amount: r.contract_amount,
       start_date: r.start_date || "",
       end_date: r.end_date || "",
+      end_date_text: (r as any).end_date_text || null,
       suspension_date: r.suspension_date || "",
       suspension_reason: r.suspension_reason || "",
       agreement_date: r.agreement_date || "",
