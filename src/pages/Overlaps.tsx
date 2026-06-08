@@ -21,13 +21,14 @@ import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, Ch
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 
-type Participant = { name: string; role?: string };
+type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null };
 
 type Amendment = {
   id: string;
   change_date: string | null;
   contract_amount_new: number | null;
   end_date_new: string | null;
+  end_date_new_text?: string | null;
   pdf_path: string | null;
   note?: string | null;
 };
@@ -47,6 +48,7 @@ type OverlapRow = {
   contract_amount: number | null;
   start_date: string | null;
   end_date: string | null;
+  end_date_text: string | null;
   // legacy single-suspension fields (kept for back-compat reads)
   suspension_date: string | null;
   suspension_reason: string | null;
@@ -114,9 +116,20 @@ const isAfterOrEqual = (announcement: string | null | undefined, effective: stri
   return announcement >= effective;
 };
 
+const ABSOLUTE_MAX_DAYS = 365;
+const isISODate = (s?: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const isDateLikeInput = (v: string) => /^[\d.\s-]*$/.test(v);
+const isParticipantActive = (p: Participant, announce?: string | null) => {
+  if (!announce) return true;
+  if (p.start_date && p.start_date > announce) return false;
+  if (p.end_date && p.end_date < announce) return false;
+  return true;
+};
+
 const emptyForm = (): Omit<OverlapRow, "id"> => ({
   project_name: "", client: "", contract_amount: null,
-  start_date: "", end_date: "", suspension_date: "", suspension_reason: "", agreement_date: "",
+  start_date: "", end_date: "", end_date_text: null,
+  suspension_date: "", suspension_reason: "", agreement_date: "",
   absolute_period_days: null, participants: [], notes: "",
   contract_amount_change_date: "", contract_amount_new: null,
   end_date_change_date: "", end_date_new: "",
@@ -203,6 +216,7 @@ export default function Overlaps() {
       contract_amount: r.contract_amount,
       start_date: r.start_date || "",
       end_date: r.end_date || "",
+      end_date_text: (r as any).end_date_text || null,
       suspension_date: r.suspension_date || "",
       suspension_reason: r.suspension_reason || "",
       agreement_date: r.agreement_date || "",
@@ -231,14 +245,15 @@ export default function Overlaps() {
     if (!form.project_name) { toast.error("사업명은 필수입니다"); return; }
     setSubmitting(true);
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
-    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.pdf_path);
+    const cleanAmendments = (form.amendments || []).filter(a => a.change_date || a.contract_amount_new !== null || a.end_date_new || a.end_date_new_text || a.pdf_path);
     const cleanSuspensions = (form.suspensions || []).filter(s => s.suspension_date || s.resume_date || s.suspension_pdf_path || s.resume_pdf_path);
     const payload: any = {
       project_name: form.project_name,
       client: form.client || null,
       contract_amount: num(form.contract_amount),
       start_date: form.start_date || null,
-      end_date: form.end_date || null,
+      end_date: isISODate(form.end_date) ? form.end_date : null,
+      end_date_text: form.end_date_text || (form.end_date && !isISODate(form.end_date) ? form.end_date : null),
       suspension_date: form.suspension_date || null,
       suspension_reason: form.suspension_reason || null,
       agreement_date: form.agreement_date || null,
@@ -318,26 +333,37 @@ export default function Overlaps() {
     }
     return v;
   };
-  const effectiveEndDate = (r: OverlapRow) => {
-    let v = r.end_date;
+  // Returns the effective end date as {iso, text}. Free-text values ("준공시까지" 등)
+  // are returned as text and signal that the end is open-ended.
+  const effectiveEnd = (r: OverlapRow): { iso: string | null; text: string | null } => {
+    let v: { iso: string | null; text: string | null } = {
+      iso: r.end_date || null,
+      text: (r as any).end_date_text || null,
+    };
     for (const a of sortedAmendments(r)) {
-      if (!a.end_date_new) continue;
-      if (isAfterOrEqual(announcementDate, a.change_date)) v = a.end_date_new;
+      const aIso = isISODate(a.end_date_new) ? a.end_date_new : null;
+      const aText = a.end_date_new_text || (a.end_date_new && !isISODate(a.end_date_new) ? a.end_date_new : null);
+      if (!aIso && !aText) continue;
+      if (isAfterOrEqual(announcementDate, a.change_date)) v = { iso: aIso, text: aText };
     }
     return v;
   };
-  // 공고일 기준 활성 중지 사이클 (중지일 <= 공고일, 그리고 재개일 없거나 재개일 > 공고일)
+  const effectiveEndDate = (r: OverlapRow) => effectiveEnd(r).iso;
+  const effectiveEndLabel = (r: OverlapRow) => {
+    const e = effectiveEnd(r);
+    return e.text || (e.iso ? toDisplayDate(e.iso) : "-");
+  };
+  // 공고일 기준 활성 중지 사이클
   const activeSuspensionAt = (r: OverlapRow): Suspension | null => {
     if (!announcementDate) return null;
     let active: Suspension | null = null;
     for (const s of sortedSuspensions(r)) {
       if (!isAfterOrEqual(announcementDate, s.suspension_date)) break;
       if (!s.resume_date || announcementDate < s.resume_date) active = s;
-      else active = null; // resumed before announcement
+      else active = null;
     }
     return active;
   };
-  // 마지막으로 재개된 날짜 (공고일 시점에 중지 중이 아닐 때 산정 시작점으로 사용)
   const lastResumeBefore = (r: OverlapRow): string | null => {
     if (!announcementDate) return null;
     let last: string | null = null;
@@ -355,39 +381,64 @@ export default function Overlaps() {
     return r.agreement_date;
   };
 
+  // 과업중지 기간이 3개월 이상 지속된 이력이 있으면 true
+  const hasLongSuspensionHistory = (r: OverlapRow) => {
+    return (r.suspensions || []).some((s) => {
+      if (!s.suspension_date) return false;
+      const endRef = s.resume_date ? parseDate(s.resume_date) : new Date();
+      const months = monthsBetween(s.suspension_date, endRef);
+      return months >= 3;
+    });
+  };
+  // 협의완료일이 등록되어 있거나, 3개월 이상 중지 이력이 있으면 중복금액 0원 예외
+  const zeroByException = (r: OverlapRow): string | null => {
+    if (r.agreement_date) return "협의완료";
+    if (hasLongSuspensionHistory(r)) return "3개월이상 중지이력";
+    return null;
+  };
+
   const filtered = useMemo(() => rows.filter((r) => {
+    const activeParticipants = (r.participants || []).filter((p) => isParticipantActive(p, announcementDate));
     const matchSearch = !search ||
       (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (r.client || "").toLowerCase().includes(search.toLowerCase()) ||
-      (r.participants || []).some((p) => (p.name || "").toLowerCase().includes(search.toLowerCase()));
+      activeParticipants.some((p) => (p.name || "").toLowerCase().includes(search.toLowerCase()));
     const matchTech = selectedTech === "__all__" ||
-      (r.participants || []).some((p) => (p.name || "") === selectedTech);
+      activeParticipants.some((p) => (p.name || "") === selectedTech);
     return matchSearch && matchTech;
-  }), [rows, search, selectedTech]);
+  }), [rows, search, selectedTech, announcementDate]);
 
   const totalPeriod = (r: OverlapRow) => {
     if (useAbsolute && r.absolute_period_days) return r.absolute_period_days;
-    return diffDays(r.start_date, effectiveEndDate(r));
+    const e = effectiveEnd(r);
+    if (e.iso) return diffDays(r.start_date, e.iso);
+    // 텍스트 준공예정일 → 절대공기 최대값(365일)
+    return ABSOLUTE_MAX_DAYS;
   };
 
   const remainInfo = (r: OverlapRow): { days: number | null; suspendedLong: boolean; agreed: boolean } => {
     const agree = effectiveAgreementDate(r);
     if (agree) return { days: null, suspendedLong: false, agreed: true };
     const susp = effectiveSuspensionDate(r);
-    const endDate = effectiveEndDate(r);
+    const e = effectiveEnd(r);
+    const endIso = e.iso;
     if (susp) {
       const months = monthsBetween(susp, new Date());
       if (months >= 3) return { days: null, suspendedLong: true, agreed: false };
-      if (!endDate) return { days: 0, suspendedLong: false, agreed: false };
-      const d = diffDays(susp, endDate);
-      return { days: Math.min(365, d), suspendedLong: false, agreed: false };
+      if (!endIso) return { days: ABSOLUTE_MAX_DAYS, suspendedLong: false, agreed: false };
+      const d = diffDays(susp, endIso);
+      return { days: Math.min(ABSOLUTE_MAX_DAYS, d), suspendedLong: false, agreed: false };
     }
-    if (!announcementDate || !endDate) return { days: 0, suspendedLong: false, agreed: false };
-    // 과업이 재개된 적이 있으면 마지막 재개일을 산정 시작점으로 사용
+    if (!announcementDate) return { days: 0, suspendedLong: false, agreed: false };
+    if (!endIso) {
+      // 텍스트 준공예정일 → 잔여일수는 절대공기 최대값(365일)
+      return { days: ABSOLUTE_MAX_DAYS, suspendedLong: false, agreed: false };
+    }
     const resume = lastResumeBefore(r);
     const startPoint = resume && resume > announcementDate ? resume : (resume || announcementDate);
-    return { days: Math.min(365, diffDays(startPoint, endDate)), suspendedLong: false, agreed: false };
+    return { days: Math.min(ABSOLUTE_MAX_DAYS, diffDays(startPoint, endIso)), suspendedLong: false, agreed: false };
   };
+
 
 
   const roundedContractAmount = (v: number | null) => {
@@ -399,9 +450,11 @@ export default function Overlaps() {
   };
 
   const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    const exc = zeroByException(r);
+    if (exc) return { value: 0, label: `0 (${exc})` };
     const info = remainInfo(r);
-    if (info.agreed) return { value: null, label: "-" };
-    if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
+    if (info.agreed) return { value: 0, label: "0 (협의완료)" };
+    if (info.suspendedLong) return { value: 0, label: "0 (3개월이상 중지중)" };
     const t = totalPeriod(r);
     const contract = roundedContractAmount(effectiveContract(r));
     if (!t || !contract || info.days === null) return { value: 0 };
@@ -426,7 +479,7 @@ export default function Overlaps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, announcementDate, useAbsolute, unit]);
 
-  const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "" }] });
+  const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "", start_date: "", end_date: "" }] });
   const updateParticipant = (i: number, patch: Partial<Participant>) => {
     const next = [...(form.participants || [])];
     next[i] = { ...next[i], ...patch };
@@ -476,7 +529,7 @@ export default function Overlaps() {
     for (const r of rows) {
       const v = overlapAmount(r).value || 0;
       if (!v) continue;
-      for (const p of r.participants || []) {
+      for (const p of (r.participants || []).filter((pp) => isParticipantActive(pp, announcementDate))) {
         const name = (p.name || "").trim();
         if (!name) continue;
         map.set(name, (map.get(name) || 0) + v);
@@ -619,6 +672,7 @@ export default function Overlaps() {
       const info = remainInfo(r);
       const o = overlapAmount(r);
       const eEnd = effectiveEndDate(r);
+      const eEndLabel = effectiveEndLabel(r);
       const eContract = effectiveContract(r);
       return {
         연번: i + 1,
@@ -626,14 +680,14 @@ export default function Overlaps() {
         발주처: r.client || "",
         계약금액: eContract ?? "",
         착수일: r.start_date || "",
-        준공예정일: eEnd || "",
-        "총계약기간(일)": diffDays(r.start_date, eEnd),
+        준공예정일: eEndLabel === "-" ? "" : eEndLabel,
+        "총계약기간(일)": eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r),
         "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
         중복금액: o.label ?? (o.value === null ? "" : o.value),
         과업중지일: effectiveSuspensionDate(r) || "",
         중지사유: r.suspension_reason || "",
         협의완료일: effectiveAgreementDate(r) || "",
-        참여인력: (r.participants || []).map((p) => p.name).join(", "),
+        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.name).join(", "),
         비고: r.notes || "",
       };
     });
@@ -762,8 +816,9 @@ export default function Overlaps() {
                   const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
                   const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
                   const eEnd = effectiveEndDate(r);
+                  const eEndLabel = effectiveEndLabel(r);
                   const eContract = effectiveContract(r);
-                  const contractDays = diffDays(r.start_date, eEnd);
+                  const contractDays = eEnd ? diffDays(r.start_date, eEnd) : (r.end_date_text ? ABSOLUTE_MAX_DAYS : 0);
                   const absoluteApplied = useAbsolute && !!r.absolute_period_days;
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
@@ -777,8 +832,8 @@ export default function Overlaps() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {fmtDateCell(eEnd)}
-                      {eEnd !== r.end_date && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                      {eEndLabel}
+                      {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
@@ -836,7 +891,7 @@ export default function Overlaps() {
                       <div>{fmtContract(eContract)}{eContract !== r.contract_amount && <span className="ml-1 text-orange-600">(변경)</span>}</div>
                       <div className="text-muted-foreground">착수일</div><div>{fmtDateCell(r.start_date)}</div>
                       <div className="text-muted-foreground">준공예정일</div>
-                      <div>{fmtDateCell(eEnd)}{eEnd !== r.end_date && <span className="ml-1 text-orange-600">(변경)</span>}</div>
+                      <div>{effectiveEndLabel(r)}{(eEnd !== r.end_date) && <span className="ml-1 text-orange-600">(변경)</span>}</div>
                       <div className="text-muted-foreground">잔여일수</div><div>{remainText}</div>
                       <div className="text-muted-foreground">과업중지일</div><div>{fmtDateCell(susp)}{susp && r.suspension_reason ? ` (${r.suspension_reason})` : ""}</div>
                       <div className="text-muted-foreground">협의완료일</div><div>{fmtDateCell(agree)}</div>
@@ -899,7 +954,7 @@ export default function Overlaps() {
                     <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
                   ) : technicians.map((t) => {
                     const total = techOverlapTotals.get(t.name) || 0;
-                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
+                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
                     const over = total - 250_000_000;
                     return (
                       <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
@@ -952,7 +1007,21 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>준공예정일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date)} onChange={(e) => setForm({ ...form, end_date: inputToISO(e.target.value) })} />
+                <Input
+                  type="text"
+                  placeholder='YYYY.MM.DD 또는 "준공시까지" 등 자유 입력'
+                  value={form.end_date_text ?? toDisplayDate(form.end_date)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (isDateLikeInput(v)) {
+                      const iso = inputToISO(v);
+                      setForm({ ...form, end_date: iso, end_date_text: null });
+                    } else {
+                      setForm({ ...form, end_date: "", end_date_text: v });
+                    }
+                  }}
+                />
+                <div className="text-[11px] text-muted-foreground">텍스트(예: "준공시까지") 입력 시 잔여일수/총공기는 절대공기 최대값(365일)으로 산정됩니다.</div>
               </div>
               <div className="space-y-1.5">
                 <Label>절대공기일수 (일)</Label>
@@ -1000,9 +1069,22 @@ export default function Overlaps() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">변경 준공예정일</Label>
-                        <Input type="text" placeholder="변경 없으면 비움" value={toDisplayDate(a.end_date_new)} onChange={(e) => {
-                          const next = [...(form.amendments || [])]; next[i] = { ...a, end_date_new: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
-                        }} />
+                        <Input
+                          type="text"
+                          placeholder='YYYY.MM.DD 또는 "준공시까지"'
+                          value={a.end_date_new_text ?? toDisplayDate(a.end_date_new)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const next = [...(form.amendments || [])];
+                            if (isDateLikeInput(v)) {
+                              const iso = inputToISO(v);
+                              next[i] = { ...a, end_date_new: iso.length === 10 ? iso : "", end_date_new_text: null };
+                            } else {
+                              next[i] = { ...a, end_date_new: "", end_date_new_text: v };
+                            }
+                            setForm({ ...form, amendments: next });
+                          }}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
@@ -1138,7 +1220,7 @@ export default function Overlaps() {
                   <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
                 </div>
               </div>
-              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택)</div>
+              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
@@ -1149,33 +1231,49 @@ export default function Overlaps() {
                       ? technicians.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) && t.name !== q).slice(0, 8)
                       : [];
                     const showList = activeParticipantIdx === i && suggestions.length > 0;
+                    const active = isParticipantActive(p, announcementDate);
                     return (
-                    <div key={i} className="flex gap-2 items-center">
-                      <div className="relative flex-1">
-                        <Input
-                          placeholder="성명 (등록된 기술자 검색)"
-                          value={p.name}
-                          onFocus={() => setActiveParticipantIdx(i)}
-                          onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
-                          onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
-                        />
-                        {showList && (
-                          <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
-                            {suggestions.map((t) => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
-                                onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
-                              >
-                                {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                    <div key={i} className={`rounded-md border p-2 ${announcementDate && !active ? "bg-muted/40 opacity-60" : "bg-card"}`}>
+                      <div className="flex gap-2 items-center">
+                        <div className="relative flex-1">
+                          <Input
+                            placeholder="성명 (등록된 기술자 검색)"
+                            value={p.name}
+                            onFocus={() => setActiveParticipantIdx(i)}
+                            onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
+                            onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
+                          />
+                          {showList && (
+                            <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
+                              {suggestions.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                                  onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
+                                >
+                                  {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
+                        <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                       </div>
-                      <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
-                      <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs w-16 shrink-0">참여시작일</Label>
+                          <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(p.start_date)} onChange={(e) => updateParticipant(i, { start_date: inputToISO(e.target.value) })} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs w-16 shrink-0">참여제외일</Label>
+                          <Input type="text" placeholder="비우면 계속 참여" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
+                        </div>
+                      </div>
+                      {announcementDate && !active && (
+                        <div className="mt-1 text-[11px] text-orange-600">공고일 기준 참여 범위 밖 → 중복도 계산에서 제외됩니다.</div>
+                      )}
                     </div>
                     );
                   })}

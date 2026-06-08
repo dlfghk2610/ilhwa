@@ -845,6 +845,7 @@ export type Database = {
           end_date_change_date: string | null
           end_date_change_pdf_path: string | null
           end_date_new: string | null
+          end_date_text: string | null
           id: string
           notes: string | null
           original_contract_pdf_path: string | null
@@ -876,6 +877,7 @@ export type Database = {
           end_date_change_date?: string | null
           end_date_change_pdf_path?: string | null
           end_date_new?: string | null
+          end_date_text?: string | null
           id?: string
           notes?: string | null
           original_contract_pdf_path?: string | null
@@ -907,6 +909,7 @@ export type Database = {
           end_date_change_date?: string | null
           end_date_change_pdf_path?: string | null
           end_date_new?: string | null
+          end_date_text?: string | null
           id?: string
           notes?: string | null
           original_contract_pdf_path?: string | null
