@@ -1220,7 +1220,7 @@ export default function Overlaps() {
                   <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
                 </div>
               </div>
-              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택)</div>
+              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
@@ -1231,33 +1231,49 @@ export default function Overlaps() {
                       ? technicians.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) && t.name !== q).slice(0, 8)
                       : [];
                     const showList = activeParticipantIdx === i && suggestions.length > 0;
+                    const active = isParticipantActive(p, announcementDate);
                     return (
-                    <div key={i} className="flex gap-2 items-center">
-                      <div className="relative flex-1">
-                        <Input
-                          placeholder="성명 (등록된 기술자 검색)"
-                          value={p.name}
-                          onFocus={() => setActiveParticipantIdx(i)}
-                          onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
-                          onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
-                        />
-                        {showList && (
-                          <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
-                            {suggestions.map((t) => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
-                                onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
-                              >
-                                {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                    <div key={i} className={`rounded-md border p-2 ${announcementDate && !active ? "bg-muted/40 opacity-60" : "bg-card"}`}>
+                      <div className="flex gap-2 items-center">
+                        <div className="relative flex-1">
+                          <Input
+                            placeholder="성명 (등록된 기술자 검색)"
+                            value={p.name}
+                            onFocus={() => setActiveParticipantIdx(i)}
+                            onBlur={() => setTimeout(() => setActiveParticipantIdx((cur) => (cur === i ? null : cur)), 150)}
+                            onChange={(e) => { updateParticipant(i, { name: e.target.value }); setActiveParticipantIdx(i); }}
+                          />
+                          {showList && (
+                            <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-48 overflow-auto">
+                              {suggestions.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                                  onMouseDown={(e) => { e.preventDefault(); updateParticipant(i, { name: t.name }); setActiveParticipantIdx(null); }}
+                                >
+                                  {t.name}{t.specialty ? <span className="text-muted-foreground ml-2 text-xs">{t.specialty}</span> : null}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
+                        <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                       </div>
-                      <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
-                      <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs w-16 shrink-0">참여시작일</Label>
+                          <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(p.start_date)} onChange={(e) => updateParticipant(i, { start_date: inputToISO(e.target.value) })} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs w-16 shrink-0">참여제외일</Label>
+                          <Input type="text" placeholder="비우면 계속 참여" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
+                        </div>
+                      </div>
+                      {announcementDate && !active && (
+                        <div className="mt-1 text-[11px] text-orange-600">공고일 기준 참여 범위 밖 → 중복도 계산에서 제외됩니다.</div>
+                      )}
                     </div>
                     );
                   })}
