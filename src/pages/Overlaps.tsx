@@ -450,9 +450,11 @@ export default function Overlaps() {
   };
 
   const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    const exc = zeroByException(r);
+    if (exc) return { value: 0, label: `0 (${exc})` };
     const info = remainInfo(r);
-    if (info.agreed) return { value: null, label: "-" };
-    if (info.suspendedLong) return { value: 0, label: "3개월이상 중지중" };
+    if (info.agreed) return { value: 0, label: "0 (협의완료)" };
+    if (info.suspendedLong) return { value: 0, label: "0 (3개월이상 중지중)" };
     const t = totalPeriod(r);
     const contract = roundedContractAmount(effectiveContract(r));
     if (!t || !contract || info.days === null) return { value: 0 };
