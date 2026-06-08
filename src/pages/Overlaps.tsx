@@ -1005,7 +1005,21 @@ export default function Overlaps() {
               </div>
               <div className="space-y-1.5">
                 <Label>준공예정일</Label>
-                <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(form.end_date)} onChange={(e) => setForm({ ...form, end_date: inputToISO(e.target.value) })} />
+                <Input
+                  type="text"
+                  placeholder='YYYY.MM.DD 또는 "준공시까지" 등 자유 입력'
+                  value={form.end_date_text ?? toDisplayDate(form.end_date)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (isDateLikeInput(v)) {
+                      const iso = inputToISO(v);
+                      setForm({ ...form, end_date: iso, end_date_text: null });
+                    } else {
+                      setForm({ ...form, end_date: "", end_date_text: v });
+                    }
+                  }}
+                />
+                <div className="text-[11px] text-muted-foreground">텍스트(예: "준공시까지") 입력 시 잔여일수/총공기는 절대공기 최대값(365일)으로 산정됩니다.</div>
               </div>
               <div className="space-y-1.5">
                 <Label>절대공기일수 (일)</Label>
