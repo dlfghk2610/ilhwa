@@ -1067,9 +1067,22 @@ export default function Overlaps() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">변경 준공예정일</Label>
-                        <Input type="text" placeholder="변경 없으면 비움" value={toDisplayDate(a.end_date_new)} onChange={(e) => {
-                          const next = [...(form.amendments || [])]; next[i] = { ...a, end_date_new: inputToISO(e.target.value) }; setForm({ ...form, amendments: next });
-                        }} />
+                        <Input
+                          type="text"
+                          placeholder='YYYY.MM.DD 또는 "준공시까지"'
+                          value={a.end_date_new_text ?? toDisplayDate(a.end_date_new)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const next = [...(form.amendments || [])];
+                            if (isDateLikeInput(v)) {
+                              const iso = inputToISO(v);
+                              next[i] = { ...a, end_date_new: iso.length === 10 ? iso : "", end_date_new_text: null };
+                            } else {
+                              next[i] = { ...a, end_date_new: "", end_date_new_text: v };
+                            }
+                            setForm({ ...form, amendments: next });
+                          }}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dashed">
