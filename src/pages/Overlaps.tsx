@@ -816,8 +816,9 @@ export default function Overlaps() {
                   const remainText = info.agreed || info.suspendedLong ? "-" : (info.days === null ? "-" : info.days.toLocaleString() + "일");
                   const overlapText = o.label ?? (o.value === null ? "-" : fmtOverlap(o.value));
                   const eEnd = effectiveEndDate(r);
+                  const eEndLabel = effectiveEndLabel(r);
                   const eContract = effectiveContract(r);
-                  const contractDays = diffDays(r.start_date, eEnd);
+                  const contractDays = eEnd ? diffDays(r.start_date, eEnd) : (r.end_date_text ? ABSOLUTE_MAX_DAYS : 0);
                   const absoluteApplied = useAbsolute && !!r.absolute_period_days;
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
@@ -831,8 +832,8 @@ export default function Overlaps() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {fmtDateCell(eEnd)}
-                      {eEnd !== r.end_date && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                      {eEndLabel}
+                      {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
