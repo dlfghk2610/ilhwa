@@ -116,9 +116,20 @@ const isAfterOrEqual = (announcement: string | null | undefined, effective: stri
   return announcement >= effective;
 };
 
+const ABSOLUTE_MAX_DAYS = 365;
+const isISODate = (s?: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const isDateLikeInput = (v: string) => /^[\d.\s-]*$/.test(v);
+const isParticipantActive = (p: Participant, announce?: string | null) => {
+  if (!announce) return true;
+  if (p.start_date && p.start_date > announce) return false;
+  if (p.end_date && p.end_date < announce) return false;
+  return true;
+};
+
 const emptyForm = (): Omit<OverlapRow, "id"> => ({
   project_name: "", client: "", contract_amount: null,
-  start_date: "", end_date: "", suspension_date: "", suspension_reason: "", agreement_date: "",
+  start_date: "", end_date: "", end_date_text: null,
+  suspension_date: "", suspension_reason: "", agreement_date: "",
   absolute_period_days: null, participants: [], notes: "",
   contract_amount_change_date: "", contract_amount_new: null,
   end_date_change_date: "", end_date_new: "",
