@@ -825,11 +825,11 @@ export default function Overlaps() {
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-[11px] lg:text-xs xl:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[180px]">사업명</TableHead>
-                  <TableHead className="w-[130px]">발주처</TableHead>
+                  <TableHead className="w-[140px] lg:w-[170px] xl:w-[200px]">사업명</TableHead>
+                  <TableHead className="w-[100px] lg:w-[120px] xl:w-[140px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공예정일</TableHead>
@@ -861,8 +861,8 @@ export default function Overlaps() {
                   const agree = effectiveAgreementDate(r);
                   return (
                   <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
-                    <TableCell className="font-medium break-words w-[180px] whitespace-normal">{r.project_name}</TableCell>
-                    <TableCell className="break-words w-[130px] whitespace-normal">{r.client || "-"}</TableCell>
+                    <TableCell className="font-medium break-words w-[140px] lg:w-[170px] xl:w-[200px] whitespace-normal align-top"><span className="line-clamp-3">{r.project_name}</span></TableCell>
+                    <TableCell className="break-words w-[100px] lg:w-[120px] xl:w-[140px] whitespace-normal align-top"><span className="line-clamp-3">{r.client || "-"}</span></TableCell>
                     <TableCell className="whitespace-nowrap text-right">
                       {fmtContract(eContract)}
                       {eContract !== r.contract_amount && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
