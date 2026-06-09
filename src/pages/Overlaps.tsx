@@ -1110,6 +1110,52 @@ export default function Overlaps() {
               </div>
             </div>
 
+            {/* LH 본용역 / 관리용역 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox id="is_lh" checked={!!form.is_lh} onCheckedChange={(v) => setForm({ ...form, is_lh: !!v })} />
+                <Label htmlFor="is_lh" className="text-sm font-semibold cursor-pointer">LH 본용역 / 관리용역 사업</Label>
+                <span className="text-[11px] text-muted-foreground">상단 "LH사업용 여유도" 체크 시 본용역 준공일·계약금액 기준으로 계산됩니다.</span>
+              </div>
+              {form.is_lh && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                  <div className="space-y-1.5">
+                    <Label>본용역 계약금액 (원)</Label>
+                    <Input type="text" inputMode="numeric"
+                      value={form.lh_main_contract_amount !== null && form.lh_main_contract_amount !== undefined ? Number(form.lh_main_contract_amount).toLocaleString() : ""}
+                      onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, lh_main_contract_amount: v === "" ? null : Number(v) }); }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>본용역 준공예정일</Label>
+                    <Input type="text" placeholder='YYYY.MM.DD 또는 "준공시까지" 등'
+                      value={form.lh_main_end_text ?? toDisplayDate(form.lh_main_end_date)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (isDateLikeInput(v)) setForm({ ...form, lh_main_end_date: inputToISO(v), lh_main_end_text: null });
+                        else setForm({ ...form, lh_main_end_date: "", lh_main_end_text: v });
+                      }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>관리용역 계약금액 (원)</Label>
+                    <Input type="text" inputMode="numeric"
+                      value={form.lh_mgmt_contract_amount !== null && form.lh_mgmt_contract_amount !== undefined ? Number(form.lh_mgmt_contract_amount).toLocaleString() : ""}
+                      onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, lh_mgmt_contract_amount: v === "" ? null : Number(v) }); }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>관리용역 준공예정일</Label>
+                    <Input type="text" placeholder='YYYY.MM.DD 또는 "준공시까지" 등'
+                      value={form.lh_mgmt_end_text ?? toDisplayDate(form.lh_mgmt_end_date)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (isDateLikeInput(v)) setForm({ ...form, lh_mgmt_end_date: inputToISO(v), lh_mgmt_end_text: null });
+                        else setForm({ ...form, lh_mgmt_end_date: "", lh_mgmt_end_text: v });
+                      }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+
             {/* 변경계약 (다중) - PDF 인라인 */}
             <div className="border-t pt-3 space-y-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
