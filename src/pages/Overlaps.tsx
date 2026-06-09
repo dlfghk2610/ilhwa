@@ -349,7 +349,12 @@ export default function Overlaps() {
   const sortedSuspensions = (r: OverlapRow) => {
     return (r.suspensions || []).filter(s => s.suspension_date).slice().sort((a, b) => (a.suspension_date || "").localeCompare(b.suspension_date || ""));
   };
+  // LH사업용 여유도 토글 ON + is_lh 인 경우, 본용역 값을 기준으로 사용
+  const lhMainOverride = (r: OverlapRow) => useAbsolute && r.is_lh;
   const effectiveContract = (r: OverlapRow) => {
+    if (lhMainOverride(r) && r.lh_main_contract_amount !== null && r.lh_main_contract_amount !== undefined) {
+      return r.lh_main_contract_amount;
+    }
     let v = r.contract_amount;
     for (const a of sortedAmendments(r)) {
       if (a.contract_amount_new === null || a.contract_amount_new === undefined) continue;
@@ -360,6 +365,12 @@ export default function Overlaps() {
   // Returns the effective end date as {iso, text}. Free-text values ("준공시까지" 등)
   // are returned as text and signal that the end is open-ended.
   const effectiveEnd = (r: OverlapRow): { iso: string | null; text: string | null } => {
+    if (lhMainOverride(r) && (r.lh_main_end_date || r.lh_main_end_text)) {
+      return {
+        iso: isISODate(r.lh_main_end_date) ? r.lh_main_end_date : null,
+        text: r.lh_main_end_text || (r.lh_main_end_date && !isISODate(r.lh_main_end_date) ? r.lh_main_end_date : null),
+      };
+    }
     let v: { iso: string | null; text: string | null } = {
       iso: r.end_date || null,
       text: (r as any).end_date_text || null,
