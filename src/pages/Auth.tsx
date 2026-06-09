@@ -157,6 +157,12 @@ export default function Auth() {
                 <Button type="submit" className="w-full" disabled={submitting}>
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}로그인
                 </Button>
+                <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                  <span>아이디(이메일)를 잊으셨나요? 가입 시 사용한 이메일을 확인해주세요.</span>
+                  <button type="button" className="text-primary hover:underline font-medium" onClick={() => { setForgotEmail(email); setForgotOpen(true); }}>
+                    비밀번호 찾기
+                  </button>
+                </div>
               </form>
             </TabsContent>
             <TabsContent value="signup">
