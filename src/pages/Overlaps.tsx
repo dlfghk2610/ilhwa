@@ -406,7 +406,22 @@ export default function Overlaps() {
     const matchTech = selectedTech === "__all__" ||
       activeParticipants.some((p) => (p.name || "") === selectedTech);
     return matchSearch && matchTech;
+  }).sort((a, b) => {
+    // 착수일자 오름차순 정렬 (없는 건 뒤로)
+    const sa = a.start_date || "9999-99-99";
+    const sb = b.start_date || "9999-99-99";
+    return sa.localeCompare(sb);
   }), [rows, search, selectedTech, announcementDate]);
+
+  // 공고일 기준 준공일 경과 여부 (과업중지/협의완료/텍스트형 준공일은 경고 제외)
+  const isOverdueByAnnouncement = (r: OverlapRow) => {
+    if (!announcementDate) return false;
+    if (activeSuspensionAt(r)) return false;
+    if (effectiveAgreementDate(r)) return false;
+    const e = effectiveEnd(r);
+    if (!e.iso) return false;
+    return announcementDate > e.iso;
+  };
 
   const totalPeriod = (r: OverlapRow) => {
     if (useAbsolute && r.absolute_period_days) return r.absolute_period_days;
