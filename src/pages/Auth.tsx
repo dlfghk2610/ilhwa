@@ -174,6 +174,7 @@ export default function Auth() {
                 <div className="space-y-2">
                   <Label htmlFor="su-email">이메일</Label>
                   <Input id="su-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <p className="text-xs text-muted-foreground">가입 완료 시 입력하신 이메일로 확인 메일이 발송됩니다.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-pw">비밀번호 (8자 이상, 흔하지 않은 비밀번호)</Label>
@@ -187,6 +188,29 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>비밀번호 찾기</DialogTitle>
+            <DialogDescription>
+              가입 시 사용한 이메일을 입력하시면, 비밀번호 재설정 링크를 보내드립니다.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fp-email">이메일</Label>
+              <Input id="fp-email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setForgotOpen(false)}>취소</Button>
+              <Button type="submit" disabled={forgotSubmitting}>
+                {forgotSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}재설정 메일 보내기
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
