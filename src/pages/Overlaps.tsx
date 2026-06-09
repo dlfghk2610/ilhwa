@@ -891,7 +891,7 @@ export default function Overlaps() {
                   const eEndLabel = effectiveEndLabel(r);
                   const eContract = effectiveContract(r);
                   const contractDays = eEnd ? diffDays(r.start_date, eEnd) : (r.end_date_text ? ABSOLUTE_MAX_DAYS : 0);
-                  const absoluteApplied = useAbsolute && !!r.absolute_period_days;
+                  const absoluteApplied = useAbsolute && (r.is_lh || !!r.absolute_period_days);
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
