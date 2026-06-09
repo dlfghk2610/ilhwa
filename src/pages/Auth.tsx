@@ -27,6 +27,24 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   // displayName 입력값은 회사명으로 사용됩니다
   const [autoLogin, setAutoLogin] = useState<boolean>(() => localStorage.getItem("pq-auto-login") !== "0");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedEmail = z.string().trim().email("올바른 이메일을 입력하세요").safeParse(forgotEmail);
+    if (!parsedEmail.success) { toast.error(parsedEmail.error.errors[0].message); return; }
+    setForgotSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("비밀번호 재설정 메일을 발송했습니다. 메일함을 확인해주세요.");
+    setForgotOpen(false);
+    setForgotEmail("");
+  };
 
   const applyAutoLoginPref = (checked: boolean) => {
     localStorage.setItem("pq-auto-login", checked ? "1" : "0");
