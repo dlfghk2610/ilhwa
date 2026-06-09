@@ -1266,7 +1266,7 @@ export default function Overlaps() {
                   <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
                 </div>
               </div>
-              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
+              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할/참여시작일/참여제외일(선택, YYYY.MM.DD 또는 YYYY-MM-DD) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
