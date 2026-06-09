@@ -516,11 +516,33 @@ export default function Overlaps() {
         }
         return null;
       };
+      const toIsoFromCell = (val: any): string => {
+        if (val === null || val === undefined || val === "") return "";
+        if (typeof val === "number") {
+          const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+          if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+          return "";
+        }
+        const s = String(val).trim();
+        if (!s) return "";
+        const m = s.match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/);
+        if (m) {
+          const y = m[1];
+          const mo = m[2].padStart(2, "0");
+          const d = m[3].padStart(2, "0");
+          return `${y}-${mo}-${d}`;
+        }
+        return inputToISO(s);
+      };
       const parsed: Participant[] = data
         .map((row) => {
           const name = String(findKey(row, ["성명", "이름", "name"]) ?? "").trim().replace(/\s+/g, "");
           const role = String(findKey(row, ["역할", "직책", "직위", "role"]) ?? "").trim();
-          return { name, role: role || undefined };
+          const startRaw = findKey(row, ["참여시작일", "시작일", "startdate", "start"]);
+          const endRaw = findKey(row, ["참여제외일", "제외일", "종료일", "enddate", "end"]);
+          const start_date = toIsoFromCell(startRaw);
+          const end_date = toIsoFromCell(endRaw);
+          return { name, role: role || undefined, start_date: start_date || "", end_date: end_date || "" };
         })
         .filter((p) => p.name);
       if (parsed.length === 0) { toast.error("엑셀에서 인력을 찾을 수 없습니다 (성명 컬럼 필요)"); return; }
@@ -1244,7 +1266,7 @@ export default function Overlaps() {
                   <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
                 </div>
               </div>
-              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할(선택) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
+              <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할/참여시작일/참여제외일(선택, YYYY.MM.DD 또는 YYYY-MM-DD) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
