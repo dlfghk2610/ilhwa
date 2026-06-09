@@ -1011,7 +1011,7 @@ export default function Overlaps() {
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="absolute-tech" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
-                <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
+                <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">LH사업용 여유도</Label>
               </div>
               <div className="ml-auto">
                 <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
