@@ -806,8 +806,8 @@ export default function Overlaps() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="whitespace-nowrap">사업명</TableHead>
-                  <TableHead className="whitespace-nowrap">발주처</TableHead>
+                  <TableHead className="w-[180px]">사업명</TableHead>
+                  <TableHead className="w-[130px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공예정일</TableHead>
