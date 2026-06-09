@@ -54,6 +54,13 @@ type OverlapRow = {
   suspension_reason: string | null;
   agreement_date: string | null;
   absolute_period_days: number | null;
+  is_lh: boolean;
+  lh_main_contract_amount: number | null;
+  lh_main_end_date: string | null;
+  lh_main_end_text: string | null;
+  lh_mgmt_contract_amount: number | null;
+  lh_mgmt_end_date: string | null;
+  lh_mgmt_end_text: string | null;
   participants: Participant[];
   notes: string | null;
   // legacy single-amendment fields (kept for back-compat reads)
