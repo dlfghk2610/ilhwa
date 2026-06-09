@@ -825,11 +825,11 @@ export default function Overlaps() {
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-[11px] lg:text-xs xl:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[180px]">사업명</TableHead>
-                  <TableHead className="w-[130px]">발주처</TableHead>
+                  <TableHead className="w-[140px] lg:w-[170px] xl:w-[200px]">사업명</TableHead>
+                  <TableHead className="w-[100px] lg:w-[120px] xl:w-[140px]">발주처</TableHead>
                   <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
                   <TableHead className="whitespace-nowrap">착수일</TableHead>
                   <TableHead className="whitespace-nowrap">준공예정일</TableHead>
