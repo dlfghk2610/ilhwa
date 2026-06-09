@@ -1102,7 +1102,7 @@ export default function Overlaps() {
                             const next = [...(form.amendments || [])];
                             if (isDateLikeInput(v)) {
                               const iso = inputToISO(v);
-                              next[i] = { ...a, end_date_new: iso.length === 10 ? iso : "", end_date_new_text: null };
+                              next[i] = { ...a, end_date_new: iso, end_date_new_text: null };
                             } else {
                               next[i] = { ...a, end_date_new: "", end_date_new_text: v };
                             }
