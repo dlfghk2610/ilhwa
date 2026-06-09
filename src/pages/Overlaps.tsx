@@ -245,6 +245,13 @@ export default function Overlaps() {
       participant_list_pdf_path: r.participant_list_pdf_path || null,
       amendments: (r.amendments || []).map(a => ({ ...a, id: a.id || uid() })),
       suspensions: (r.suspensions || []).map(s => ({ ...s, id: s.id || uid() })),
+      is_lh: !!(r as any).is_lh,
+      lh_main_contract_amount: (r as any).lh_main_contract_amount ?? null,
+      lh_main_end_date: (r as any).lh_main_end_date || "",
+      lh_main_end_text: (r as any).lh_main_end_text ?? null,
+      lh_mgmt_contract_amount: (r as any).lh_mgmt_contract_amount ?? null,
+      lh_mgmt_end_date: (r as any).lh_mgmt_end_date || "",
+      lh_mgmt_end_text: (r as any).lh_mgmt_end_text ?? null,
     });
     setOpen(true);
   };
