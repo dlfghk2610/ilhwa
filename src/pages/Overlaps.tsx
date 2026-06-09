@@ -406,7 +406,22 @@ export default function Overlaps() {
     const matchTech = selectedTech === "__all__" ||
       activeParticipants.some((p) => (p.name || "") === selectedTech);
     return matchSearch && matchTech;
+  }).sort((a, b) => {
+    // 착수일자 오름차순 정렬 (없는 건 뒤로)
+    const sa = a.start_date || "9999-99-99";
+    const sb = b.start_date || "9999-99-99";
+    return sa.localeCompare(sb);
   }), [rows, search, selectedTech, announcementDate]);
+
+  // 공고일 기준 준공일 경과 여부 (과업중지/협의완료/텍스트형 준공일은 경고 제외)
+  const isOverdueByAnnouncement = (r: OverlapRow) => {
+    if (!announcementDate) return false;
+    if (activeSuspensionAt(r)) return false;
+    if (effectiveAgreementDate(r)) return false;
+    const e = effectiveEnd(r);
+    if (!e.iso) return false;
+    return announcementDate > e.iso;
+  };
 
   const totalPeriod = (r: OverlapRow) => {
     if (useAbsolute && r.absolute_period_days) return r.absolute_period_days;
@@ -834,6 +849,9 @@ export default function Overlaps() {
                     <TableCell className="whitespace-nowrap">
                       {eEndLabel}
                       {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                      {isOverdueByAnnouncement(r) && (
+                        <span className="ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded" title="공고일 기준 준공일이 경과되었습니다 (과업중지/협의완료 미적용)">⚠ 준공일 경과</span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
@@ -891,7 +909,13 @@ export default function Overlaps() {
                       <div>{fmtContract(eContract)}{eContract !== r.contract_amount && <span className="ml-1 text-orange-600">(변경)</span>}</div>
                       <div className="text-muted-foreground">착수일</div><div>{fmtDateCell(r.start_date)}</div>
                       <div className="text-muted-foreground">준공예정일</div>
-                      <div>{effectiveEndLabel(r)}{(eEnd !== r.end_date) && <span className="ml-1 text-orange-600">(변경)</span>}</div>
+                      <div>
+                        {effectiveEndLabel(r)}
+                        {(eEnd !== r.end_date) && <span className="ml-1 text-orange-600">(변경)</span>}
+                        {isOverdueByAnnouncement(r) && (
+                          <span className="ml-1 inline-block px-1 py-0.5 text-[10px] bg-red-600 text-white rounded">⚠ 경과</span>
+                        )}
+                      </div>
                       <div className="text-muted-foreground">잔여일수</div><div>{remainText}</div>
                       <div className="text-muted-foreground">과업중지일</div><div>{fmtDateCell(susp)}{susp && r.suspension_reason ? ` (${r.suspension_reason})` : ""}</div>
                       <div className="text-muted-foreground">협의완료일</div><div>{fmtDateCell(agree)}</div>
