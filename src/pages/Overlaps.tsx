@@ -290,6 +290,13 @@ export default function Overlaps() {
       participant_list_pdf_path: form.participant_list_pdf_path || null,
       amendments: cleanAmendments,
       suspensions: cleanSuspensions,
+      is_lh: !!form.is_lh,
+      lh_main_contract_amount: num(form.lh_main_contract_amount),
+      lh_main_end_date: isISODate(form.lh_main_end_date) ? form.lh_main_end_date : null,
+      lh_main_end_text: form.lh_main_end_text || (form.lh_main_end_date && !isISODate(form.lh_main_end_date) ? form.lh_main_end_date : null),
+      lh_mgmt_contract_amount: num(form.lh_mgmt_contract_amount),
+      lh_mgmt_end_date: isISODate(form.lh_mgmt_end_date) ? form.lh_mgmt_end_date : null,
+      lh_mgmt_end_text: form.lh_mgmt_end_text || (form.lh_mgmt_end_date && !isISODate(form.lh_mgmt_end_date) ? form.lh_mgmt_end_date : null),
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
