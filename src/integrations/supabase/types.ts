@@ -847,6 +847,13 @@ export type Database = {
           end_date_new: string | null
           end_date_text: string | null
           id: string
+          is_lh: boolean
+          lh_main_contract_amount: number | null
+          lh_main_end_date: string | null
+          lh_main_end_text: string | null
+          lh_mgmt_contract_amount: number | null
+          lh_mgmt_end_date: string | null
+          lh_mgmt_end_text: string | null
           notes: string | null
           original_contract_pdf_path: string | null
           participant_list_pdf_path: string | null
@@ -879,6 +886,13 @@ export type Database = {
           end_date_new?: string | null
           end_date_text?: string | null
           id?: string
+          is_lh?: boolean
+          lh_main_contract_amount?: number | null
+          lh_main_end_date?: string | null
+          lh_main_end_text?: string | null
+          lh_mgmt_contract_amount?: number | null
+          lh_mgmt_end_date?: string | null
+          lh_mgmt_end_text?: string | null
           notes?: string | null
           original_contract_pdf_path?: string | null
           participant_list_pdf_path?: string | null
@@ -911,6 +925,13 @@ export type Database = {
           end_date_new?: string | null
           end_date_text?: string | null
           id?: string
+          is_lh?: boolean
+          lh_main_contract_amount?: number | null
+          lh_main_end_date?: string | null
+          lh_main_end_text?: string | null
+          lh_mgmt_contract_amount?: number | null
+          lh_mgmt_end_date?: string | null
+          lh_mgmt_end_text?: string | null
           notes?: string | null
           original_contract_pdf_path?: string | null
           participant_list_pdf_path?: string | null

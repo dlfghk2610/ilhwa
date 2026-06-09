@@ -54,6 +54,13 @@ type OverlapRow = {
   suspension_reason: string | null;
   agreement_date: string | null;
   absolute_period_days: number | null;
+  is_lh: boolean;
+  lh_main_contract_amount: number | null;
+  lh_main_end_date: string | null;
+  lh_main_end_text: string | null;
+  lh_mgmt_contract_amount: number | null;
+  lh_mgmt_end_date: string | null;
+  lh_mgmt_end_text: string | null;
   participants: Participant[];
   notes: string | null;
   // legacy single-amendment fields (kept for back-compat reads)
@@ -137,6 +144,9 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   end_date_change_pdf_path: null, suspension_pdf_path: null,
   agreement_pdf_path: null, participant_list_pdf_path: null,
   amendments: [], suspensions: [],
+  is_lh: false,
+  lh_main_contract_amount: null, lh_main_end_date: "", lh_main_end_text: null,
+  lh_mgmt_contract_amount: null, lh_mgmt_end_date: "", lh_mgmt_end_text: null,
 });
 
 export default function Overlaps() {
@@ -235,6 +245,13 @@ export default function Overlaps() {
       participant_list_pdf_path: r.participant_list_pdf_path || null,
       amendments: (r.amendments || []).map(a => ({ ...a, id: a.id || uid() })),
       suspensions: (r.suspensions || []).map(s => ({ ...s, id: s.id || uid() })),
+      is_lh: !!(r as any).is_lh,
+      lh_main_contract_amount: (r as any).lh_main_contract_amount ?? null,
+      lh_main_end_date: (r as any).lh_main_end_date || "",
+      lh_main_end_text: (r as any).lh_main_end_text ?? null,
+      lh_mgmt_contract_amount: (r as any).lh_mgmt_contract_amount ?? null,
+      lh_mgmt_end_date: (r as any).lh_mgmt_end_date || "",
+      lh_mgmt_end_text: (r as any).lh_mgmt_end_text ?? null,
     });
     setOpen(true);
   };
@@ -273,6 +290,13 @@ export default function Overlaps() {
       participant_list_pdf_path: form.participant_list_pdf_path || null,
       amendments: cleanAmendments,
       suspensions: cleanSuspensions,
+      is_lh: !!form.is_lh,
+      lh_main_contract_amount: num(form.lh_main_contract_amount),
+      lh_main_end_date: isISODate(form.lh_main_end_date) ? form.lh_main_end_date : null,
+      lh_main_end_text: form.lh_main_end_text || (form.lh_main_end_date && !isISODate(form.lh_main_end_date) ? form.lh_main_end_date : null),
+      lh_mgmt_contract_amount: num(form.lh_mgmt_contract_amount),
+      lh_mgmt_end_date: isISODate(form.lh_mgmt_end_date) ? form.lh_mgmt_end_date : null,
+      lh_mgmt_end_text: form.lh_mgmt_end_text || (form.lh_mgmt_end_date && !isISODate(form.lh_mgmt_end_date) ? form.lh_mgmt_end_date : null),
     };
     if (editing) {
       const { error } = await (supabase as any).from("technician_overlaps").update(payload).eq("id", editing.id);
@@ -325,7 +349,12 @@ export default function Overlaps() {
   const sortedSuspensions = (r: OverlapRow) => {
     return (r.suspensions || []).filter(s => s.suspension_date).slice().sort((a, b) => (a.suspension_date || "").localeCompare(b.suspension_date || ""));
   };
+  // LH사업용 여유도 토글 ON + is_lh 인 경우, 본용역 값을 기준으로 사용
+  const lhMainOverride = (r: OverlapRow) => useAbsolute && r.is_lh;
   const effectiveContract = (r: OverlapRow) => {
+    if (lhMainOverride(r) && r.lh_main_contract_amount !== null && r.lh_main_contract_amount !== undefined) {
+      return r.lh_main_contract_amount;
+    }
     let v = r.contract_amount;
     for (const a of sortedAmendments(r)) {
       if (a.contract_amount_new === null || a.contract_amount_new === undefined) continue;
@@ -336,6 +365,12 @@ export default function Overlaps() {
   // Returns the effective end date as {iso, text}. Free-text values ("준공시까지" 등)
   // are returned as text and signal that the end is open-ended.
   const effectiveEnd = (r: OverlapRow): { iso: string | null; text: string | null } => {
+    if (lhMainOverride(r) && (r.lh_main_end_date || r.lh_main_end_text)) {
+      return {
+        iso: isISODate(r.lh_main_end_date) ? r.lh_main_end_date : null,
+        text: r.lh_main_end_text || (r.lh_main_end_date && !isISODate(r.lh_main_end_date) ? r.lh_main_end_date : null),
+      };
+    }
     let v: { iso: string | null; text: string | null } = {
       iso: r.end_date || null,
       text: (r as any).end_date_text || null,
@@ -780,7 +815,7 @@ export default function Overlaps() {
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="absolute" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
-              <Label htmlFor="absolute" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
+              <Label htmlFor="absolute" className="text-sm cursor-pointer whitespace-nowrap">LH사업용 여유도</Label>
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">기술자</Label>
@@ -856,7 +891,7 @@ export default function Overlaps() {
                   const eEndLabel = effectiveEndLabel(r);
                   const eContract = effectiveContract(r);
                   const contractDays = eEnd ? diffDays(r.start_date, eEnd) : (r.end_date_text ? ABSOLUTE_MAX_DAYS : 0);
-                  const absoluteApplied = useAbsolute && !!r.absolute_period_days;
+                  const absoluteApplied = useAbsolute && (r.is_lh || !!r.absolute_period_days);
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
@@ -976,7 +1011,7 @@ export default function Overlaps() {
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="absolute-tech" checked={useAbsolute} onCheckedChange={(v) => setUseAbsolute(!!v)} />
-                <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">절대공기 적용</Label>
+                <Label htmlFor="absolute-tech" className="text-sm cursor-pointer whitespace-nowrap">LH사업용 여유도</Label>
               </div>
               <div className="ml-auto">
                 <Button size="sm" onClick={openTechCreate}><Plus className="mr-1 h-4 w-4" />기술자 등록</Button>
@@ -1074,6 +1109,52 @@ export default function Overlaps() {
                 <Input type="number" value={form.absolute_period_days ?? ""} onChange={(e) => setForm({ ...form, absolute_period_days: e.target.value === "" ? null : Number(e.target.value) })} />
               </div>
             </div>
+
+            {/* LH 본용역 / 관리용역 */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox id="is_lh" checked={!!form.is_lh} onCheckedChange={(v) => setForm({ ...form, is_lh: !!v })} />
+                <Label htmlFor="is_lh" className="text-sm font-semibold cursor-pointer">LH 본용역 / 관리용역 사업</Label>
+                <span className="text-[11px] text-muted-foreground">상단 "LH사업용 여유도" 체크 시 본용역 준공일·계약금액 기준으로 계산됩니다.</span>
+              </div>
+              {form.is_lh && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                  <div className="space-y-1.5">
+                    <Label>본용역 계약금액 (원)</Label>
+                    <Input type="text" inputMode="numeric"
+                      value={form.lh_main_contract_amount !== null && form.lh_main_contract_amount !== undefined ? Number(form.lh_main_contract_amount).toLocaleString() : ""}
+                      onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, lh_main_contract_amount: v === "" ? null : Number(v) }); }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>본용역 준공예정일</Label>
+                    <Input type="text" placeholder='YYYY.MM.DD 또는 "준공시까지" 등'
+                      value={form.lh_main_end_text ?? toDisplayDate(form.lh_main_end_date)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (isDateLikeInput(v)) setForm({ ...form, lh_main_end_date: inputToISO(v), lh_main_end_text: null });
+                        else setForm({ ...form, lh_main_end_date: "", lh_main_end_text: v });
+                      }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>관리용역 계약금액 (원)</Label>
+                    <Input type="text" inputMode="numeric"
+                      value={form.lh_mgmt_contract_amount !== null && form.lh_mgmt_contract_amount !== undefined ? Number(form.lh_mgmt_contract_amount).toLocaleString() : ""}
+                      onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setForm({ ...form, lh_mgmt_contract_amount: v === "" ? null : Number(v) }); }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>관리용역 준공예정일</Label>
+                    <Input type="text" placeholder='YYYY.MM.DD 또는 "준공시까지" 등'
+                      value={form.lh_mgmt_end_text ?? toDisplayDate(form.lh_mgmt_end_date)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (isDateLikeInput(v)) setForm({ ...form, lh_mgmt_end_date: inputToISO(v), lh_mgmt_end_text: null });
+                        else setForm({ ...form, lh_mgmt_end_date: "", lh_mgmt_end_text: v });
+                      }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
 
             {/* 변경계약 (다중) - PDF 인라인 */}
             <div className="border-t pt-3 space-y-2">
