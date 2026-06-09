@@ -849,6 +849,9 @@ export default function Overlaps() {
                     <TableCell className="whitespace-nowrap">
                       {eEndLabel}
                       {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                      {isOverdueByAnnouncement(r) && (
+                        <span className="ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded" title="공고일 기준 준공일이 경과되었습니다 (과업중지/협의완료 미적용)">⚠ 준공일 경과</span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
                     <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
