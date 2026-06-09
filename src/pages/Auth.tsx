@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -26,6 +27,24 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   // displayName 입력값은 회사명으로 사용됩니다
   const [autoLogin, setAutoLogin] = useState<boolean>(() => localStorage.getItem("pq-auto-login") !== "0");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedEmail = z.string().trim().email("올바른 이메일을 입력하세요").safeParse(forgotEmail);
+    if (!parsedEmail.success) { toast.error(parsedEmail.error.errors[0].message); return; }
+    setForgotSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("비밀번호 재설정 메일을 발송했습니다. 메일함을 확인해주세요.");
+    setForgotOpen(false);
+    setForgotEmail("");
+  };
 
   const applyAutoLoginPref = (checked: boolean) => {
     localStorage.setItem("pq-auto-login", checked ? "1" : "0");
@@ -138,6 +157,12 @@ export default function Auth() {
                 <Button type="submit" className="w-full" disabled={submitting}>
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}로그인
                 </Button>
+                <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                  <span>아이디(이메일)를 잊으셨나요? 가입 시 사용한 이메일을 확인해주세요.</span>
+                  <button type="button" className="text-primary hover:underline font-medium" onClick={() => { setForgotEmail(email); setForgotOpen(true); }}>
+                    비밀번호 찾기
+                  </button>
+                </div>
               </form>
             </TabsContent>
             <TabsContent value="signup">
@@ -149,6 +174,7 @@ export default function Auth() {
                 <div className="space-y-2">
                   <Label htmlFor="su-email">이메일</Label>
                   <Input id="su-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <p className="text-xs text-muted-foreground">가입 완료 시 입력하신 이메일로 확인 메일이 발송됩니다.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-pw">비밀번호 (8자 이상, 흔하지 않은 비밀번호)</Label>
@@ -162,6 +188,29 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>비밀번호 찾기</DialogTitle>
+            <DialogDescription>
+              가입 시 사용한 이메일을 입력하시면, 비밀번호 재설정 링크를 보내드립니다.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fp-email">이메일</Label>
+              <Input id="fp-email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setForgotOpen(false)}>취소</Button>
+              <Button type="submit" disabled={forgotSubmitting}>
+                {forgotSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}재설정 메일 보내기
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

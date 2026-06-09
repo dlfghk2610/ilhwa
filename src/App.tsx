@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import Bids from "./pages/Bids.tsx";
 import Performances from "./pages/Performances.tsx";
 import Careers from "./pages/Careers.tsx";
@@ -31,6 +32,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/bids" element={<ProtectedRoute><Bids /></ProtectedRoute>} />
           <Route path="/performances" element={<ProtectedRoute><Performances /></ProtectedRoute>} />
