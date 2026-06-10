@@ -759,7 +759,8 @@ export default function Overlaps() {
         과업중지일: effectiveSuspensionDate(r) || "",
         중지사유: r.suspension_reason || "",
         협의완료일: effectiveAgreementDate(r) || "",
-        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.name).join(", "),
+        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.role ? `${p.name}(${p.role})` : p.name).join(", "),
+        역할: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.role || "").join(", "),
         비고: r.notes || "",
       };
     });
