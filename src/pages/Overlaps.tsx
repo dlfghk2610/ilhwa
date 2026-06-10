@@ -759,7 +759,8 @@ export default function Overlaps() {
         과업중지일: effectiveSuspensionDate(r) || "",
         중지사유: r.suspension_reason || "",
         협의완료일: effectiveAgreementDate(r) || "",
-        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.name).join(", "),
+        참여인력: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.role ? `${p.name}(${p.role})` : p.name).join(", "),
+        역할: (r.participants || []).filter((p) => isParticipantActive(p, announcementDate)).map((p) => p.role || "").join(", "),
         비고: r.notes || "",
       };
     });
@@ -860,21 +861,21 @@ export default function Overlaps() {
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
-            <Table className="text-[11px] lg:text-xs xl:text-sm">
+            <Table className="text-[10px] lg:text-[11px] xl:text-xs [&_th]:px-1.5 [&_th]:py-2 [&_td]:px-1.5 [&_td]:py-1.5 [&_th]:h-auto">
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[140px] lg:w-[170px] xl:w-[200px]">사업명</TableHead>
-                  <TableHead className="w-[100px] lg:w-[120px] xl:w-[140px]">발주처</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">계약금액</TableHead>
-                  <TableHead className="whitespace-nowrap">착수일</TableHead>
-                  <TableHead className="whitespace-nowrap">준공예정일</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">총 계약기간</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">잔여일수</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">중복금액</TableHead>
-                  <TableHead className="whitespace-nowrap">과업중지일</TableHead>
-                  <TableHead className="whitespace-nowrap">협의완료일</TableHead>
-                  <TableHead className="whitespace-nowrap">비고</TableHead>
-                  <TableHead className="text-right w-[110px]">관리</TableHead>
+                  <TableHead className="w-[120px] lg:w-[150px] xl:w-[180px]">사업명</TableHead>
+                  <TableHead className="w-[80px] lg:w-[100px] xl:w-[120px]">발주처</TableHead>
+                  <TableHead className="text-right w-[70px] lg:w-[80px]">계약금액</TableHead>
+                  <TableHead className="w-[72px]">착수일</TableHead>
+                  <TableHead className="w-[72px]">준공<br/>예정일</TableHead>
+                  <TableHead className="text-right w-[56px]">총<br/>계약기간</TableHead>
+                  <TableHead className="text-right w-[56px]">잔여<br/>일수</TableHead>
+                  <TableHead className="text-right w-[70px] lg:w-[80px]">중복금액</TableHead>
+                  <TableHead className="w-[72px]">과업<br/>중지일</TableHead>
+                  <TableHead className="w-[72px]">협의<br/>완료일</TableHead>
+                  <TableHead className="w-[110px]">비고</TableHead>
+                  <TableHead className="text-right w-[72px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -896,29 +897,29 @@ export default function Overlaps() {
                   const agree = effectiveAgreementDate(r);
                   return (
                   <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
-                    <TableCell className="font-medium break-words w-[140px] lg:w-[170px] xl:w-[200px] whitespace-normal align-top"><span className="line-clamp-3">{r.project_name}</span></TableCell>
-                    <TableCell className="break-words w-[100px] lg:w-[120px] xl:w-[140px] whitespace-normal align-top"><span className="line-clamp-3">{r.client || "-"}</span></TableCell>
-                    <TableCell className="whitespace-nowrap text-right">
-                      {fmtContract(eContract)}
-                      {eContract !== r.contract_amount && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                    <TableCell className="font-medium break-words whitespace-normal align-top"><span className="line-clamp-3">{r.project_name}</span></TableCell>
+                    <TableCell className="break-words whitespace-normal align-top"><span className="line-clamp-3">{r.client || "-"}</span></TableCell>
+                    <TableCell className="text-right align-top">
+                      <span className="break-all">{fmtContract(eContract)}</span>
+                      {eContract !== r.contract_amount && <span className="block text-[9px] text-orange-600">(변경)</span>}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(r.start_date)}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {eEndLabel}
-                      {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="ml-1 text-[10px] text-orange-600">(변경)</span>}
+                    <TableCell className="align-top">{fmtDateCell(r.start_date)}</TableCell>
+                    <TableCell className="align-top">
+                      <span className="break-all">{eEndLabel}</span>
+                      {(eEnd !== r.end_date || (effectiveEnd(r).text && effectiveEnd(r).text !== r.end_date_text)) && <span className="block text-[9px] text-orange-600">(변경)</span>}
                       {isOverdueByAnnouncement(r) && (
-                        <span className="ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded" title="공고일 기준 준공일이 경과되었습니다 (과업중지/협의완료 미적용)">⚠ 준공일 경과</span>
+                        <span className="mt-0.5 inline-block px-1 py-0.5 text-[9px] bg-red-600 text-white rounded" title="공고일 기준 준공일이 경과되었습니다">⚠경과</span>
                       )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right">{remainText}</TableCell>
-                    <TableCell className={"whitespace-nowrap text-right" + (absoluteApplied ? " text-red-600 font-semibold" : "")}>{overlapText}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(susp)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtDateCell(agree)}</TableCell>
-                    <TableCell className="whitespace-nowrap max-w-[200px] truncate">{r.notes || "-"}</TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <TableCell className="text-right align-top">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
+                    <TableCell className="text-right align-top">{remainText}</TableCell>
+                    <TableCell className={"text-right align-top" + (absoluteApplied ? " text-red-600 font-semibold" : "")}><span className="break-all">{overlapText}</span></TableCell>
+                    <TableCell className="align-top">{fmtDateCell(susp)}</TableCell>
+                    <TableCell className="align-top">{fmtDateCell(agree)}</TableCell>
+                    <TableCell className="align-top break-words whitespace-normal"><span className="line-clamp-3">{r.notes || "-"}</span></TableCell>
+                    <TableCell className="text-right align-top" onClick={(e) => e.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
                   );
