@@ -1544,6 +1544,17 @@ export default function Overlaps() {
               <Label>전문분야</Label>
               <Input value={techForm.specialty} onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })} />
             </div>
+            <div className="space-y-1.5">
+              <Label>상태</Label>
+              <Select value={techForm.status} onValueChange={(v) => setTechForm({ ...techForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="재직중">재직중</SelectItem>
+                  <SelectItem value="퇴사자">퇴사자</SelectItem>
+                  <SelectItem value="PQ">PQ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTechOpen(false)}>취소</Button>
               <Button type="submit" disabled={techSubmitting}>{techSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
