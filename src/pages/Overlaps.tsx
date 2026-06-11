@@ -1054,48 +1054,69 @@ export default function Overlaps() {
               </div>
             </div>
           </Card>
-          <Card className="shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-[140px]">기술자명</TableHead>
-                    <TableHead className="w-[120px]">전문분야</TableHead>
-                    <TableHead className="text-right w-[160px]">중복금액 합계</TableHead>
-                    <TableHead className="text-right w-[100px]">참여 사업수</TableHead>
-                    <TableHead className="text-right w-[90px]">관리</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {technicians.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">등록된 기술자가 없습니다.</TableCell></TableRow>
-                  ) : technicians.map((t) => {
-                    const total = techOverlapTotals.get(t.name) || 0;
-                    const count = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
-                    const over = total - 250_000_000;
-                    return (
-                      <TableRow key={t.id} className={total >= 250_000_000 ? "bg-blue-50" : ""}>
-                        <TableCell className="font-medium">
-                          {t.name}
-                          {total >= 250_000_000 && (<span className="ml-1.5 inline-block px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded">2.5억 이상</span>)}
-                        </TableCell>
-                        <TableCell>{t.specialty || "-"}</TableCell>
-                        <TableCell className="text-right font-semibold text-primary">
-                          {announcementDate ? fmtOverlap(total) : "-"}
-                          {announcementDate && over > 0 && (<span className="block text-[10px] text-blue-700">+{fmtOverlap(over)} 초과</span>)}
-                        </TableCell>
-                        <TableCell className="text-right">{count}건</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="icon" variant="ghost" onClick={() => openTechEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => setTechDeleteId(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="px-4 py-2 text-xs text-muted-foreground border-t">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 중복금액이 계산됩니다."}</div>
+          <Card className="shadow-card p-3">
+            {technicians.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">등록된 기술자가 없습니다.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {technicians.map((t) => {
+                  // 집계건수: 공고일 기준 활성 참여 건수
+                  const aggCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
+                  // 단순건수: 전체 참여 건수 (공고일/기간 무관)
+                  const simpleCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
+                  // 기간대비건수: 공고일이 사업 기간(착수일~준공예정일) 내인 건수
+                  const periodCount = !announcementDate ? 0 : rows.filter((r) => {
+                    if (!(r.participants || []).some((p) => (p.name || "") === t.name)) return false;
+                    const s = r.start_date || "";
+                    const e = effectiveEndDate(r) || r.end_date || "";
+                    if (!s) return false;
+                    if (announcementDate < s) return false;
+                    if (e && announcementDate > e) return false;
+                    return true;
+                  }).length;
+                  const total = techOverlapTotals.get(t.name) || 0;
+                  const status = t.status || "재직중";
+                  const statusClass = status === "재직중"
+                    ? "bg-green-100 text-green-700"
+                    : status === "퇴사자"
+                    ? "bg-gray-200 text-gray-700"
+                    : "bg-blue-100 text-blue-700";
+                  return (
+                    <div
+                      key={t.id}
+                      className={`relative rounded-lg border p-3 transition-shadow hover:shadow-md ${total >= 250_000_000 ? "bg-blue-50/60 border-blue-300" : "bg-card"}`}
+                    >
+                      <div className="absolute top-2 right-2 flex gap-0.5">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openTechEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setTechDeleteId(t.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                      </div>
+                      <div className="pr-14">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-base leading-tight">{t.name}</span>
+                          <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-medium ${statusClass}`}>{status}</span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground truncate">{t.specialty || "전문분야 미지정"}</div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-1 text-center">
+                        <div className="rounded-md bg-muted/50 py-1.5">
+                          <div className="text-[10px] text-muted-foreground">집계건수</div>
+                          <div className="text-sm font-semibold text-primary">{aggCount}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/50 py-1.5">
+                          <div className="text-[10px] text-muted-foreground">단순건수</div>
+                          <div className="text-sm font-semibold">{simpleCount}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/50 py-1.5">
+                          <div className="text-[10px] text-muted-foreground">기간대비</div>
+                          <div className="text-sm font-semibold">{periodCount}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="px-1 pt-3 text-xs text-muted-foreground">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 집계/기간대비 건수가 계산됩니다."}</div>
           </Card>
         </TabsContent>
       </Tabs>
