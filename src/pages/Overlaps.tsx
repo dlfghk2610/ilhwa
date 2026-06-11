@@ -152,7 +152,7 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
 export default function Overlaps() {
   const { user } = useAuth();
   const [rows, setRows] = useState<OverlapRow[]>([]);
-  const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null }[]>([]);
+  const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null; status: string; selected_association: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
