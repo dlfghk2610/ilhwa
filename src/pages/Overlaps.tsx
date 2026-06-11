@@ -173,8 +173,8 @@ export default function Overlaps() {
   const participantFileRef = useRef<HTMLInputElement>(null);
 
   const [techOpen, setTechOpen] = useState(false);
-  const [techEditing, setTechEditing] = useState<{ id: string; name: string; specialty: string | null } | null>(null);
-  const [techForm, setTechForm] = useState<{ name: string; specialty: string }>({ name: "", specialty: "" });
+  const [techEditing, setTechEditing] = useState<{ id: string; name: string; specialty: string | null; status?: string; selected_association?: string } | null>(null);
+  const [techForm, setTechForm] = useState<{ name: string; specialty: string; status: string }>({ name: "", specialty: "", status: "재직중" });
   const [techDeleteId, setTechDeleteId] = useState<string | null>(null);
   const [techSubmitting, setTechSubmitting] = useState(false);
   const [activeParticipantIdx, setActiveParticipantIdx] = useState<number | null>(null);
