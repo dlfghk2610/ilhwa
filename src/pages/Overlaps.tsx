@@ -183,7 +183,7 @@ export default function Overlaps() {
     setLoading(true);
     const [{ data, error }, techRes] = await Promise.all([
       (supabase as any).from("technician_overlaps").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("technicians").select("id, name, specialty").order("name"),
+      (supabase as any).from("technicians").select("id, name, specialty, status, selected_association").order("name"),
     ]);
     if (error) toast.error(error.message);
     else setRows((data || []).map((r: any) => {
