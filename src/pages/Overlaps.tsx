@@ -342,6 +342,14 @@ export default function Overlaps() {
     setTechDeleteId(null);
   };
 
+  const updateTechAssociation = async (techName: string, value: string) => {
+    const t = technicians.find((x) => x.name === techName);
+    if (!t) return;
+    setTechnicians((prev) => prev.map((x) => x.id === t.id ? { ...x, selected_association: value } : x));
+    const { error } = await (supabase as any).from("technicians").update({ selected_association: value }).eq("id", t.id);
+    if (error) toast.error(error.message);
+  };
+
   // ===== 공고일 기준 effective 값 (변경계약 다중 + 과업중지/재개 다중) =====
   const sortedAmendments = (r: OverlapRow) => {
     return (r.amendments || []).filter(a => a.change_date).slice().sort((a, b) => (a.change_date || "").localeCompare(b.change_date || ""));
