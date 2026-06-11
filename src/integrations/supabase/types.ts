@@ -960,7 +960,9 @@ export type Database = {
           name: string
           notes: string | null
           position: string | null
+          selected_association: string
           specialty: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -974,7 +976,9 @@ export type Database = {
           name: string
           notes?: string | null
           position?: string | null
+          selected_association?: string
           specialty?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -988,7 +992,9 @@ export type Database = {
           name?: string
           notes?: string | null
           position?: string | null
+          selected_association?: string
           specialty?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
