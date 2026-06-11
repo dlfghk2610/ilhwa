@@ -316,16 +316,16 @@ export default function Overlaps() {
     setDeleteId(null);
   };
 
-  const openTechCreate = () => { setTechEditing(null); setTechForm({ name: "", specialty: "" }); setTechOpen(true); };
-  const openTechEdit = (t: { id: string; name: string; specialty: string | null }) => {
-    setTechEditing(t); setTechForm({ name: t.name, specialty: t.specialty || "" }); setTechOpen(true);
+  const openTechCreate = () => { setTechEditing(null); setTechForm({ name: "", specialty: "", status: "재직중" }); setTechOpen(true); };
+  const openTechEdit = (t: { id: string; name: string; specialty: string | null; status?: string }) => {
+    setTechEditing(t); setTechForm({ name: t.name, specialty: t.specialty || "", status: t.status || "재직중" }); setTechOpen(true);
   };
   const saveTech = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     if (!techForm.name.trim()) { toast.error("이름은 필수입니다"); return; }
     setTechSubmitting(true);
-    const payload: any = { name: techForm.name.trim(), specialty: techForm.specialty.trim() || null };
+    const payload: any = { name: techForm.name.trim(), specialty: techForm.specialty.trim() || null, status: techForm.status };
     if (techEditing) {
       const { error } = await (supabase as any).from("technicians").update(payload).eq("id", techEditing.id);
       if (error) toast.error(error.message); else { toast.success("수정 완료"); setTechOpen(false); load(); }
