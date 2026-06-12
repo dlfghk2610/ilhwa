@@ -852,6 +852,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
     return () => { cancelled = true; };
   }, [item?.id]);
 
+
   useEffect(() => {
     if (!pdfDoc || !item) return;
     let cancelled = false;
@@ -937,7 +938,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
             </TabsList>
           </div>
 
-          <TabsContent value="pdf" className="flex-1 min-h-0 m-0 flex flex-col">
+          <TabsContent value="pdf" className="flex-1 min-h-0 m-0 flex flex-col data-[state=inactive]:hidden">
             <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_1fr]">
               <div className="relative bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1">
                 <Button variant="secondary" size="icon"
@@ -995,7 +996,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
             </div>
           </TabsContent>
 
-          <TabsContent value="xlsx" className="flex-1 min-h-0 m-0 flex flex-col">
+          <TabsContent value="xlsx" className="flex-1 min-h-0 m-0 flex flex-col data-[state=inactive]:hidden">
             {xlsxSheets.length > 1 && (
               <div className="flex gap-1 px-3 py-2 border-b overflow-x-auto shrink-0">
                 {xlsxSheets.map((s, i) => (
