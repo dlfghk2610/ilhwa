@@ -873,6 +873,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
     return () => clearTimeout(t);
   }, [item?.id]);
 
+  useEffect(() => {
     if (!pdfDoc || !item) return;
     let cancelled = false;
     (async () => {
