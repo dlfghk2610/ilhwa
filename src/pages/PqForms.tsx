@@ -966,7 +966,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
                 </div>
               </div>
 
-              <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-20 md:h-auto shrink-0 md:shrink">
+              <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-20 md:h-full md:min-h-0 shrink-0 md:shrink overflow-hidden">
                 <div className="flex md:hidden gap-2 p-2">
                   {stripSrcs.map((src, i) => {
                     const n = i + 1; const active = n === page;
