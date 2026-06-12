@@ -916,7 +916,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
 
   return (
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
+      <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] max-h-[100dvh] top-0 left-0 translate-x-0 translate-y-0 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
         <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 border-b bg-card pr-12 shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <FileText className="h-5 w-5 text-primary shrink-0" />
