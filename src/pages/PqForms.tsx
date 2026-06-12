@@ -937,15 +937,15 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
             </TabsList>
           </div>
 
-          <TabsContent value="pdf" className="flex-1 min-h-0 m-0">
-            <div className="h-full flex flex-col md:grid md:grid-cols-[320px_1fr]">
-              <div className="relative flex items-center justify-center bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1 md:flex-none md:h-auto">
+          <TabsContent value="pdf" className="flex-1 min-h-0 m-0 flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_1fr]">
+              <div className="relative bg-muted/10 overflow-hidden min-h-0 order-1 md:order-2 flex-1">
                 <Button variant="secondary" size="icon"
                   className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 shadow h-9 w-9"
                   onClick={goPrev} disabled={page <= 1}
                 ><ChevronLeft className="h-5 w-5" /></Button>
 
-                <div className="h-full w-full flex items-center justify-center p-2 sm:p-4 overflow-auto">
+                <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4 overflow-auto">
                   {largeImg ? (
                     <img key={page} src={largeImg} alt={`page ${page}`}
                       className="max-h-full max-w-full shadow-xl rounded-sm animate-in fade-in zoom-in-95 duration-200" />
