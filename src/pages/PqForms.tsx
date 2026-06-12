@@ -408,14 +408,13 @@ export default function PqForms() {
                       {inside.length}개
                     </div>
                   </div>
-                  <CardContent className="p-3 space-y-1">
-                    <h3 className="font-semibold line-clamp-1 leading-tight flex items-center gap-1.5">
-                      <FolderIcon className="h-4 w-4 text-primary shrink-0" />
+                  <CardContent className="p-2 space-y-0.5">
+                    <h3 className="text-xs font-semibold line-clamp-1 leading-tight flex items-center gap-1">
+                      <FolderIcon className="h-3 w-3 text-primary shrink-0" />
                       {f.name}
                     </h3>
-                    <div className="text-xs text-muted-foreground">
-                      프로젝트 {inside.length}개
-                      {latest && ` · 최근 수정 ${latest.slice(0, 10)}`}
+                    <div className="text-[10px] text-muted-foreground line-clamp-1">
+                      {inside.length}개{latest && ` · ${latest.slice(0, 10)}`}
                     </div>
                   </CardContent>
                 </Card>
