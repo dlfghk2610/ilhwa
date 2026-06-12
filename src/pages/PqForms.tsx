@@ -335,7 +335,7 @@ export default function PqForms() {
             {isSearching ? "검색 결과가 없습니다." : "이 폴더는 비어 있습니다. 카드를 드래그해서 옮길 수 있습니다."}
           </CardContent></Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5">
             {visibleFolders.map((f) => {
               const inside = itemsByFolder.get(f.id) ?? [];
               const previews = inside
