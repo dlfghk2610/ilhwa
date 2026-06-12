@@ -335,7 +335,7 @@ export default function PqForms() {
             {isSearching ? "검색 결과가 없습니다." : "이 폴더는 비어 있습니다. 카드를 드래그해서 옮길 수 있습니다."}
           </CardContent></Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5">
             {visibleFolders.map((f) => {
               const inside = itemsByFolder.get(f.id) ?? [];
               const previews = inside
@@ -408,14 +408,13 @@ export default function PqForms() {
                       {inside.length}개
                     </div>
                   </div>
-                  <CardContent className="p-3 space-y-1">
-                    <h3 className="font-semibold line-clamp-1 leading-tight flex items-center gap-1.5">
-                      <FolderIcon className="h-4 w-4 text-primary shrink-0" />
+                  <CardContent className="p-2 space-y-0.5">
+                    <h3 className="text-xs font-semibold line-clamp-1 leading-tight flex items-center gap-1">
+                      <FolderIcon className="h-3 w-3 text-primary shrink-0" />
                       {f.name}
                     </h3>
-                    <div className="text-xs text-muted-foreground">
-                      프로젝트 {inside.length}개
-                      {latest && ` · 최근 수정 ${latest.slice(0, 10)}`}
+                    <div className="text-[10px] text-muted-foreground line-clamp-1">
+                      {inside.length}개{latest && ` · ${latest.slice(0, 10)}`}
                     </div>
                   </CardContent>
                 </Card>
@@ -467,22 +466,22 @@ export default function PqForms() {
                     </div>
                   )}
                 </div>
-                <CardContent className="p-3 space-y-2">
-                  <h3 className="font-semibold line-clamp-2 leading-tight">{it.project_name}</h3>
-                  <div className="text-xs text-muted-foreground space-y-0.5">
-                    <div>발주처: {it.client}</div>
-                    <div>공고일: {it.notice_date}</div>
+                <CardContent className="p-2 space-y-1">
+                  <h3 className="text-xs font-semibold line-clamp-2 leading-tight">{it.project_name}</h3>
+                  <div className="text-[10px] text-muted-foreground space-y-0 leading-tight">
+                    <div className="truncate">{it.client}</div>
+                    <div>{it.notice_date}</div>
                   </div>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    <Badge variant="secondary">{it.evaluation_type}</Badge>
-                    <Badge variant="outline">{it.project_type}</Badge>
-                    {it.page_count > 0 && <Badge variant="outline">{it.page_count}p</Badge>}
-                    {it.xlsx_path && <Badge variant="outline" className="gap-1"><FileSpreadsheet className="h-3 w-3" />XLSX</Badge>}
+                  <div className="flex flex-wrap gap-0.5 pt-0.5">
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">{it.evaluation_type}</Badge>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{it.project_type}</Badge>
+                    {it.page_count > 0 && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">{it.page_count}p</Badge>}
+                    {it.xlsx_path && <Badge variant="outline" className="gap-0.5 text-[9px] px-1 py-0 h-4"><FileSpreadsheet className="h-2.5 w-2.5" />X</Badge>}
                   </div>
                   {it.tags?.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {it.tags.map((t) => (
-                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">#{t}</span>
+                    <div className="flex flex-wrap gap-0.5">
+                      {it.tags.slice(0, 3).map((t) => (
+                        <span key={t} className="text-[9px] px-1 py-0 rounded bg-primary/10 text-primary">#{t}</span>
                       ))}
                     </div>
                   )}
@@ -917,7 +916,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
 
   return (
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
+      <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] max-h-[100dvh] top-0 left-0 translate-x-0 translate-y-0 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[98vw] sm:w-[98vw] sm:h-[95vh] p-0 flex flex-col gap-0 rounded-none sm:rounded-lg">
         <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 border-b bg-card pr-12 shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <FileText className="h-5 w-5 text-primary shrink-0" />
@@ -967,7 +966,7 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
                 </div>
               </div>
 
-              <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-28 md:h-auto shrink-0 md:shrink">
+              <ScrollArea className="md:border-r border-t md:border-t-0 bg-muted/30 order-2 md:order-1 h-20 md:h-auto shrink-0 md:shrink">
                 <div className="flex md:hidden gap-2 p-2">
                   {stripSrcs.map((src, i) => {
                     const n = i + 1; const active = n === page;
@@ -1022,15 +1021,15 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
           </TabsContent>
         </Tabs>
 
-        <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center justify-center gap-2 shrink-0">
+        <div className="border-t bg-card px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center justify-center gap-2 shrink-0">
           {item.hwp_path && (
-            <Button size="lg" onClick={() => downloadStored(item.hwp_path, item.hwp_file_name ?? `${item.project_name}.hwp`)} className="gap-2">
-              <Download className="h-5 w-5" /> HWP 다운로드
+            <Button size="sm" className="sm:h-10 sm:px-6 sm:text-base gap-2" onClick={() => downloadStored(item.hwp_path, item.hwp_file_name ?? `${item.project_name}.hwp`)}>
+              <Download className="h-4 w-4" /> HWP 다운로드
             </Button>
           )}
           {item.xlsx_path && (
-            <Button size="lg" variant="secondary" onClick={() => downloadStored(item.xlsx_path, item.xlsx_file_name ?? `${item.project_name}.xlsx`)} className="gap-2">
-              <FileSpreadsheet className="h-5 w-5" /> Excel 다운로드
+            <Button size="sm" variant="secondary" className="sm:h-10 sm:px-6 sm:text-base gap-2" onClick={() => downloadStored(item.xlsx_path, item.xlsx_file_name ?? `${item.project_name}.xlsx`)}>
+              <FileSpreadsheet className="h-4 w-4" /> Excel 다운로드
             </Button>
           )}
         </div>
