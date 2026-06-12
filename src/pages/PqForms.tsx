@@ -852,26 +852,6 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
     return () => { cancelled = true; };
   }, [item?.id]);
 
-  // TEMP DEBUG: log layout chain
-  useEffect(() => {
-    if (!item) return;
-    const t = setTimeout(() => {
-      const dlg = document.querySelector('[role="dialog"]');
-      if (!dlg) { console.log("DEBUG: no dialog"); return; }
-      let el: Element | null = dlg;
-      const out: string[] = [];
-      const walk = (e: Element, depth: number) => {
-        if (depth > 6) return;
-        const cs = getComputedStyle(e as HTMLElement);
-        const r = (e as HTMLElement).getBoundingClientRect();
-        out.push(`${"  ".repeat(depth)}<${e.tagName.toLowerCase()} role=${e.getAttribute("role")} display=${cs.display} h=${Math.round(r.height)} flex=${cs.flex} minH=${cs.minHeight} cls="${(e.getAttribute("class") || "").slice(0, 160)}"`);
-        Array.from(e.children).forEach((c) => walk(c, depth + 1));
-      };
-      walk(el, 0);
-      console.log("LAYOUT_DEBUG\n" + out.join("\n"));
-    }, 1500);
-    return () => clearTimeout(t);
-  }, [item?.id]);
 
   useEffect(() => {
     if (!pdfDoc || !item) return;
