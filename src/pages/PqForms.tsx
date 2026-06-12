@@ -1021,15 +1021,15 @@ function ViewerDialog({ item, onClose }: { item: PqRow | null; onClose: () => vo
           </TabsContent>
         </Tabs>
 
-        <div className="border-t bg-card px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center justify-center gap-2 shrink-0">
+        <div className="border-t bg-card px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center justify-center gap-2 shrink-0">
           {item.hwp_path && (
-            <Button size="lg" onClick={() => downloadStored(item.hwp_path, item.hwp_file_name ?? `${item.project_name}.hwp`)} className="gap-2">
-              <Download className="h-5 w-5" /> HWP 다운로드
+            <Button size="sm" className="sm:h-10 sm:px-6 sm:text-base gap-2" onClick={() => downloadStored(item.hwp_path, item.hwp_file_name ?? `${item.project_name}.hwp`)}>
+              <Download className="h-4 w-4" /> HWP 다운로드
             </Button>
           )}
           {item.xlsx_path && (
-            <Button size="lg" variant="secondary" onClick={() => downloadStored(item.xlsx_path, item.xlsx_file_name ?? `${item.project_name}.xlsx`)} className="gap-2">
-              <FileSpreadsheet className="h-5 w-5" /> Excel 다운로드
+            <Button size="sm" variant="secondary" className="sm:h-10 sm:px-6 sm:text-base gap-2" onClick={() => downloadStored(item.xlsx_path, item.xlsx_file_name ?? `${item.project_name}.xlsx`)}>
+              <FileSpreadsheet className="h-4 w-4" /> Excel 다운로드
             </Button>
           )}
         </div>
