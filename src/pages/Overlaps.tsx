@@ -1068,20 +1068,6 @@ export default function Overlaps() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {technicians.map((t) => {
-                  // 집계건수: 공고일 기준 활성 참여 건수
-                  const aggCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
-                  // 단순건수: 전체 참여 건수 (공고일/기간 무관)
-                  const simpleCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
-                  // 기간대비건수: 공고일이 사업 기간(착수일~준공예정일) 내인 건수
-                  const periodCount = !announcementDate ? 0 : rows.filter((r) => {
-                    if (!(r.participants || []).some((p) => (p.name || "") === t.name)) return false;
-                    const s = r.start_date || "";
-                    const e = effectiveEndDate(r) || r.end_date || "";
-                    if (!s) return false;
-                    if (announcementDate < s) return false;
-                    if (e && announcementDate > e) return false;
-                    return true;
-                  }).length;
                   const total = techOverlapTotals.get(t.name) || 0;
                   const status = t.status || "재직중";
                   const statusClass = status === "재직중"
