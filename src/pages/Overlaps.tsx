@@ -1103,7 +1103,7 @@ export default function Overlaps() {
                 })}
               </div>
             )}
-            <div className="px-1 pt-3 text-xs text-muted-foreground">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 집계/기간대비 건수가 계산됩니다."}</div>
+            <div className="px-1 pt-3 text-xs text-muted-foreground">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 중복금액이 계산됩니다."}</div>
           </Card>
         </TabsContent>
       </Tabs>
