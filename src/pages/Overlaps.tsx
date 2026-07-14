@@ -722,7 +722,7 @@ export default function Overlaps() {
               merged.addPage(pg);
               if (printSeq && isFirstPageOfProject && idx === 0) {
                 const { height } = pg.getSize();
-                pg.drawText(`${seq}`, { x: 20, y: height - 30, size: 18, font, color: rgb(0, 0, 0) });
+                pg.drawText(`${seq}`, { x: 20, y: height - 50, size: 40, font, color: rgb(0, 0, 0) });
               }
             });
             isFirstPageOfProject = false;
