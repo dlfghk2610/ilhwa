@@ -691,18 +691,26 @@ export default function Overlaps() {
       let seq = 0;
       for (const r of sortedForExport) {
         const paths: string[] = [];
-        if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 무조건 출력
-        // 변경계약 PDF (시간순)
+        if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 원계약서는 항상 포함
+        // 변경계약 PDF — 공고일 이전(≤)에 체결된 것만
         for (const a of sortedAmendments(r)) {
-          if (a.pdf_path) paths.push(a.pdf_path);
+          if (!a.pdf_path) continue;
+          if (announcementDate && !isAfterOrEqual(announcementDate, a.change_date)) continue;
+          paths.push(a.pdf_path);
         }
-        // 과업중지/재개 PDF (시간순)
+        // 과업중지/재개 PDF — 공고일 이전(≤)에 발생한 것만
         for (const s of sortedSuspensions(r)) {
-          if (s.suspension_pdf_path) paths.push(s.suspension_pdf_path);
-          if (s.resume_pdf_path) paths.push(s.resume_pdf_path);
+          if (s.suspension_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, s.suspension_date))) {
+            paths.push(s.suspension_pdf_path);
+          }
+          if (s.resume_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, s.resume_date))) {
+            paths.push(s.resume_pdf_path);
+          }
         }
-        // 협의완료 공문
-        if (r.agreement_pdf_path) paths.push(r.agreement_pdf_path);
+        // 협의완료 공문 — 공고일 이전(≤)만
+        if (r.agreement_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, r.agreement_date))) {
+          paths.push(r.agreement_pdf_path);
+        }
         // legacy single fields (fallback for old data)
         for (const f of PDF_FIELDS.slice(1)) {
           const p = r[f.key] as string | null;
