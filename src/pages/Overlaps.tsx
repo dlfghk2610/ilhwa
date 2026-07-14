@@ -1119,6 +1119,13 @@ export default function Overlaps() {
                           <div className="text-sm font-semibold">{periodCount}</div>
                         </div>
                       </div>
+                      <div className={`mt-2 rounded-md px-2 py-1.5 flex items-baseline justify-between ${total >= 250_000_000 ? "bg-blue-100 text-blue-800" : "bg-amber-50 text-amber-800"}`}>
+                        <span className="text-[10px] font-medium">중복금액</span>
+                        <span className="text-sm font-bold tabular-nums">
+                          {fmtOverlap(total)}
+                          <span className="ml-0.5 text-[10px] font-normal opacity-70">{unit === "m" ? "백만원" : unit === "k" ? "천원" : "원"}</span>
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
