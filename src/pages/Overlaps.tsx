@@ -1068,20 +1068,6 @@ export default function Overlaps() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {technicians.map((t) => {
-                  // 집계건수: 공고일 기준 활성 참여 건수
-                  const aggCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name && isParticipantActive(p, announcementDate))).length;
-                  // 단순건수: 전체 참여 건수 (공고일/기간 무관)
-                  const simpleCount = rows.filter((r) => (r.participants || []).some((p) => (p.name || "") === t.name)).length;
-                  // 기간대비건수: 공고일이 사업 기간(착수일~준공예정일) 내인 건수
-                  const periodCount = !announcementDate ? 0 : rows.filter((r) => {
-                    if (!(r.participants || []).some((p) => (p.name || "") === t.name)) return false;
-                    const s = r.start_date || "";
-                    const e = effectiveEndDate(r) || r.end_date || "";
-                    if (!s) return false;
-                    if (announcementDate < s) return false;
-                    if (e && announcementDate > e) return false;
-                    return true;
-                  }).length;
                   const total = techOverlapTotals.get(t.name) || 0;
                   const status = t.status || "재직중";
                   const statusClass = status === "재직중"
@@ -1105,21 +1091,7 @@ export default function Overlaps() {
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground truncate">{t.specialty || "전문분야 미지정"}</div>
                       </div>
-                      <div className="mt-3 grid grid-cols-3 gap-1 text-center">
-                        <div className="rounded-md bg-muted/50 py-1.5">
-                          <div className="text-[10px] text-muted-foreground">집계건수</div>
-                          <div className="text-sm font-semibold text-primary">{aggCount}</div>
-                        </div>
-                        <div className="rounded-md bg-muted/50 py-1.5">
-                          <div className="text-[10px] text-muted-foreground">단순건수</div>
-                          <div className="text-sm font-semibold">{simpleCount}</div>
-                        </div>
-                        <div className="rounded-md bg-muted/50 py-1.5">
-                          <div className="text-[10px] text-muted-foreground">기간대비</div>
-                          <div className="text-sm font-semibold">{periodCount}</div>
-                        </div>
-                      </div>
-                      <div className={`mt-2 rounded-md px-2 py-1.5 flex items-baseline justify-between ${total >= 250_000_000 ? "bg-blue-100 text-blue-800" : "bg-amber-50 text-amber-800"}`}>
+                      <div className={`mt-3 rounded-md px-2 py-1.5 flex items-baseline justify-between ${total >= 250_000_000 ? "bg-blue-100 text-blue-800" : "bg-amber-50 text-amber-800"}`}>
                         <span className="text-[10px] font-medium">중복금액</span>
                         <span className="text-sm font-bold tabular-nums">
                           {fmtOverlap(total)}
@@ -1131,7 +1103,7 @@ export default function Overlaps() {
                 })}
               </div>
             )}
-            <div className="px-1 pt-3 text-xs text-muted-foreground">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 집계/기간대비 건수가 계산됩니다."}</div>
+            <div className="px-1 pt-3 text-xs text-muted-foreground">총 {technicians.length}명{!announcementDate && " · 공고일을 입력하면 중복금액이 계산됩니다."}</div>
           </Card>
         </TabsContent>
       </Tabs>
