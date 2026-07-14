@@ -1105,7 +1105,7 @@ export default function Overlaps() {
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground truncate">{t.specialty || "전문분야 미지정"}</div>
                       </div>
-                      <div className={`mt-2 rounded-md px-2 py-1.5 flex items-baseline justify-between ${total >= 250_000_000 ? "bg-blue-100 text-blue-800" : "bg-amber-50 text-amber-800"}`}>
+                      <div className={`mt-3 rounded-md px-2 py-1.5 flex items-baseline justify-between ${total >= 250_000_000 ? "bg-blue-100 text-blue-800" : "bg-amber-50 text-amber-800"}`}>
                         <span className="text-[10px] font-medium">중복금액</span>
                         <span className="text-sm font-bold tabular-nums">
                           {fmtOverlap(total)}
