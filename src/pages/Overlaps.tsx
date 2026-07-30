@@ -688,6 +688,19 @@ export default function Overlaps() {
     return [...filtered].sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
   }, [filtered]);
 
+  const sortedForPdf = useMemo(
+    () => sortedForExport.filter((r) => !pdfExcludedIds.has(r.id)),
+    [sortedForExport, pdfExcludedIds]
+  );
+
+  const togglePdfInclude = (id: string) => setPdfExcludedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const allPdfChecked = filtered.length > 0 && filtered.every((r) => !pdfExcludedIds.has(r.id));
+  const toggleAllPdf = () => setPdfExcludedIds(allPdfChecked ? new Set(filtered.map((r) => r.id)) : new Set());
+
   const mergeProofPdfs = async (includeParticipantList: boolean) => {
     setDownloadingPdf(true);
     try {
@@ -696,7 +709,7 @@ export default function Overlaps() {
       const font = await merged.embedFont(StandardFonts.HelveticaBold);
       let added = 0;
       let seq = 0;
-      for (const r of sortedForExport) {
+      for (const r of sortedForPdf) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 원계약서는 항상 포함
         // 변경계약 PDF — 공고일 기준 최종(가장 최근) 변경계약 1건만 포함
