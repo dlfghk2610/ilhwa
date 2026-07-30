@@ -960,7 +960,10 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
+                    </TableCell>
                     <TableCell className="font-medium break-words whitespace-normal align-top"><span className="line-clamp-3">{r.project_name}</span></TableCell>
                     <TableCell className="break-words whitespace-normal align-top"><span className="line-clamp-3">{r.client || "-"}</span></TableCell>
                     <TableCell className="text-right align-top">
