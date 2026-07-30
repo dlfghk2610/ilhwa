@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -154,6 +155,7 @@ export default function Overlaps() {
   const [rows, setRows] = useState<OverlapRow[]>([]);
   const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null; status: string; selected_association: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [techPickerOpen, setTechPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
   const [unit, setUnit] = useState<Unit>("won");
@@ -841,14 +843,32 @@ export default function Overlaps() {
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">기술자</Label>
-              <Select value={selectedTech} onValueChange={setSelectedTech}>
-                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">전체</SelectItem>
-                  {technicians.map((t) => (<SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-[160px] justify-between font-normal">
+                    <span className="truncate">{selectedTech === "__all__" ? "전체" : selectedTech}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="기술자 이름 검색..." />
+                    <CommandList>
+                      <CommandEmpty>결과 없음</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="전체" onSelect={() => { setSelectedTech("__all__"); setTechPickerOpen(false); }}>전체</CommandItem>
+                        {technicians.map((t) => (
+                          <CommandItem key={t.id} value={t.name} onSelect={() => { setSelectedTech(t.name); setTechPickerOpen(false); }}>
+                            {t.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -866,38 +886,14 @@ export default function Overlaps() {
               {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙+참여자명단 PDF
             </Button>
           </div>
-          {selectedTech !== "__all__" && (() => {
-            const selT = technicians.find((t) => t.name === selectedTech);
-            const assoc = selT?.selected_association || "kepa";
-            return (
-              <div className="mt-3 space-y-2">
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <Label className="whitespace-nowrap">실적 기준 협회</Label>
-                  <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
-                    {[
-                      { v: "kepa", label: "건력관리협회(건기협)" },
-                      { v: "eiaa", label: "환경영향평가협회" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        onClick={() => updateTechAssociation(selectedTech, opt.v)}
-                        className={`px-3 py-1 text-xs rounded ${assoc === opt.v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  {!selT && <span className="text-xs text-muted-foreground">(기술자 관리에 등록 후 저장됩니다)</span>}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
-                  <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
-                  <span className="ml-1 text-xs">({filtered.length}건)</span>
-                </div>
-              </div>
-            );
-          })()}
+          {selectedTech !== "__all__" && (
+            <div className="mt-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
+              <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
+              <span className="ml-1 text-xs">({filtered.length}건)</span>
+            </div>
+          )}
+
         </Card>
 
 
