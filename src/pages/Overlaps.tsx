@@ -510,6 +510,10 @@ export default function Overlaps() {
   };
 
   const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    if (selectedTech !== "__all__") {
+      const me = (r.participants || []).find((p) => (p.name || "") === selectedTech);
+      if (me?.excluded) return { value: 0, label: "0 (참여제외)" };
+    }
     const exc = zeroByException(r);
     if (exc) return { value: 0, label: `0 (${exc})` };
     const info = remainInfo(r);
