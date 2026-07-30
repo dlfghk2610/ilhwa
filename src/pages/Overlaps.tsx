@@ -1014,7 +1014,11 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"}`}>
+              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+                <div className="flex items-start">
+                  <div className="pl-3 pt-3.5">
+                    <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
+                  </div>
                 <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-start gap-2 p-3 text-left">
                   {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
                   <div className="min-w-0 flex-1">
