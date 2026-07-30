@@ -1473,6 +1473,11 @@ export default function Overlaps() {
                           <Input type="text" placeholder="비우면 계속 참여" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
                         </div>
                       </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <Checkbox id={`pexc-${i}`} checked={!!p.excluded} onCheckedChange={(v) => updateParticipant(i, { excluded: !!v })} />
+                        <Label htmlFor={`pexc-${i}`} className="text-xs cursor-pointer">참여제외 (이 기술자만 중복금액 0 처리)</Label>
+                      </div>
+
                       {announcementDate && !active && (
                         <div className="mt-1 text-[11px] text-orange-600">공고일 기준 참여 범위 밖 → 중복도 계산에서 제외됩니다.</div>
                       )}
