@@ -841,14 +841,32 @@ export default function Overlaps() {
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">기술자</Label>
-              <Select value={selectedTech} onValueChange={setSelectedTech}>
-                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">전체</SelectItem>
-                  {technicians.map((t) => (<SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-[160px] justify-between font-normal">
+                    <span className="truncate">{selectedTech === "__all__" ? "전체" : selectedTech}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="기술자 이름 검색..." />
+                    <CommandList>
+                      <CommandEmpty>결과 없음</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="전체" onSelect={() => { setSelectedTech("__all__"); setTechPickerOpen(false); }}>전체</CommandItem>
+                        {technicians.map((t) => (
+                          <CommandItem key={t.id} value={t.name} onSelect={() => { setSelectedTech(t.name); setTechPickerOpen(false); }}>
+                            {t.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
