@@ -924,6 +924,9 @@ export default function Overlaps() {
             <Table className="text-[10px] lg:text-[11px] xl:text-xs [&_th]:px-1.5 [&_th]:py-2 [&_td]:px-1.5 [&_td]:py-1.5 [&_th]:h-auto">
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-[32px]">
+                    <Checkbox checked={allPdfChecked} onCheckedChange={() => toggleAllPdf()} aria-label="전체 선택" />
+                  </TableHead>
                   <TableHead className="w-[120px] lg:w-[150px] xl:w-[180px]">사업명</TableHead>
                   <TableHead className="w-[80px] lg:w-[100px] xl:w-[120px]">발주처</TableHead>
                   <TableHead className="text-right w-[70px] lg:w-[80px]">계약금액</TableHead>
@@ -940,9 +943,10 @@ export default function Overlaps() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+
                 ) : filtered.map((r) => {
                   const info = remainInfo(r);
                   const o = overlapAmount(r);
