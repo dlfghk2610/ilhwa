@@ -155,6 +155,7 @@ export default function Overlaps() {
   const [rows, setRows] = useState<OverlapRow[]>([]);
   const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null; status: string; selected_association: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [techPickerOpen, setTechPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
   const [unit, setUnit] = useState<Unit>("won");
