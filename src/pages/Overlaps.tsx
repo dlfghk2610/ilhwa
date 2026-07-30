@@ -886,38 +886,14 @@ export default function Overlaps() {
               {downloadingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}증빙+참여자명단 PDF
             </Button>
           </div>
-          {selectedTech !== "__all__" && (() => {
-            const selT = technicians.find((t) => t.name === selectedTech);
-            const assoc = selT?.selected_association || "kepa";
-            return (
-              <div className="mt-3 space-y-2">
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <Label className="whitespace-nowrap">실적 기준 협회</Label>
-                  <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
-                    {[
-                      { v: "kepa", label: "건력관리협회(건기협)" },
-                      { v: "eiaa", label: "환경영향평가협회" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        onClick={() => updateTechAssociation(selectedTech, opt.v)}
-                        className={`px-3 py-1 text-xs rounded ${assoc === opt.v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  {!selT && <span className="text-xs text-muted-foreground">(기술자 관리에 등록 후 저장됩니다)</span>}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
-                  <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
-                  <span className="ml-1 text-xs">({filtered.length}건)</span>
-                </div>
-              </div>
-            );
-          })()}
+          {selectedTech !== "__all__" && (
+            <div className="mt-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
+              <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
+              <span className="ml-1 text-xs">({filtered.length}건)</span>
+            </div>
+          )}
+
         </Card>
 
 
