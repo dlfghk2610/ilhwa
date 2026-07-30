@@ -22,7 +22,7 @@ import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, Ch
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 
-type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null };
+type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean };
 
 type Amendment = {
   id: string;
@@ -155,6 +155,7 @@ export default function Overlaps() {
   const [rows, setRows] = useState<OverlapRow[]>([]);
   const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null; status: string; selected_association: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pdfExcludedIds, setPdfExcludedIds] = useState<Set<string>>(new Set());
   const [techPickerOpen, setTechPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [announcementDate, setAnnouncementDate] = useState("");
@@ -510,6 +511,10 @@ export default function Overlaps() {
   };
 
   const overlapAmount = (r: OverlapRow): { value: number | null; label?: string } => {
+    if (selectedTech !== "__all__") {
+      const me = (r.participants || []).find((p) => (p.name || "") === selectedTech);
+      if (me?.excluded) return { value: 0, label: "0 (참여제외)" };
+    }
     const exc = zeroByException(r);
     if (exc) return { value: 0, label: `0 (${exc})` };
     const info = remainInfo(r);
@@ -683,6 +688,19 @@ export default function Overlaps() {
     return [...filtered].sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
   }, [filtered]);
 
+  const sortedForPdf = useMemo(
+    () => sortedForExport.filter((r) => !pdfExcludedIds.has(r.id)),
+    [sortedForExport, pdfExcludedIds]
+  );
+
+  const togglePdfInclude = (id: string) => setPdfExcludedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const allPdfChecked = filtered.length > 0 && filtered.every((r) => !pdfExcludedIds.has(r.id));
+  const toggleAllPdf = () => setPdfExcludedIds(allPdfChecked ? new Set(filtered.map((r) => r.id)) : new Set());
+
   const mergeProofPdfs = async (includeParticipantList: boolean) => {
     setDownloadingPdf(true);
     try {
@@ -691,7 +709,7 @@ export default function Overlaps() {
       const font = await merged.embedFont(StandardFonts.HelveticaBold);
       let added = 0;
       let seq = 0;
-      for (const r of sortedForExport) {
+      for (const r of sortedForPdf) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 원계약서는 항상 포함
         // 변경계약 PDF — 공고일 기준 최종(가장 최근) 변경계약 1건만 포함
@@ -906,6 +924,9 @@ export default function Overlaps() {
             <Table className="text-[10px] lg:text-[11px] xl:text-xs [&_th]:px-1.5 [&_th]:py-2 [&_td]:px-1.5 [&_td]:py-1.5 [&_th]:h-auto">
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-[32px]">
+                    <Checkbox checked={allPdfChecked} onCheckedChange={() => toggleAllPdf()} aria-label="전체 선택" />
+                  </TableHead>
                   <TableHead className="w-[120px] lg:w-[150px] xl:w-[180px]">사업명</TableHead>
                   <TableHead className="w-[80px] lg:w-[100px] xl:w-[120px]">발주처</TableHead>
                   <TableHead className="text-right w-[70px] lg:w-[80px]">계약금액</TableHead>
@@ -922,9 +943,10 @@ export default function Overlaps() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
+
                 ) : filtered.map((r) => {
                   const info = remainInfo(r);
                   const o = overlapAmount(r);
@@ -938,7 +960,10 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
+                    </TableCell>
                     <TableCell className="font-medium break-words whitespace-normal align-top"><span className="line-clamp-3">{r.project_name}</span></TableCell>
                     <TableCell className="break-words whitespace-normal align-top"><span className="line-clamp-3">{r.client || "-"}</span></TableCell>
                     <TableCell className="text-right align-top">
@@ -989,7 +1014,11 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"}`}>
+              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+                <div className="flex items-start">
+                  <div className="pl-3 pt-3.5">
+                    <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
+                  </div>
                 <button type="button" onClick={() => toggleExpand(r.id)} className="w-full flex items-start gap-2 p-3 text-left">
                   {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0" />}
                   <div className="min-w-0 flex-1">
@@ -1000,6 +1029,9 @@ export default function Overlaps() {
                     </div>
                   </div>
                 </button>
+                </div>
+
+
 
                 {isOpen && (
                   <div className="px-3 pb-3 space-y-1.5 text-xs">
@@ -1441,6 +1473,11 @@ export default function Overlaps() {
                           <Input type="text" placeholder="비우면 계속 참여" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
                         </div>
                       </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <Checkbox id={`pexc-${i}`} checked={!!p.excluded} onCheckedChange={(v) => updateParticipant(i, { excluded: !!v })} />
+                        <Label htmlFor={`pexc-${i}`} className="text-xs cursor-pointer">참여제외 (이 기술자만 중복금액 0 처리)</Label>
+                      </div>
+
                       {announcementDate && !active && (
                         <div className="mt-1 text-[11px] text-orange-600">공고일 기준 참여 범위 밖 → 중복도 계산에서 제외됩니다.</div>
                       )}
