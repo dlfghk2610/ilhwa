@@ -692,18 +692,19 @@ export default function Overlaps() {
       for (const r of sortedForExport) {
         const paths: string[] = [];
         if (r.original_contract_pdf_path) paths.push(r.original_contract_pdf_path); // 원계약서는 항상 포함
-        // 변경계약 PDF — 공고일 이전(≤)에 체결된 것만
-        for (const a of sortedAmendments(r)) {
-          if (!a.pdf_path) continue;
-          if (announcementDate && !isAfterOrEqual(announcementDate, a.change_date)) continue;
-          paths.push(a.pdf_path);
-        }
-        // 과업중지/재개 PDF — 공고일 이전(≤)에 발생한 것만
+        // 변경계약 PDF — 공고일 기준 최종(가장 최근) 변경계약 1건만 포함
+        const effAmendments = sortedAmendments(r).filter(
+          (a) => a.pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, a.change_date))
+        );
+        const lastAmendment = effAmendments[effAmendments.length - 1];
+        if (lastAmendment?.pdf_path) paths.push(lastAmendment.pdf_path);
+        // 과업중지/재개 PDF — 공고일 이전(≤) 발생분, 단 재개된 건은 중지공문 제외
         for (const s of sortedSuspensions(r)) {
-          if (s.suspension_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, s.suspension_date))) {
+          const resumedBefore = !!s.resume_date && (!announcementDate || isAfterOrEqual(announcementDate, s.resume_date));
+          if (!resumedBefore && s.suspension_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, s.suspension_date))) {
             paths.push(s.suspension_pdf_path);
           }
-          if (s.resume_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, s.resume_date))) {
+          if (s.resume_pdf_path && resumedBefore) {
             paths.push(s.resume_pdf_path);
           }
         }
@@ -711,10 +712,12 @@ export default function Overlaps() {
         if (r.agreement_pdf_path && (!announcementDate || isAfterOrEqual(announcementDate, r.agreement_date))) {
           paths.push(r.agreement_pdf_path);
         }
-        // legacy single fields (fallback for old data)
-        for (const f of PDF_FIELDS.slice(1)) {
-          const p = r[f.key] as string | null;
-          if (p && !paths.includes(p)) paths.push(p);
+        // legacy single fields (배열 데이터가 없는 구 데이터에만 적용)
+        if ((r.amendments || []).length === 0 && (r.suspensions || []).length === 0) {
+          for (const f of PDF_FIELDS.slice(1)) {
+            const p = r[f.key] as string | null;
+            if (p && !paths.includes(p)) paths.push(p);
+          }
         }
         if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
         if (paths.length === 0) continue;
