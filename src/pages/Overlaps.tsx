@@ -22,7 +22,7 @@ import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, Ch
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 
-type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null };
+type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean };
 
 type Amendment = {
   id: string;
