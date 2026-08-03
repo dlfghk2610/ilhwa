@@ -496,8 +496,22 @@ export default function Overlaps() {
       return { days: ABSOLUTE_MAX_DAYS, suspendedLong: false, agreed: false };
     }
     const resume = lastResumeBefore(r);
-    const startPoint = resume && resume > announcementDate ? resume : (resume || announcementDate);
-    return { days: Math.min(ABSOLUTE_MAX_DAYS, diffDays(startPoint, endIso)), suspendedLong: false, agreed: false };
+    if (resume) {
+      // 과업재개된 건 → 재개 이후 변경계약(준공일)을 기준으로 잔여일수 산정
+      const postResume = sortedAmendments(r).filter(a => isAfterOrEqual(a.change_date, resume) && (isISODate(a.end_date_new) || a.end_date_new_text));
+      const applied = postResume.filter(a => isAfterOrEqual(announcementDate, a.change_date));
+      const pick = (applied.length ? applied[applied.length - 1] : postResume[0]) || null;
+      let targetEnd: string | null = endIso;
+      if (pick) {
+        if (isISODate(pick.end_date_new)) targetEnd = pick.end_date_new;
+        else return { days: ABSOLUTE_MAX_DAYS, suspendedLong: false, agreed: false };
+      }
+      const base = announcementDate > resume ? announcementDate : resume;
+      if (!targetEnd) return { days: ABSOLUTE_MAX_DAYS, suspendedLong: false, agreed: false };
+      return { days: Math.min(ABSOLUTE_MAX_DAYS, diffDays(base, targetEnd)), suspendedLong: false, agreed: false };
+    }
+    return { days: Math.min(ABSOLUTE_MAX_DAYS, diffDays(announcementDate, endIso)), suspendedLong: false, agreed: false };
+
   };
 
 
