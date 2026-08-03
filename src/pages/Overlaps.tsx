@@ -630,7 +630,7 @@ export default function Overlaps() {
     for (const r of rows) {
       const v = overlapAmount(r).value || 0;
       if (!v) continue;
-      for (const p of (r.participants || []).filter((pp) => isParticipantActive(pp, announcementDate))) {
+      for (const p of (r.participants || []).filter((pp) => !pp.excluded && isParticipantActive(pp, announcementDate))) {
         const name = (p.name || "").trim();
         if (!name) continue;
         map.set(name, (map.get(name) || 0) + v);
