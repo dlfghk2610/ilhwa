@@ -113,6 +113,8 @@ export default function SimilarServices() {
 
   // 공고일 (계정별): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const [filterAnnouncementDate, setFilterAnnouncementDate] = useUserStorage<string>("similar_services.announcement_date.v1", "", uid);
+  const [shareRate, setShareRate] = useUserStorage<string>("similar_services.share_rate.v1", "", uid);
+  const [designAmount, setDesignAmount] = useUserStorage<string>("similar_services.design_amount.v1", "", uid);
   const [exclude5y, setExclude5y] = useUserStorage<boolean>("similar_services.exclude_5y.v1", false, uid);
 
   // 사용자 정의 사업종류 그룹 (계정별)
