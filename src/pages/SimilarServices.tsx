@@ -611,6 +611,21 @@ export default function SimilarServices() {
   const serviceTypeOptions = useMemo(() => {
     return customGroups.filter((g) => g.items.length > 0);
   }, [customGroups]);
+  // 입력된 실적에서 사용된 사업종류 태그 (사용빈도 내림차순)
+  const usedServiceTypeTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    rows.forEach((r) => {
+      String(r.service_type ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+      .map(([type, count]) => ({ type, count }));
+  }, [rows]);
+
 
   // 차수 표기 접미사
   const phaseSuffix = (r: Row) => {
@@ -974,6 +989,36 @@ export default function SimilarServices() {
                   e.currentTarget.value = "";
                 }}
               />
+              {usedServiceTypeTags.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[11px] text-muted-foreground">등록된 사업종류 (클릭하여 선택)</span>
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 rounded-md border bg-background">
+                    {usedServiceTypeTags.map(({ type, count }) => {
+                      const on = filterServiceTypes.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() =>
+                            setFilterServiceTypes((prev) =>
+                              prev.includes(type) ? prev.filter((s) => s !== type) : [...prev, type]
+                            )
+                          }
+                          className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                            on
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 border-border hover:bg-muted"
+                          }`}
+                        >
+                          {type}
+                          <span className="ml-1 opacity-60">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {filterServiceTypes.length > 0 && (
                 <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
                   <span className="text-[11px] text-muted-foreground mr-1 self-center">선택됨:</span>
