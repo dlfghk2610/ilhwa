@@ -113,6 +113,8 @@ export default function SimilarServices() {
 
   // 공고일 (계정별): 이 날짜로부터 준공일까지 5년 초과 시 집계 제외
   const [filterAnnouncementDate, setFilterAnnouncementDate] = useUserStorage<string>("similar_services.announcement_date.v1", "", uid);
+  const [shareRate, setShareRate] = useUserStorage<string>("similar_services.share_rate.v1", "", uid);
+  const [designAmount, setDesignAmount] = useUserStorage<string>("similar_services.design_amount.v1", "", uid);
   const [exclude5y, setExclude5y] = useUserStorage<boolean>("similar_services.exclude_5y.v1", false, uid);
 
   // 사용자 정의 사업종류 그룹 (계정별)
@@ -1081,6 +1083,55 @@ export default function SimilarServices() {
               <span className="text-xs">분담사업 포함</span>
             </label>
           </div>
+
+          {(() => {
+            const rate = Number(String(shareRate).replace(/[^0-9.]/g, ""));
+            const validRate = isFinite(rate) && rate > 0 ? rate : 0;
+            const design = Number(String(designAmount).replace(/[^0-9.]/g, ""));
+            const shareCount = totalAppliedCount * (validRate / 100);
+            const shareAmount = totalAppliedAmount * (validRate / 100);
+            const ratioVsDesign = design > 0 ? (shareAmount / design) * 100 : null;
+            return (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
+                  <span className="text-xs text-muted-foreground">지분율(%)</span>
+                  <Input
+                    inputMode="decimal"
+                    placeholder="예: 30"
+                    value={shareRate}
+                    onChange={(e) => setShareRate(e.target.value.replace(/[^0-9.]/g, ""))}
+                    className="h-7 w-[80px] text-xs text-right"
+                  />
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-accent/40 border">
+                  <span className="text-[11px] text-muted-foreground mr-2">지분반영 적용건수</span>
+                  <span className="text-sm font-bold">{shareCount.toFixed(2)}</span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-accent/40 border">
+                  <span className="text-[11px] text-muted-foreground mr-2">지분반영 총 적용금액</span>
+                  <span className="text-sm font-bold">{Math.round(shareAmount).toLocaleString()} 원</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background">
+                  <span className="text-xs text-muted-foreground">설계금액(원)</span>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="예: 1000000000"
+                    value={designAmount ? Number(String(designAmount).replace(/[^0-9]/g, "") || 0).toLocaleString() : ""}
+                    onChange={(e) => setDesignAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                    className="h-7 w-[150px] text-xs text-right"
+                  />
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+                  <span className="text-[11px] text-muted-foreground mr-2">설계금액 대비 지분금액</span>
+                  <span className="text-sm font-bold text-primary">
+                    {ratioVsDesign == null ? "-" : `${ratioVsDesign.toFixed(2)} %`}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+
 
           <div className="mt-2 text-[11px] text-muted-foreground">
             * 일치 시 1.0, 불일치 시 0.6 / 적용건수 = 평가×사업×참여지분율 / 적용금액 = 평가×사업×지분금액
