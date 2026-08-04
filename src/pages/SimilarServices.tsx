@@ -611,6 +611,21 @@ export default function SimilarServices() {
   const serviceTypeOptions = useMemo(() => {
     return customGroups.filter((g) => g.items.length > 0);
   }, [customGroups]);
+  // 입력된 실적에서 사용된 사업종류 태그 (사용빈도 내림차순)
+  const usedServiceTypeTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    rows.forEach((r) => {
+      String(r.service_type ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+      .map(([type, count]) => ({ type, count }));
+  }, [rows]);
+
 
   // 차수 표기 접미사
   const phaseSuffix = (r: Row) => {
