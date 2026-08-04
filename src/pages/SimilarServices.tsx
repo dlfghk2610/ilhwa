@@ -989,6 +989,36 @@ export default function SimilarServices() {
                   e.currentTarget.value = "";
                 }}
               />
+              {usedServiceTypeTags.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[11px] text-muted-foreground">등록된 사업종류 (클릭하여 선택)</span>
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 rounded-md border bg-background">
+                    {usedServiceTypeTags.map(({ type, count }) => {
+                      const on = filterServiceTypes.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() =>
+                            setFilterServiceTypes((prev) =>
+                              prev.includes(type) ? prev.filter((s) => s !== type) : [...prev, type]
+                            )
+                          }
+                          className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                            on
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 border-border hover:bg-muted"
+                          }`}
+                        >
+                          {type}
+                          <span className="ml-1 opacity-60">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {filterServiceTypes.length > 0 && (
                 <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
                   <span className="text-[11px] text-muted-foreground mr-1 self-center">선택됨:</span>
