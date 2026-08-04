@@ -979,18 +979,6 @@ export default function SimilarServices() {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">사업종류 (기준, 복수선택)</Label>
-              <Input
-                placeholder="직접입력 후 Enter (쉼표로 여러 개)"
-                className="h-8 text-xs w-full max-w-md"
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  e.preventDefault();
-                  const raw = (e.currentTarget.value || "").split(",").map((s) => s.trim()).filter(Boolean);
-                  if (!raw.length) return;
-                  setFilterServiceTypes((prev) => Array.from(new Set([...prev, ...raw])));
-                  e.currentTarget.value = "";
-                }}
-              />
               {usedServiceTypeTags.length > 0 && (
                 <div className="space-y-1">
                   <span className="text-[11px] text-muted-foreground">등록된 사업종류 (클릭하여 선택)</span>
