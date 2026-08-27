@@ -808,7 +808,7 @@ export default function Overlaps() {
         계약금액: eContract ?? "",
         착수일: r.start_date || "",
         준공예정일: eEndLabel === "-" ? "" : eEndLabel,
-        "총계약기간(일)": eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r),
+        "총계약기간(일)": useAbsolute && r.absolute_period_days ? r.absolute_period_days : (eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r)),
         "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
         중복금액: o.label ?? (o.value === null ? "" : o.value),
         과업중지일: effectiveSuspensionDate(r) || "",
@@ -994,7 +994,7 @@ export default function Overlaps() {
                         <span className="mt-0.5 inline-block px-1 py-0.5 text-[9px] bg-red-600 text-white rounded" title="공고일 기준 준공일이 경과되었습니다">⚠경과</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right align-top">{contractDays ? contractDays.toLocaleString() + "일" : "-"}</TableCell>
+                    <TableCell className={"text-right align-top" + (useAbsolute && r.absolute_period_days ? " text-red-600 font-bold" : "")}>{useAbsolute && r.absolute_period_days ? r.absolute_period_days.toLocaleString() + "일" : (contractDays ? contractDays.toLocaleString() + "일" : "-")}</TableCell>
                     <TableCell className="text-right align-top">{remainText}</TableCell>
                     <TableCell className={"text-right align-top" + (absoluteApplied ? " text-red-600 font-semibold" : "")}><span className="break-all">{overlapText}</span></TableCell>
                     <TableCell className="align-top">{fmtDateCell(susp)}</TableCell>
