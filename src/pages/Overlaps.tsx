@@ -808,7 +808,7 @@ export default function Overlaps() {
         계약금액: eContract ?? "",
         착수일: r.start_date || "",
         준공예정일: eEndLabel === "-" ? "" : eEndLabel,
-        "총계약기간(일)": eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r),
+        "총계약기간(일)": useAbsolute && r.absolute_period_days ? r.absolute_period_days : (eEnd ? diffDays(r.start_date, eEnd) : totalPeriod(r)),
         "잔여일수(일)": info.agreed || info.suspendedLong ? "" : (info.days ?? ""),
         중복금액: o.label ?? (o.value === null ? "" : o.value),
         과업중지일: effectiveSuspensionDate(r) || "",
