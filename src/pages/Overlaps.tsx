@@ -130,8 +130,8 @@ const isDateLikeInput = (v: string) => /^[\d.\s-]*$/.test(v);
 const isParticipantActive = (p: Participant, announce?: string | null) => {
   if (!announce) return true;
   if (p.start_date && p.start_date > announce) return false;
-  // 참여제외일이 공고일 이후면 해당 사업은 제외, 공고일 이전(또는 같음)이면 표시
-  if (p.end_date && p.end_date > announce) return false;
+  // 참여제외일이 공고일 이전(또는 같음)이면 이미 제외된 상태 → 집계/표시 제외
+  if (p.end_date && p.end_date <= announce) return false;
   return true;
 };
 
