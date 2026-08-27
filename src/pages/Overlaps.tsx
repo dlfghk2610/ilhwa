@@ -556,9 +556,11 @@ export default function Overlaps() {
     return Math.round(v).toLocaleString();
   };
 
-  const totalOverlap = useMemo(() => filtered.reduce((acc, r) => acc + (overlapAmount(r).value || 0), 0),
+  const totalOverlap = useMemo(() => filtered
+    .filter((r) => !pdfExcludedIds.has(r.id))
+    .reduce((acc, r) => acc + (overlapAmount(r).value || 0), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filtered, announcementDate, useAbsolute, unit]);
+    [filtered, announcementDate, useAbsolute, unit, pdfExcludedIds]);
 
   const addParticipant = () => setForm({ ...form, participants: [...(form.participants || []), { name: "", role: "", start_date: "", end_date: "" }] });
   const updateParticipant = (i: number, patch: Partial<Participant>) => {
@@ -630,6 +632,7 @@ export default function Overlaps() {
   const techOverlapTotals = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of rows) {
+      if (pdfExcludedIds.has(r.id)) continue;
       const v = overlapAmount(r).value || 0;
       if (!v) continue;
       for (const p of (r.participants || []).filter((pp) => !pp.excluded && isParticipantActive(pp, announcementDate))) {
@@ -640,7 +643,7 @@ export default function Overlaps() {
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, announcementDate, useAbsolute, unit]);
+  }, [rows, announcementDate, useAbsolute, unit, pdfExcludedIds]);
 
   // ===== PDF 업로드/다운로드/병합 & 엑셀 추출 =====
   const PDF_FIELDS: { key: keyof OverlapRow; label: string }[] = [
@@ -924,7 +927,7 @@ export default function Overlaps() {
             <div className="mt-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{selectedTech}</span> 기술자 중복금액 합계:{" "}
               <span className="font-semibold text-primary">{fmtOverlap(totalOverlap)}</span>
-              <span className="ml-1 text-xs">({filtered.length}건)</span>
+              <span className="ml-1 text-xs">({filtered.filter((r) => !pdfExcludedIds.has(r.id)).length}건)</span>
             </div>
           )}
 
