@@ -170,6 +170,22 @@ export default function Overlaps() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
+  // 시트탭: 진행중 / 준공
+  type Sheet = "진행중" | "준공";
+  const [sheet, setSheet] = useState<Sheet>("진행중");
+  const [dragOverSheet, setDragOverSheet] = useState<Sheet | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
+  const statusOf = (r: OverlapRow): Sheet => ((r as any).project_status === "준공" ? "준공" : "진행중");
+  const moveToSheet = async (id: string, target: Sheet) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row || statusOf(row) === target) return;
+    setRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, project_status: target } as any) : r)));
+    const { error } = await (supabase as any).from("technician_overlaps").update({ project_status: target }).eq("id", id);
+    if (error) { toast.error(error.message); load(); }
+    else toast.success(`"${row.project_name}" → ${target}`);
+  };
+
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<OverlapRow | null>(null);
   const [form, setForm] = useState<Omit<OverlapRow, "id">>(emptyForm());
