@@ -1594,7 +1594,7 @@ export default function Overlaps() {
 
 
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0 border-t py-4 mt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button>
               <Button type="submit" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
             </DialogFooter>
