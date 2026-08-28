@@ -1023,7 +1023,7 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; }} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
                     </TableCell>
