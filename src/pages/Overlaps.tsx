@@ -244,6 +244,13 @@ export default function Overlaps() {
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!contextMenu?.open) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [contextMenu?.open]);
+
   const openCreate = () => { setEditing(null); setForm(emptyForm()); setOpen(true); };
   const openEdit = (r: OverlapRow) => {
     setEditing(r);
