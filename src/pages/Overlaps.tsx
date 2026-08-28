@@ -1208,9 +1208,9 @@ export default function Overlaps() {
 
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
-          <form onSubmit={save} className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0"><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
+          <form onSubmit={save} className="space-y-3 overflow-y-auto px-6 pb-2 flex-1">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5 md:col-span-2">
                 <Label>사업명 <span className="text-destructive">*</span></Label>
