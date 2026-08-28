@@ -446,6 +446,7 @@ export default function Overlaps() {
   };
 
   const filtered = useMemo(() => rows.filter((r) => {
+    if (statusOf(r) !== sheet) return false;
     const activeParticipants = (r.participants || []).filter((p) => isParticipantActive(p, announcementDate));
     const matchSearch = !search ||
       (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -459,7 +460,8 @@ export default function Overlaps() {
     const sa = a.start_date || "9999-99-99";
     const sb = b.start_date || "9999-99-99";
     return sa.localeCompare(sb);
-  }), [rows, search, selectedTech, announcementDate]);
+  }), [rows, search, selectedTech, announcementDate, sheet]);
+
 
   // 공고일 기준 준공일 경과 여부 (과업중지/협의완료/텍스트형 준공일은 경고 제외)
   const isOverdueByAnnouncement = (r: OverlapRow) => {
