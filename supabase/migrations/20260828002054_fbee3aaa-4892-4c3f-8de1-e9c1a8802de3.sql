@@ -1,0 +1,1 @@
+ALTER TABLE public.technician_overlaps ADD COLUMN IF NOT EXISTS project_status text NOT NULL DEFAULT '진행중';

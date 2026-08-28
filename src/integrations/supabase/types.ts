@@ -860,6 +860,7 @@ export type Database = {
           participants: Json
           participation_rate: number | null
           project_name: string
+          project_status: string
           start_date: string | null
           suspension_date: string | null
           suspension_pdf_path: string | null
@@ -899,6 +900,7 @@ export type Database = {
           participants?: Json
           participation_rate?: number | null
           project_name: string
+          project_status?: string
           start_date?: string | null
           suspension_date?: string | null
           suspension_pdf_path?: string | null
@@ -938,6 +940,7 @@ export type Database = {
           participants?: Json
           participation_rate?: number | null
           project_name?: string
+          project_status?: string
           start_date?: string | null
           suspension_date?: string | null
           suspension_pdf_path?: string | null

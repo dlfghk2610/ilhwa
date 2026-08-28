@@ -170,6 +170,22 @@ export default function Overlaps() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
+  // 시트탭: 진행중 / 준공
+  type Sheet = "진행중" | "준공";
+  const [sheet, setSheet] = useState<Sheet>("진행중");
+  const [dragOverSheet, setDragOverSheet] = useState<Sheet | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
+  const statusOf = (r: OverlapRow): Sheet => ((r as any).project_status === "준공" ? "준공" : "진행중");
+  const moveToSheet = async (id: string, target: Sheet) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row || statusOf(row) === target) return;
+    setRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, project_status: target } as any) : r)));
+    const { error } = await (supabase as any).from("technician_overlaps").update({ project_status: target }).eq("id", id);
+    if (error) { toast.error(error.message); load(); }
+    else toast.success(`"${row.project_name}" → ${target}`);
+  };
+
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<OverlapRow | null>(null);
   const [form, setForm] = useState<Omit<OverlapRow, "id">>(emptyForm());
@@ -446,6 +462,7 @@ export default function Overlaps() {
   };
 
   const filtered = useMemo(() => rows.filter((r) => {
+    if (statusOf(r) !== sheet) return false;
     const activeParticipants = (r.participants || []).filter((p) => isParticipantActive(p, announcementDate));
     const matchSearch = !search ||
       (r.project_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -459,7 +476,8 @@ export default function Overlaps() {
     const sa = a.start_date || "9999-99-99";
     const sb = b.start_date || "9999-99-99";
     return sa.localeCompare(sb);
-  }), [rows, search, selectedTech, announcementDate]);
+  }), [rows, search, selectedTech, announcementDate, sheet]);
+
 
   // 공고일 기준 준공일 경과 여부 (과업중지/협의완료/텍스트형 준공일은 경고 제외)
   const isOverdueByAnnouncement = (r: OverlapRow) => {
@@ -934,8 +952,34 @@ export default function Overlaps() {
         </Card>
 
 
-
-
+        {/* 시트탭 (엑셀 스타일) — 사업을 끌어다 놓아 이동 */}
+        <div className="flex items-end gap-1 -mb-2 px-1">
+          {(["진행중", "준공"] as const).map((s) => {
+            const count = rows.filter((r) => statusOf(r) === s).length;
+            const active = sheet === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSheet(s)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverSheet(s); }}
+                onDragLeave={() => setDragOverSheet((p) => (p === s ? null : p))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverSheet(null);
+                  const id = e.dataTransfer.getData("text/plain") || draggingIdRef.current;
+                  if (id) moveToSheet(id, s);
+                }}
+                className={`px-4 py-1.5 text-xs md:text-sm rounded-t-md border border-b-0 transition-colors ${
+                  active ? "bg-card font-semibold text-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                } ${dragOverSheet === s ? "ring-2 ring-primary ring-offset-1 bg-primary/10" : ""}`}
+              >
+                {s} <span className="text-[10px] opacity-70">({count})</span>
+              </button>
+            );
+          })}
+          <span className="ml-2 pb-1 text-[10px] text-muted-foreground hidden md:inline">사업 행을 끌어서 탭에 놓으면 이동됩니다</span>
+        </div>
 
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
@@ -979,7 +1023,7 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; }} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
                     </TableCell>
@@ -1033,7 +1077,7 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
                 <div className="flex items-start">
                   <div className="pl-3 pt-3.5">
                     <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
@@ -1073,6 +1117,10 @@ export default function Overlaps() {
                       {r.notes && (<><div className="text-muted-foreground">비고</div><div className="truncate">{r.notes}</div></>)}
                     </div>
                     <div className="flex justify-end gap-1 pt-1">
+                      <Button size="sm" variant="secondary" onClick={() => moveToSheet(r.id, sheet === "진행중" ? "준공" : "진행중")}>
+                        {sheet === "진행중" ? "준공으로 이동" : "진행중으로 이동"}
+                      </Button>
+
                       <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5 mr-1" />수정</Button>
                       <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
