@@ -1117,6 +1117,10 @@ export default function Overlaps() {
                       {r.notes && (<><div className="text-muted-foreground">비고</div><div className="truncate">{r.notes}</div></>)}
                     </div>
                     <div className="flex justify-end gap-1 pt-1">
+                      <Button size="sm" variant="secondary" onClick={() => moveToSheet(r.id, sheet === "진행중" ? "준공" : "진행중")}>
+                        {sheet === "진행중" ? "준공으로 이동" : "진행중으로 이동"}
+                      </Button>
+
                       <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5 mr-1" />수정</Button>
                       <Button size="sm" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
