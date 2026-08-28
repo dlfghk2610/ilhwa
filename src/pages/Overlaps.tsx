@@ -174,8 +174,14 @@ export default function Overlaps() {
   type Sheet = "진행중" | "준공";
   const [sheet, setSheet] = useState<Sheet>("진행중");
   const [dragOverSheet, setDragOverSheet] = useState<Sheet | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; open: boolean } | null>(null);
   const draggingIdRef = useRef<string | null>(null);
   const statusOf = (r: OverlapRow): Sheet => ((r as any).project_status === "준공" ? "준공" : "진행중");
+  const openContextMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId: id, open: true });
+  };
+  const closeContextMenu = () => setContextMenu(null);
   const moveToSheet = async (id: string, target: Sheet) => {
     const row = rows.find((r) => r.id === id);
     if (!row || statusOf(row) === target) return;
