@@ -1208,9 +1208,9 @@ export default function Overlaps() {
 
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
-          <form onSubmit={save} className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0"><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
+          <form onSubmit={save} className="space-y-3 overflow-y-auto px-6 pb-2 flex-1">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5 md:col-span-2">
                 <Label>사업명 <span className="text-destructive">*</span></Label>
@@ -1493,7 +1493,7 @@ export default function Overlaps() {
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {(form.participants || []).map((p, i) => {
                     const q = (p.name || "").trim();
                     const suggestions = q
@@ -1502,10 +1502,11 @@ export default function Overlaps() {
                     const showList = activeParticipantIdx === i && suggestions.length > 0;
                     const active = isParticipantActive(p, announcementDate);
                     return (
-                    <div key={i} className={`rounded-md border p-2 ${announcementDate && !active ? "bg-muted/40 opacity-60" : "bg-card"}`}>
-                      <div className="flex gap-2 items-center">
-                        <div className="relative flex-1">
+                    <div key={i} className={`rounded-md border py-1.5 px-2 ${announcementDate && !active ? "bg-muted/40 opacity-60" : "bg-card"}`}>
+                      <div className="flex gap-2 items-start">
+                        <div className="relative flex-1 min-w-0">
                           <Input
+                            className="h-8"
                             placeholder="성명 (등록된 기술자 검색)"
                             value={p.name}
                             onFocus={() => setActiveParticipantIdx(i)}
@@ -1527,20 +1528,12 @@ export default function Overlaps() {
                             </div>
                           )}
                         </div>
-                        <Input className="flex-1" placeholder="역할 (선택)" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
-                        <Button type="button" size="icon" variant="ghost" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
+                        <Input className="w-20 shrink-0 h-8" placeholder="역할" value={p.role || ""} onChange={(e) => updateParticipant(i, { role: e.target.value })} />
+                        <Input className="w-24 shrink-0 h-8" type="text" placeholder="참여시작일" value={toDisplayDate(p.start_date)} onChange={(e) => updateParticipant(i, { start_date: inputToISO(e.target.value) })} />
+                        <Input className="w-24 shrink-0 h-8" type="text" placeholder="참여제외일" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => removeParticipant(i)}><X className="h-4 w-4" /></Button>
                       </div>
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs w-16 shrink-0">참여시작일</Label>
-                          <Input type="text" placeholder="YYYY.MM.DD" value={toDisplayDate(p.start_date)} onChange={(e) => updateParticipant(i, { start_date: inputToISO(e.target.value) })} />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs w-16 shrink-0">참여제외일</Label>
-                          <Input type="text" placeholder="비우면 계속 참여" value={toDisplayDate(p.end_date)} onChange={(e) => updateParticipant(i, { end_date: inputToISO(e.target.value) })} />
-                        </div>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-1 flex items-center gap-2">
                         <Checkbox id={`pexc-${i}`} checked={!!p.excluded} onCheckedChange={(v) => updateParticipant(i, { excluded: !!v })} />
                         <Label htmlFor={`pexc-${i}`} className="text-xs cursor-pointer">참여제외 (이 기술자만 중복금액 0 처리)</Label>
                       </div>
@@ -1601,7 +1594,7 @@ export default function Overlaps() {
 
 
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0 border-t py-4 mt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button>
               <Button type="submit" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}저장</Button>
             </DialogFooter>
