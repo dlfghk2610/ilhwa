@@ -952,8 +952,34 @@ export default function Overlaps() {
         </Card>
 
 
-
-
+        {/* 시트탭 (엑셀 스타일) — 사업을 끌어다 놓아 이동 */}
+        <div className="flex items-end gap-1 -mb-2 px-1">
+          {(["진행중", "준공"] as const).map((s) => {
+            const count = rows.filter((r) => statusOf(r) === s).length;
+            const active = sheet === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSheet(s)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverSheet(s); }}
+                onDragLeave={() => setDragOverSheet((p) => (p === s ? null : p))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverSheet(null);
+                  const id = e.dataTransfer.getData("text/plain") || draggingIdRef.current;
+                  if (id) moveToSheet(id, s);
+                }}
+                className={`px-4 py-1.5 text-xs md:text-sm rounded-t-md border border-b-0 transition-colors ${
+                  active ? "bg-card font-semibold text-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                } ${dragOverSheet === s ? "ring-2 ring-primary ring-offset-1 bg-primary/10" : ""}`}
+              >
+                {s} <span className="text-[10px] opacity-70">({count})</span>
+              </button>
+            );
+          })}
+          <span className="ml-2 pb-1 text-[10px] text-muted-foreground hidden md:inline">사업 행을 끌어서 탭에 놓으면 이동됩니다</span>
+        </div>
 
         {/* Desktop table */}
         <Card className="shadow-card overflow-hidden hidden md:block">
