@@ -174,8 +174,14 @@ export default function Overlaps() {
   type Sheet = "진행중" | "준공";
   const [sheet, setSheet] = useState<Sheet>("진행중");
   const [dragOverSheet, setDragOverSheet] = useState<Sheet | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; open: boolean } | null>(null);
   const draggingIdRef = useRef<string | null>(null);
   const statusOf = (r: OverlapRow): Sheet => ((r as any).project_status === "준공" ? "준공" : "진행중");
+  const openContextMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId: id, open: true });
+  };
+  const closeContextMenu = () => setContextMenu(null);
   const moveToSheet = async (id: string, target: Sheet) => {
     const row = rows.find((r) => r.id === id);
     if (!row || statusOf(row) === target) return;
@@ -237,6 +243,13 @@ export default function Overlaps() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!contextMenu?.open) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [contextMenu?.open]);
 
   const openCreate = () => { setEditing(null); setForm(emptyForm()); setOpen(true); };
   const openEdit = (r: OverlapRow) => {
@@ -1023,7 +1036,7 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; }} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
                     </TableCell>
