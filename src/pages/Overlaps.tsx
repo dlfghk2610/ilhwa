@@ -458,16 +458,17 @@ export default function Overlaps() {
     return r.agreement_date;
   };
 
-  // 과업중지 기간이 3개월 이상 지속된 이력이 있으면 true
+  // 과업중지 기간이 3개월 이상 지속되고 아직 재개되지 않은 이력이 있으면 true
+  // (과업재개일이 입력된 건은 다시 업무가 진행되므로 0원 예외에서 제외)
   const hasLongSuspensionHistory = (r: OverlapRow) => {
     return (r.suspensions || []).some((s) => {
       if (!s.suspension_date) return false;
-      const endRef = s.resume_date ? parseDate(s.resume_date) : new Date();
-      const months = monthsBetween(s.suspension_date, endRef);
+      if (s.resume_date) return false; // 재개된 건은 중복금액 산정 대상으로 복귀
+      const months = monthsBetween(s.suspension_date, new Date());
       return months >= 3;
     });
   };
-  // 협의완료일이 등록되어 있거나, 3개월 이상 중지 이력이 있으면 중복금액 0원 예외
+  // 협의완료일이 등록되어 있거나, 재개되지 않은 3개월 이상 중지 이력이 있으면 중복금액 0원 예외
   const zeroByException = (r: OverlapRow): string | null => {
     if (r.agreement_date) return "협의완료";
     if (hasLongSuspensionHistory(r)) return "3개월이상 중지이력";
