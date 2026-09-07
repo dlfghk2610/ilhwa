@@ -1090,7 +1090,7 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
                 <div className="flex items-start">
                   <div className="pl-3 pt-3.5">
                     <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
