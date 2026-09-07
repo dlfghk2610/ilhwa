@@ -1219,6 +1219,43 @@ export default function Overlaps() {
         </TabsContent>
       </Tabs>
 
+      {/* 우클릭 시트 이동 메뉴 */}
+      {contextMenu?.open && (() => {
+        const row = rows.find((r) => r.id === contextMenu.rowId);
+        if (!row) return null;
+        const cur = statusOf(row);
+        const x = Math.min(contextMenu.x, window.innerWidth - 170);
+        const y = Math.min(contextMenu.y, window.innerHeight - 110);
+        return (
+          <div
+            className="fixed z-[100] min-w-[150px] rounded-md border bg-popover shadow-md py-1 text-sm"
+            style={{ left: x, top: y }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <div className="px-3 py-1 text-[11px] text-muted-foreground border-b mb-1 truncate max-w-[200px]">{row.project_name}</div>
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-40"
+              disabled={cur === "진행중"}
+              onClick={() => { moveToSheet(contextMenu.rowId, "진행중"); closeContextMenu(); }}
+            >
+              진행중으로 이동
+            </button>
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-40"
+              disabled={cur === "준공"}
+              onClick={() => { moveToSheet(contextMenu.rowId, "준공"); closeContextMenu(); }}
+            >
+              준공으로 이동
+            </button>
+          </div>
+        );
+      })()}
+
+
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
