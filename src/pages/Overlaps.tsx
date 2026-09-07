@@ -458,16 +458,17 @@ export default function Overlaps() {
     return r.agreement_date;
   };
 
-  // 과업중지 기간이 3개월 이상 지속된 이력이 있으면 true
+  // 과업중지 기간이 3개월 이상 지속되고 아직 재개되지 않은 이력이 있으면 true
+  // (과업재개일이 입력된 건은 다시 업무가 진행되므로 0원 예외에서 제외)
   const hasLongSuspensionHistory = (r: OverlapRow) => {
     return (r.suspensions || []).some((s) => {
       if (!s.suspension_date) return false;
-      const endRef = s.resume_date ? parseDate(s.resume_date) : new Date();
-      const months = monthsBetween(s.suspension_date, endRef);
+      if (s.resume_date) return false; // 재개된 건은 중복금액 산정 대상으로 복귀
+      const months = monthsBetween(s.suspension_date, new Date());
       return months >= 3;
     });
   };
-  // 협의완료일이 등록되어 있거나, 3개월 이상 중지 이력이 있으면 중복금액 0원 예외
+  // 협의완료일이 등록되어 있거나, 재개되지 않은 3개월 이상 중지 이력이 있으면 중복금액 0원 예외
   const zeroByException = (r: OverlapRow): string | null => {
     if (r.agreement_date) return "협의완료";
     if (hasLongSuspensionHistory(r)) return "3개월이상 중지이력";
@@ -1090,7 +1091,7 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
                 <div className="flex items-start">
                   <div className="pl-3 pt-3.5">
                     <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
@@ -1218,6 +1219,43 @@ export default function Overlaps() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 우클릭 시트 이동 메뉴 */}
+      {contextMenu?.open && (() => {
+        const row = rows.find((r) => r.id === contextMenu.rowId);
+        if (!row) return null;
+        const cur = statusOf(row);
+        const x = Math.min(contextMenu.x, window.innerWidth - 170);
+        const y = Math.min(contextMenu.y, window.innerHeight - 110);
+        return (
+          <div
+            className="fixed z-[100] min-w-[150px] rounded-md border bg-popover shadow-md py-1 text-sm"
+            style={{ left: x, top: y }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <div className="px-3 py-1 text-[11px] text-muted-foreground border-b mb-1 truncate max-w-[200px]">{row.project_name}</div>
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-40"
+              disabled={cur === "진행중"}
+              onClick={() => { moveToSheet(contextMenu.rowId, "진행중"); closeContextMenu(); }}
+            >
+              진행중으로 이동
+            </button>
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-40"
+              disabled={cur === "준공"}
+              onClick={() => { moveToSheet(contextMenu.rowId, "준공"); closeContextMenu(); }}
+            >
+              준공으로 이동
+            </button>
+          </div>
+        );
+      })()}
+
+
 
 
       <Dialog open={open} onOpenChange={setOpen}>
