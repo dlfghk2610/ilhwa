@@ -799,7 +799,7 @@ export default function Overlaps() {
           const bytes = await fetchPdfBytes(p);
           if (!bytes) continue;
           const tech = selectedTech !== "__all__" ? selectedTech.trim() : "";
-          const marks = tech && p === r.participant_list_pdf_path ? await findNameMarks(bytes as ArrayBuffer, tech) : [];
+          const marks = tech && p === r.participant_list_pdf_path ? await findNameMarks(bytes.slice().buffer as ArrayBuffer, tech) : [];
           try {
             const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
             const pages = await merged.copyPages(src, src.getPageIndices());
