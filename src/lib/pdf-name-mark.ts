@@ -46,11 +46,11 @@ export async function findNameMarks(bytes: ArrayBuffer, name: string): Promise<N
   return marks;
 }
 
-/** 이름 왼쪽에 빨간 체크 표시 */
+/** 이름 왼쪽에 파란 체크 표시 */
 export function drawCheckMark(pg: PDFPage, m: NameMark) {
-  const size = Math.max(14, m.height * 1.6);
+  const size = Math.max(18, m.height * 2.2);
   const s = size / 12;
   const x = m.x - size - 4;
   const y = m.y + size * 0.8;
-  pg.drawSvgPath(`M 0 6 L 4 11 L 12 0`, { x, y, scale: s, borderColor: rgb(0.9, 0.05, 0.05), borderWidth: 2.5 });
+  pg.drawSvgPath(`M 0 6 L 4 11 L 12 0`, { x, y, scale: s, borderColor: rgb(0.1, 0.35, 0.9), borderWidth: 1.4 });
 }
