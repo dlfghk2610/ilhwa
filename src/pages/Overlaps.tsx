@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, FileText as FileTextIcon } from "lucide-react";
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
+import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
 
 type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean };
 
@@ -797,11 +798,14 @@ export default function Overlaps() {
         for (const p of paths) {
           const bytes = await fetchPdfBytes(p);
           if (!bytes) continue;
+          const tech = selectedTech !== "__all__" ? selectedTech.trim() : "";
+          const marks = tech && p === r.participant_list_pdf_path ? await findNameMarks(bytes as ArrayBuffer, tech) : [];
           try {
             const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
             const pages = await merged.copyPages(src, src.getPageIndices());
             pages.forEach((pg, idx) => {
               merged.addPage(pg);
+              marks.filter((m) => m.pageIndex === idx).forEach((m) => drawCheckMark(pg, m));
               if (printSeq && isFirstPageOfProject && idx === 0) {
                 const { height } = pg.getSize();
                 pg.drawText(`${seq}`, { x: 20, y: height - 50, size: 40, font, color: rgb(0, 0, 0) });

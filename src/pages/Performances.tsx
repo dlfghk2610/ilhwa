@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { exportToExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
 import * as pdfjsLib from "pdfjs-dist";
 // @ts-ignore - vite worker url import
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -470,24 +471,7 @@ export default function Performances() {
           if (!path.toLowerCase().endsWith(".pdf")) continue;
           const bytes = await blob.arrayBuffer();
           const isParticipantList = bucket === "participant-lists";
-          let nameMarks: { pageIndex: number; x: number; y: number; height: number }[] = [];
-          if (isParticipantList && tech) {
-            try {
-              const loadingTask = (pdfjsLib as any).getDocument({ data: bytes.slice(0) });
-              const pdfDoc = await loadingTask.promise;
-              for (let pi = 1; pi <= pdfDoc.numPages; pi++) {
-                const page = await pdfDoc.getPage(pi);
-                const tc = await page.getTextContent();
-                for (const it of tc.items as any[]) {
-                  const s = String(it.str ?? "");
-                  if (s && s.includes(tech)) {
-                    const tr = it.transform as number[];
-                    nameMarks.push({ pageIndex: pi - 1, x: tr[4], y: tr[5], height: it.height || Math.abs(tr[3]) || 10 });
-                  }
-                }
-              }
-            } catch {}
-          }
+          const nameMarks = isParticipantList && tech ? await findNameMarks(bytes, tech) : [];
           try {
             const src = await PDFDocument.load(bytes);
             const pages = await merged.copyPages(src, src.getPageIndices());
@@ -500,13 +484,7 @@ export default function Performances() {
               }
               if (isParticipantList && tech) {
                 const marks = nameMarks.filter((m) => m.pageIndex === idx);
-                for (const m of marks) {
-                  const size = Math.max(10, m.height);
-                  const cx = m.x - size * 1.6;
-                  const cy = m.y + size;
-                  const s = size / 12;
-                  pg.drawSvgPath(`M 0 6 L 4 0 L 12 10`, { x: cx, y: cy, scale: s, borderColor: rgb(0.85, 0.1, 0.1), borderWidth: 2 });
-                }
+                for (const m of marks) drawCheckMark(pg, m);
               }
             });
             added++;
