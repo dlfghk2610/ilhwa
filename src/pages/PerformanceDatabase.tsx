@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, X, Upload, Sparkles, FileText, Download, ChevronDown, ChevronRight, Copy, Building2, Users, List, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type Period = { start?: string; end?: string };
@@ -199,6 +199,9 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [missingPdfOnly, setMissingPdfOnly] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [companyRegisterOpen, setCompanyRegisterOpen] = useState(false);
+  const [companyNameDraft, setCompanyNameDraft] = useState("");
   const toggleExpand = (id: string) => setExpanded((prev) => {
     const n = new Set(prev);
     n.has(id) ? n.delete(id) : n.add(id);
@@ -275,10 +278,10 @@ export default function PerformanceDatabase({ external = false }: { external?: b
 
   const scrollPosRef = useRef(0);
 
-  function openCreate() {
+  function openCreate(companyName = "") {
     scrollPosRef.current = window.scrollY;
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, external_company_name: companyName });
     setShareAmountTouched(false);
     setOpen(true);
   }
@@ -720,17 +723,70 @@ export default function PerformanceDatabase({ external = false }: { external?: b
     return base;
   }, [rows, search, missingPdfOnly]);
 
+  const companyGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; name: string; rows: Row[]; technicians: string[] }>();
+    rows.forEach((row) => {
+      const companyName = (row.external_company_name || "").trim();
+      const key = companyName || "__unregistered__";
+      const existing = groups.get(key) || {
+        key,
+        name: companyName || "회사명 미등록",
+        rows: [],
+        technicians: [],
+      };
+      existing.rows.push(row);
+      const names = [
+        ...(row.participants || []).map((participant) => participant.name),
+        ...(row.phases || []).flatMap((phase) => (phase.participants || []).map((participant) => participant.name)),
+      ];
+      existing.technicians = Array.from(new Set([...existing.technicians, ...names.map((name) => (name || "").trim()).filter(Boolean)]));
+      groups.set(key, existing);
+    });
+
+    const query = search.trim().toLowerCase();
+    return Array.from(groups.values())
+      .filter((group) => !query || group.name.toLowerCase().includes(query) || group.technicians.some((name) => name.toLowerCase().includes(query)))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [rows, search]);
+
+  const selectedCompanyGroup = useMemo(
+    () => companyGroups.find((group) => group.key === selectedCompany)
+      || (selectedCompany ? (() => {
+        const companyRows = rows.filter((row) => ((row.external_company_name || "").trim() || "__unregistered__") === selectedCompany);
+        if (companyRows.length === 0) return null;
+        return {
+          key: selectedCompany,
+          name: selectedCompany === "__unregistered__" ? "회사명 미등록" : selectedCompany,
+          rows: companyRows,
+          technicians: Array.from(new Set(companyRows.flatMap((row) => (row.participants || []).map((participant) => participant.name)).filter(Boolean))),
+        };
+      })() : null),
+    [companyGroups, rows, selectedCompany]
+  );
+
+  const companyDetailRows = useMemo(() => {
+    const companyRows = selectedCompanyGroup?.rows || [];
+    if (!missingPdfOnly) return companyRows;
+    return companyRows.filter((row) => {
+      const phases = Array.isArray(row.phases) ? row.phases : [];
+      const hasCert = !!row.cert_pdf_path || phases.some((phase) => phase?.cert_pdf_path);
+      const hasParticipants = !!row.participant_file_path || phases.some((phase) => phase?.participant_file_path);
+      return !hasCert || !hasParticipants;
+    });
+  }, [selectedCompanyGroup, missingPdfOnly]);
+
 
   const bulkDeletableIds = useMemo(
-    () => filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id),
-    [filtered, selectedIds]
+    () => (external ? companyDetailRows : filtered).filter((r) => selectedIds.has(r.id)).map((r) => r.id),
+    [companyDetailRows, external, filtered, selectedIds]
   );
-  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+  const selectableRows = external ? companyDetailRows : filtered;
+  const allFilteredSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id));
   function toggleSelectAll(checked: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (checked) filtered.forEach((r) => next.add(r.id));
-      else filtered.forEach((r) => next.delete(r.id));
+      if (checked) selectableRows.forEach((r) => next.add(r.id));
+      else selectableRows.forEach((r) => next.delete(r.id));
       return next;
     });
   }
@@ -1001,6 +1057,157 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   return (
     <AppLayout title={external ? "타회사 실적 데이터베이스 관리" : "실적 데이터베이스 관리"}>
       <div className="space-y-4">
+        {external ? (
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1 sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="회사명 또는 기술자명 검색"
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 sm:ml-auto">
+                <Button variant="outline" onClick={downloadImportTemplate} className="flex-1 sm:flex-none">
+                  <Download className="h-4 w-4" />가져오기 양식
+                </Button>
+                <label className="flex-1 sm:flex-none">
+                  <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelImport} />
+                  <Button type="button" variant="outline" asChild className="w-full">
+                    <span className="cursor-pointer"><Upload className="h-4 w-4" />엑셀 가져오기</span>
+                  </Button>
+                </label>
+                <Button onClick={() => { setCompanyNameDraft(""); setCompanyRegisterOpen(true); }} className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4" />회사 등록
+                </Button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="py-20 text-center"><Loader2 className="inline h-6 w-6 animate-spin text-primary" /></div>
+            ) : companyGroups.length === 0 ? (
+              <Card className="p-10 text-center text-sm text-muted-foreground">
+                {search ? "검색 결과가 없습니다." : "등록된 타회사 실적이 없습니다."}
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                {companyGroups.map((group) => (
+                  <Card
+                    key={group.key}
+                    className="cursor-pointer border-border p-5 transition-colors hover:border-primary/60 hover:bg-accent/20"
+                    onClick={() => setSelectedCompany(group.key)}
+                  >
+                    <div className="flex items-start justify-between gap-3 border-b pb-4">
+                      <div className="min-w-0">
+                        <Badge variant="secondary" className="mb-2">전직장 실적</Badge>
+                        <h2 className="break-words text-lg font-semibold">{group.name}</h2>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 text-sm">총 {group.rows.length}건</Badge>
+                    </div>
+                    <div className="min-h-[64px] py-4">
+                      <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />참여 기술자
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.technicians.length > 0 ? group.technicians.map((name) => (
+                          <Badge key={name} variant="outline">{name}</Badge>
+                        )) : <span className="text-sm text-muted-foreground">등록된 기술자 없음</span>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2" onClick={(event) => event.stopPropagation()}>
+                      <Button variant="outline" onClick={() => setSelectedCompany(group.key)}>
+                        <List className="h-4 w-4" />실적 목록 ({group.rows.length})
+                      </Button>
+                      <Button onClick={() => openCreate(group.key === "__unregistered__" ? "" : group.name)}>
+                        <Plus className="h-4 w-4" />실적 추가
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <Dialog open={!!selectedCompany} onOpenChange={(isOpen) => { if (!isOpen) setSelectedCompany(null); }}>
+              <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-4 sm:p-6">
+                <DialogHeader>
+                  <DialogTitle className="pr-8">{selectedCompanyGroup?.name || "회사 실적"}</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+                  <Badge variant="secondary">총 {selectedCompanyGroup?.rows.length || 0}건</Badge>
+                  <Button
+                    size="sm"
+                    variant={missingPdfOnly ? "default" : "outline"}
+                    onClick={() => setMissingPdfOnly((value) => !value)}
+                  >
+                    <FileText className="h-4 w-4" />PDF 미첨부만 {missingPdfOnly ? "해제" : "보기"}
+                  </Button>
+                  <Button size="sm" variant="destructive" disabled={bulkDeletableIds.length === 0} onClick={() => setBulkDeleteOpen(true)}>
+                    <Trash2 className="h-4 w-4" />삭제 ({bulkDeletableIds.length}건)
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openCreate(selectedCompanyGroup?.key === "__unregistered__" ? "" : selectedCompanyGroup?.name || "")}
+                  >
+                    <Plus className="h-4 w-4" />사업/실적 추가
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 px-1">
+                  <Checkbox checked={allFilteredSelected} onCheckedChange={(checked) => toggleSelectAll(!!checked)} aria-label="회사 실적 전체선택" />
+                  <span className="text-sm text-muted-foreground">전체선택</span>
+                </div>
+
+                {companyDetailRows.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">표시할 실적이 없습니다.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {companyDetailRows.map((row) => (
+                      <Card key={row.id} className="p-4">
+                        <div className="flex items-start gap-3">
+                          <Checkbox className="mt-1" checked={selectedIds.has(row.id)} onCheckedChange={(checked) => toggleRowSelection(row.id, !!checked)} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <h3 className="break-words font-semibold">{row.project_name}</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">{row.client || "발주처 미등록"}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                {row.is_private && <Badge variant="outline">민간</Badge>}
+                                {row.evaluation_types.map((type) => <Badge key={type} variant="secondary">{type}</Badge>)}
+                              </div>
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                              <div><span className="text-muted-foreground">계약기간 </span>{row.contract_periods.map((period) => `${isoToDisplay(period.start)} ~ ${isoToDisplay(period.end)}`).join(", ") || "-"}</div>
+                              <div><span className="text-muted-foreground">지분금액 </span>{fmt(row.share_amount) || "-"}</div>
+                              <div><span className="text-muted-foreground">참여인원 </span>{row.participants.length}명</div>
+                            </div>
+                            {row.participants.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1">
+                                {Array.from(new Set(row.participants.map((participant) => participant.name).filter(Boolean))).map((name) => <Badge key={name} variant="outline">{name}</Badge>)}
+                              </div>
+                            )}
+                            <div className="mt-3 flex flex-wrap justify-end gap-1 border-t pt-3">
+                              {row.cert_pdf_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("performance-certs", row.cert_pdf_path || "")}><FileText className="h-4 w-4" />실적증명</Button>}
+                              {row.participant_file_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("participant-lists", row.participant_file_path || "")}><Download className="h-4 w-4" />참여자명단</Button>}
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" />수정</Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleCopy(row)}><Copy className="h-4 w-4" />복사</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setDeleteId(row.id)}><Trash2 className="h-4 w-4 text-destructive" />삭제</Button>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+                <div className="text-right text-xs text-muted-foreground">표시 {companyDetailRows.length}건</div>
+              </DialogContent>
+            </Dialog>
+          </>
+        ) : (
+          <>
         <div className="flex flex-wrap gap-2 items-center">
           <Input placeholder="사업명/발주처/기술자명/사업종류 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
           <Button
@@ -1202,7 +1409,40 @@ export default function PerformanceDatabase({ external = false }: { external?: b
           )}
           <div className="px-3 py-2 text-xs text-muted-foreground border-t">총 {filtered.length}건</div>
         </Card>
+          </>
+        )}
       </div>
+
+      <Dialog open={companyRegisterOpen} onOpenChange={setCompanyRegisterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>회사 등록</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="external-company-name">전직장(회사명)</Label>
+            <Input
+              id="external-company-name"
+              value={companyNameDraft}
+              onChange={(event) => setCompanyNameDraft(event.target.value)}
+              placeholder="예: 극동엔지니어링(주)"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && companyNameDraft.trim()) {
+                  setCompanyRegisterOpen(false);
+                  openCreate(companyNameDraft.trim());
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">회사명을 입력하면 첫 사업 등록 화면이 열립니다.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompanyRegisterOpen(false)}>취소</Button>
+            <Button
+              disabled={!companyNameDraft.trim()}
+              onClick={() => { setCompanyRegisterOpen(false); openCreate(companyNameDraft.trim()); }}
+            >
+              다음
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { requestAnimationFrame(() => window.scrollTo({ top: scrollPosRef.current })); } }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
