@@ -148,7 +148,12 @@ export default function CareerHighlight() {
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Highlighter className="h-4 w-4" />} 형광펜 표시 실행
               </Button>
               <Button variant="outline" onClick={download} disabled={!url}><Download className="h-4 w-4" /> PDF 다운로드</Button>
-              {stat && <span className="text-sm text-muted-foreground">엑셀 인식: 경력 {stat.cr}건 · 실적 {stat.pr}건 → 표시: 경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
+              {stat && (
+                <span className="text-sm text-muted-foreground">
+                  {stat.person && <>기술자: <b className="text-foreground">{stat.person}</b> (시트: {stat.cs.join(", ")} / {stat.ps.join(", ")}) · </>}
+                  엑셀 인식: 경력 {stat.cr}건 · 실적 {stat.pr}건 → 표시: 경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳
+                </span>
+              )}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
               사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾되, 형광펜은 사업명 글자에만 칠합니다. 경력·실적에 모두 있는 사업은 사업명의 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
