@@ -895,6 +895,25 @@ export default function Performances() {
           </Button>
         </div>
 
+        {selectedTech && visibleTechRows.length > 0 && (
+          <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "usable" | "limited" | "all")}>
+            <TabsList>
+              <TabsTrigger value="usable" className="gap-1.5">
+                사용 가능
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">{statusCounts.usable}</span>
+              </TabsTrigger>
+              <TabsTrigger value="limited" className="gap-1.5">
+                사용 제한
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">{statusCounts.limited}</span>
+              </TabsTrigger>
+              <TabsTrigger value="all" className="gap-1.5">
+                전체
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold">{statusCounts.all}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
         {loading ? (
           <Card className="p-8 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /></Card>
         ) : !selectedTech ? (
