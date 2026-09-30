@@ -133,8 +133,10 @@ export default function CareerHighlight() {
   const [careerFile, setCareerFile] = useState<File | null>(null);
   const [perfFile, setPerfFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [careerColor, setCareerColor] = useState("#ffeb3b");
-  const [perfColor, setPerfColor] = useState("#7fdbff");
+  const [careerColor, setCareerColor] = useState(() => localStorage.getItem("hl_career_color") || "#ffeb3b");
+  const [perfColor, setPerfColor] = useState(() => localStorage.getItem("hl_perf_color") || "#7fdbff");
+  useEffect(() => { localStorage.setItem("hl_career_color", careerColor); }, [careerColor]);
+  useEffect(() => { localStorage.setItem("hl_perf_color", perfColor); }, [perfColor]);
   const [techName, setTechName] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
