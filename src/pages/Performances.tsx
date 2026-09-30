@@ -506,6 +506,29 @@ export default function Performances() {
     finally { setExportingPdf(false); }
   }
 
+  const usedServiceTypeTags = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => r.service_types.forEach((t) => { const k = String(t).trim(); if (k) m.set(k, (m.get(k) ?? 0) + 1); }));
+    return Array.from(m, ([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count || a.type.localeCompare(b.type, "ko"));
+  }, [rows]);
+  const toggleTechService = (t: string) => { setTechServiceFilter((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]); setTechSelectionTouched(false); };
+  const serviceTagPicker = usedServiceTypeTags.length > 0 ? (
+    <div className="space-y-1 mt-2">
+      <span className="text-[11px] text-muted-foreground">등록된 사업종류 (클릭하여 선택)</span>
+      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 rounded-md border bg-background">
+        {usedServiceTypeTags.map(({ type, count }) => {
+          const on = techServiceFilter.includes(type);
+          return (
+            <button key={type} type="button" onClick={() => toggleTechService(type)}
+              className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${on ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 border-border hover:bg-muted"}`}>
+              {type}<span className="ml-1 opacity-60">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
   // 데이터베이스에 등록된 참여자 기준 기술자 목록
   const allTechnicians = useMemo(() => {
     const s = new Set<string>();
@@ -812,7 +835,8 @@ export default function Performances() {
               </div>
             </div>
             <div>
-              <Label>사업종류 필터 (복수)</Label>
+              <Label>사업종류 (기준, 복수선택)</Label>
+              {serviceTagPicker}
               <div className="flex gap-1 mt-2">
                 <Input value={techServiceFilterInput} onChange={(e) => setTechServiceFilterInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTechServiceFilter(); } }}
@@ -1096,7 +1120,8 @@ export default function Performances() {
                 </div>
               </div>
               <div>
-                <Label>사업종류 필터 (복수)</Label>
+                <Label>사업종류 (기준, 복수선택)</Label>
+              {serviceTagPicker}
                 <div className="flex gap-1 mt-2">
                   <Input value={techServiceFilterInput} onChange={(e) => setTechServiceFilterInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTechServiceFilter(); } }}
