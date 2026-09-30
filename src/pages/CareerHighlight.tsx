@@ -131,26 +131,47 @@ function findInLine(line: Line, target: string): Box[] {
   return res;
 }
 
+const itemBox = (line: Line, it: any): Box => {
+  const h = it.height || Math.abs(it.transform[3]) || 9;
+  return { page: line.page, x: it.transform[4] - 1, y: line.y - h * 0.25, w: it.width + 2, h: h * 1.35 };
+};
+
+/** 줄 안에서 사업명과 비슷한 텍스트 조각들 + 유사도 점수 */
+function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[] } {
+  const all = bigrams(norm(line.items.map((i) => i.str).join("")));
+  const score = rb.size ? overlap(rb, all) / rb.size : 0;
+  const boxes: Box[] = [];
+  for (const it of line.items) {
+    const ib = bigrams(norm(it.str));
+    if (ib.size && overlap(ib, rb) / ib.size >= 0.5) boxes.push(itemBox(line, it));
+  }
+  return { score, boxes };
+}
+
 function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
   const boxes: Box[] = [];
   for (const r of rows) {
     if (pdfName && r.name && norm(r.name) !== norm(pdfName)) continue;
     const t = norm(r.project);
-    if (t.length < 2) continue;
-    for (const line of lines) {
-      const found = findInLine(line, t);
-      if (!found.length) continue;
-      const near = lines.filter((l) => l.page === line.page && Math.abs(l.y - line.y) < 40);
-      const dateBoxes: Box[] = [];
-      let ok = !r.start && !r.end;
-      for (const d of [r.start, r.end].filter(Boolean)) {
-        for (const l of near) {
-          const b = findInLine(l, norm(d));
-          if (b.length) { ok = true; dateBoxes.push(...b); }
+    if (t.length < 3) continue;
+    const rb = bigrams(t);
+    const sd = norm(r.start), ed = norm(r.end);
+    if (sd) {
+      // 착수일을 기준점으로 근처 줄에서 비슷한 사업명 찾기
+      for (const dl of lines) {
+        const sBox = findInLine(dl, sd);
+        if (!sBox.length) continue;
+        const cand = lines.filter((l) => l.page === dl.page && l.y - dl.y > -6 && l.y - dl.y < 36);
+        let best = { score: 0, boxes: [] as Box[] };
+        for (const l of cand) { const f = fuzzyInLine(l, rb); if (f.score > best.score && f.boxes.length) best = f; }
+        if (best.score < 0.55) continue;
+        boxes.push(...best.boxes, ...sBox);
+        if (ed) {
+          for (const l of lines.filter((l) => l.page === dl.page && dl.y - l.y >= 0 && dl.y - l.y < 45)) boxes.push(...findInLine(l, ed));
         }
       }
-      if (!ok) continue;
-      boxes.push(...found, ...dateBoxes);
+    } else {
+      for (const l of lines) { const f = fuzzyInLine(l, rb); if (f.score >= 0.75) boxes.push(...f.boxes); }
     }
   }
   return boxes;
