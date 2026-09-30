@@ -142,7 +142,9 @@ function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[]
   const score = rb.size ? overlap(rb, all) / rb.size : 0;
   const boxes: Box[] = [];
   for (const it of line.items) {
-    const ib = bigrams(norm(it.str));
+    const n = norm(it.str);
+    if (n.length < 4) continue;
+    const ib = bigrams(n);
     if (ib.size && overlap(ib, rb) / ib.size >= 0.5) boxes.push(itemBox(line, it));
   }
   return { score, boxes };
@@ -151,11 +153,11 @@ function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[]
 function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
   const boxes: Box[] = [];
   for (const r of rows) {
-    if (pdfName && r.name && norm(r.name) !== norm(pdfName)) continue;
     const t = norm(r.project);
     if (t.length < 3) continue;
     const rb = bigrams(t);
     const sd = norm(r.start), ed = norm(r.end);
+    let hit = false;
     if (sd) {
       // 착수일을 기준점으로 근처 줄에서 비슷한 사업명 찾기
       for (const dl of lines) {
@@ -165,13 +167,16 @@ function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
         let best = { score: 0, boxes: [] as Box[] };
         for (const l of cand) { const f = fuzzyInLine(l, rb); if (f.score > best.score && f.boxes.length) best = f; }
         if (best.score < 0.55) continue;
+        hit = true;
         boxes.push(...best.boxes, ...sBox);
         if (ed) {
           for (const l of lines.filter((l) => l.page === dl.page && dl.y - l.y >= 0 && dl.y - l.y < 45)) boxes.push(...findInLine(l, ed));
         }
       }
-    } else {
-      for (const l of lines) { const f = fuzzyInLine(l, rb); if (f.score >= 0.75) boxes.push(...f.boxes); }
+    }
+    // 날짜로 못 찾으면 사업명만으로 (더 엄격한 기준)
+    if (!hit) {
+      for (const l of lines) { const f = fuzzyInLine(l, rb); if (f.score >= 0.8) boxes.push(...f.boxes); }
     }
   }
   return boxes;
