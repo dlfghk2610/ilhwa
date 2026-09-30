@@ -156,75 +156,50 @@ export const phaseOf = (s: string): string => {
   return m.length ? String(Number(m[m.length - 1][1])) : "";
 };
 
-/** 줄에서 연속된 글자 조각(최대 4개)을 이어 붙여 사업명과 가장 비슷한 구간 */
-function bestSpan(line: Line, rb: Set<string>, ph = ""): { score: number; boxes: Box[] } {
-  let best = { score: 0, boxes: [] as Box[] };
+const ws = (s: string) => String(s ?? "").replace(/\s/g, "");
+
+/** 줄에서 연속된 글자 조각을 이어 붙여 사업명과 (띄어쓰기만 무시하고) 정확히 같은 구간 */
+function exactSpan(line: Line, t: string): Box[] | null {
   const its = line.items;
   for (let i = 0; i < its.length; i++) {
     let s = "";
-    for (let j = i; j < Math.min(its.length, i + 4); j++) {
-      if (j > i) {
-        const prev = its[j - 1];
-        const gap = its[j].transform[4] - (prev.transform[4] + prev.width);
-        const fh = prev.height || Math.abs(prev.transform[3]) || 9;
-        if (gap > fh * 1.2) break; // 다른 칸(직무분야·담당업무 등)은 사업명에 포함하지 않음
-      }
-      s += norm(its[j].str);
-      if (s.length < 4) continue;
-      const sp = phaseOf(s);
-      if (ph && sp && ph !== sp) continue; // 1차와 2차는 서로 다른 사업
-      const sc = dice(bigrams(s), rb);
-      if (sc > best.score) best = { score: sc, boxes: its.slice(i, j + 1).map((it) => itemBox(line, it)) };
+    for (let j = i; j < its.length; j++) {
+      s += ws(its[j].str);
+      if (s === t) return its.slice(i, j + 1).map((it) => itemBox(line, it));
+      if (!t.startsWith(s)) break;
     }
   }
-  return best;
+  return null;
 }
 
-type Hit = { score: number; boxes: Box[]; lineKey: string };
+export type Hit = { boxes: Box[]; key: string };
 
-/**
- * 경력증명서 구조: 사업명 줄 바로 아래에 착수일, 그 아래 '~' 와 준공일.
- * 착수일 줄을 기준점으로 바로 위/같은 줄의 사업명을 비교하고,
- * 준공일까지 맞으면 기준을 낮추고, 안 맞으면 더 엄격하게 본다.
- */
-export function matchRows(lines: Line[], rows: Row[]): Box[] {
+/** 착수일 줄 바로 위/같은 줄에서 사업명이 정확히 일치하는 곳 — 엑셀 1행당 최대 1곳 */
+export function matchRows(lines: Line[], rows: Row[]): Hit[] {
   const byPage = new Map<number, Line[]>();
   lines.forEach((l) => { if (!byPage.has(l.page)) byPage.set(l.page, []); byPage.get(l.page)!.push(l); });
-  const claimed = new Map<string, number>(); // 사업명 줄별 최고 점수 (여러 행이 같은 줄을 차지하지 않게)
+  const used = new Set<string>();
   const hits: Hit[] = [];
-
   for (const r of rows) {
-    const t = norm(r.project);
-    if (t.length < 4) continue;
-    const rb = bigrams(t);
-    const ph = phaseOf(r.project);
-    let found = false;
+    const t = ws(r.project);
+    if (t.length < 2) continue;
+    const tryLines = (cands: Line[]) => {
+      for (const l of cands) {
+        const b = exactSpan(l, t);
+        if (!b) continue;
+        const key = `${l.page}|${Math.round(l.y)}|${Math.round(b[0].x)}`;
+        if (used.has(key)) continue;
+        used.add(key); hits.push({ boxes: b, key }); return true;
+      }
+      return false;
+    };
     if (r.start) {
       for (const dl of lines) {
         if (!hasDate(dl, r.start)) continue;
-        const pl = byPage.get(dl.page)!;
-        const endOk = !!r.end && pl.some((l) => l.y < dl.y + 2 && dl.y - l.y < 45 && hasDate(l, r.end) && l !== dl)
-          || (!!r.end && hasDate(dl, r.end) && lineText(dl).indexOf(norm(r.end)) !== lineText(dl).indexOf(norm(r.start)));
-        const cand = pl.filter((l) => l.y - dl.y > -2 && l.y - dl.y < 24);
-        let best: Hit = { score: 0, boxes: [], lineKey: "" };
-        for (const l of cand) {
-          const f = bestSpan(l, rb, ph);
-          if (f.score > best.score) best = { ...f, lineKey: `${l.page}|${Math.round(l.y)}` };
-        }
-        const need = endOk ? 0.5 : r.end ? 0.92 : 0.72; // 준공일이 다르면 거의 똑같은 이름만 인정
-        if (best.score < need || !best.boxes.length) continue;
-        found = true;
-        hits.push(best);
+        const cand = byPage.get(dl.page)!.filter((l) => l.y - dl.y > -2 && l.y - dl.y < 24).sort((a, b) => a.y - b.y);
+        if (tryLines(cand)) break;
       }
-    }
-    // 날짜로 못 찾으면 사업명만으로 (아주 엄격)
-    if (!found && !r.start) { // 참여기간이 있는데 날짜가 안 맞으면 같은 이름이라도 칠하지 않음
-      for (const l of lines) {
-        const f = bestSpan(l, rb, ph);
-        if (f.score >= 0.9) hits.push({ ...f, lineKey: `${l.page}|${Math.round(l.y)}` });
-      }
-    }
+    } else tryLines(lines);
   }
-  for (const h of hits) claimed.set(h.lineKey, Math.max(claimed.get(h.lineKey) ?? 0, h.score));
-  return hits.filter((h) => h.score >= (claimed.get(h.lineKey) ?? 0) - 1e-9).flatMap((h) => h.boxes);
+  return hits;
 }

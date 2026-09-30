@@ -62,8 +62,11 @@ export default function CareerHighlight() {
       const person = detectName(lines);
       const cw = readWorkbook(cBuf, person), pw = readWorkbook(pBuf, person);
       const cRows = cw.rows, pRows = pw.rows;
-      const cBoxes = matchRows(lines, cRows);
-      const pBoxes = matchRows(lines, pRows);
+      const cHits = matchRows(lines, cRows);
+      const pHits = matchRows(lines, pRows);
+      const cBoxes = cHits.flatMap((h) => h.boxes), pBoxes = pHits.flatMap((h) => h.boxes);
+      const pKeys = new Set(pHits.map((h) => h.key));
+      const bothN = cHits.filter((h) => pKeys.has(h.key)).length;
       const cMap = new Map(cBoxes.map((b) => [key(b), b]));
       const pMap = new Map(pBoxes.map((b) => [key(b), b]));
       const doc = await PDFDocument.load(bytes);
@@ -85,7 +88,7 @@ export default function CareerHighlight() {
       const out = await doc.save();
       if (url) URL.revokeObjectURL(url);
       setUrl(URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" })));
-      setStat({ c: cMap.size, p: pMap.size, both, cr: cRows.length, pr: pRows.length, person, cs: cw.sheets, ps: pw.sheets });
+      setStat({ c: cHits.length, p: pHits.length, both: bothN, cr: cRows.length, pr: pRows.length, person, cs: cw.sheets, ps: pw.sheets });
       if (!cMap.size && !pMap.size) toast.warning("일치하는 항목을 찾지 못했습니다. (스캔본 PDF는 인식 불가)");
       else toast.success("형광펜 표시 완료");
     } catch (e: any) {
@@ -156,7 +159,7 @@ export default function CareerHighlight() {
               )}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
-              사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾되, 형광펜은 사업명 글자에만 칠합니다. 경력·실적에 모두 있는 사업은 사업명의 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
+              사업명(띄어쓰기만 무시, 글자는 정확히 일치)과 착수일을 기준으로 찾되, 형광펜은 사업명 글자에만 칠합니다. 경력·실적에 모두 있는 사업은 사업명의 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
             </p>
           </CardContent>
         </Card>
