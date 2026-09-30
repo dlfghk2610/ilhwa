@@ -140,13 +140,17 @@ const itemBox = (line: Line, it: any): Box => {
 function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[] } {
   const all = bigrams(norm(line.items.map((i) => i.str).join("")));
   const score = rb.size ? overlap(rb, all) / rb.size : 0;
-  const boxes: Box[] = [];
+  const candidates: { box: Box; score: number }[] = [];
   for (const it of line.items) {
     const n = norm(it.str);
     if (n.length < 4) continue;
     const ib = bigrams(n);
-    if (ib.size && overlap(ib, rb) / ib.size >= 0.5) boxes.push(itemBox(line, it));
+    const shared = overlap(ib, rb);
+    const itemScore = ib.size && rb.size ? shared / Math.max(ib.size, rb.size) : 0;
+    if (itemScore >= 0.3) candidates.push({ box: itemBox(line, it), score: itemScore });
   }
+  const best = Math.max(0, ...candidates.map((c) => c.score));
+  const boxes = candidates.filter((c) => c.score >= Math.max(0.3, best * 0.85)).map((c) => c.box);
   return { score, boxes };
 }
 
@@ -168,10 +172,7 @@ function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
         for (const l of cand) { const f = fuzzyInLine(l, rb); if (f.score > best.score && f.boxes.length) best = f; }
         if (best.score < 0.55) continue;
         hit = true;
-        boxes.push(...best.boxes, ...sBox);
-        if (ed) {
-          for (const l of lines.filter((l) => l.page === dl.page && dl.y - l.y >= 0 && dl.y - l.y < 45)) boxes.push(...findInLine(l, ed));
-        }
+        boxes.push(...best.boxes);
       }
     }
     // 날짜로 못 찾으면 사업명만으로 (더 엄격한 기준)
@@ -316,7 +317,7 @@ export default function CareerHighlight() {
               {stat && <span className="text-sm text-muted-foreground">엑셀 인식: 경력 {stat.cr}건 · 실적 {stat.pr}건 → 표시: 경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
-              사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾아 사업명·참여기간에 형광펜을 칠합니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
+              사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾되, 형광펜은 사업명 글자에만 칠합니다. 경력·실적에 모두 있는 사업은 사업명의 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
             </p>
           </CardContent>
         </Card>
