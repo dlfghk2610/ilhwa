@@ -154,13 +154,13 @@ function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[]
   return { score, boxes };
 }
 
-function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
+function matchRows(lines: Line[], rows: Row[]): Box[] {
   const boxes: Box[] = [];
   for (const r of rows) {
     const t = norm(r.project);
     if (t.length < 3) continue;
     const rb = bigrams(t);
-    const sd = norm(r.start), ed = norm(r.end);
+    const sd = norm(r.start);
     let hit = false;
     if (sd) {
       // 착수일을 기준점으로 근처 줄에서 비슷한 사업명 찾기
@@ -228,8 +228,8 @@ export default function CareerHighlight() {
     try {
       const [cRows, pRows, bytes] = await Promise.all([readExcel(careerFile), readExcel(perfFile), pdfFile.arrayBuffer()]);
       const lines = await extractLines(bytes);
-      const cBoxes = matchRows(lines, cRows, "");
-      const pBoxes = matchRows(lines, pRows, "");
+      const cBoxes = matchRows(lines, cRows);
+      const pBoxes = matchRows(lines, pRows);
       const cMap = new Map(cBoxes.map((b) => [key(b), b]));
       const pMap = new Map(pBoxes.map((b) => [key(b), b]));
       const doc = await PDFDocument.load(bytes);
