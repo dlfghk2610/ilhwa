@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { PDFDocument, rgb } from "pdf-lib";
+import { BlendMode, PDFDocument, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -239,13 +239,13 @@ export default function CareerHighlight() {
         const pg = pages[b.page];
         if (pMap.has(k)) {
           both++;
-          pg.drawRectangle({ x: b.x, y: b.y + b.h / 2, width: b.w, height: b.h / 2, color: cc, opacity: 0.45 });
-          pg.drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h / 2, color: pc, opacity: 0.45 });
-        } else pg.drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h, color: cc, opacity: 0.45 });
+          pg.drawRectangle({ x: b.x, y: b.y + b.h / 2, width: b.w, height: b.h / 2, color: cc, opacity: 0.45, blendMode: BlendMode.Multiply });
+          pg.drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h / 2, color: pc, opacity: 0.45, blendMode: BlendMode.Multiply });
+        } else pg.drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h, color: cc, opacity: 0.45, blendMode: BlendMode.Multiply });
       }
       for (const [k, b] of pMap) {
         if (cMap.has(k)) continue;
-        pages[b.page].drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h, color: pc, opacity: 0.45 });
+        pages[b.page].drawRectangle({ x: b.x, y: b.y, width: b.w, height: b.h, color: pc, opacity: 0.45, blendMode: BlendMode.Multiply });
       }
       const out = await doc.save();
       if (url) URL.revokeObjectURL(url);
