@@ -242,8 +242,19 @@ export default function CareerHighlight() {
             <div className="space-y-2">
               <Label>② 실적 엑셀 (.xlsx, .xls)</Label>
               <Input type="file" accept=".xlsx,.xls" onChange={(e) => setPerfFile(e.target.files?.[0] || null)} />
-              <div className="flex items-center gap-2 text-sm"><span>실적 색상</span>
-                <input type="color" value={perfColor} onChange={(e) => setPerfColor(e.target.value)} className="h-8 w-12 cursor-pointer rounded border" /></div>
+              <div className="flex flex-wrap items-center gap-2 text-sm"><span>실적 색상</span>
+                <input type="color" value={perfColor} onChange={(e) => setPerfColor(e.target.value)} className="h-8 w-12 cursor-pointer rounded border" />
+                <Button type="button" variant="outline" size="sm" onClick={() => addToPalette(perfColor)}>＋ 팔레트 저장</Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {palette.map((c) => (
+                  <button key={c} type="button" title={`${c} — 클릭: 적용, 우클릭: 삭제`}
+                    onClick={() => setPerfColor(c)}
+                    onContextMenu={(e) => { e.preventDefault(); removeFromPalette(c); }}
+                    className={`h-7 w-7 shrink-0 rounded border-2 ${c === perfColor ? "border-foreground" : "border-border"} cursor-pointer transition-transform hover:scale-110`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>③ 경력증명서 (.pdf)</Label>
@@ -258,7 +269,7 @@ export default function CareerHighlight() {
               {stat && <span className="text-sm text-muted-foreground">경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
-              엑셀 열 이름 예: 기술자명/성명, 사업명, 착수일/시작일, 준공일/종료일. 사업명과 참여기간(날짜)이 함께 일치하는 항목만 표시됩니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다.
+              엑셀 열 이름 예: 기술자명/성명, 사업명, 착수일/시작일, 준공일/종료일. 사업명과 참여기간(날짜)이 함께 일치하는 항목만 표시됩니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 색상 선택 칸 옆 "＋ 팔레트 저장"으로 색상을 저장하면, 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
             </p>
           </CardContent>
         </Card>
