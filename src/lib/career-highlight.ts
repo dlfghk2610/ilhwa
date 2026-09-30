@@ -114,12 +114,28 @@ export async function extractLines(pdfjs: any, bytes: ArrayBuffer): Promise<Line
   return lines;
 }
 
-/** 첫 페이지의 '성명' 뒤 이름 */
+/** 첫 페이지의 한글 '성명' 또는 영문 'Name' 표기에서 이름 탐색 */
 export function detectName(lines: Line[]): string {
-  for (const l of lines.filter((l) => l.page === 0).sort((a, b) => b.y - a.y)) {
+  const firstPage = lines.filter((l) => l.page === 0).sort((a, b) => b.y - a.y);
+  for (const l of firstPage) {
     const t = l.items.map((i) => i.str).join(" ");
-    const m = t.match(/성\s*명\s*(?:\(\s*한\s*글\s*\))?\s*[:：]?\s*([가-힣]{2,5})/);
+    const m = t.match(/성\s*명\s*(?:\(\s*한\s*글\s*\))?\s*[:：]?\s*([가-힣]{2,5})/) ||
+      t.match(/\bName\s*[:：]\s*([가-힣]{2,5})/i);
     if (m) return m[1];
+  }
+  // 표 안에서 '성명'과 이름이 서로 다른 줄로 추출되는 양식 지원
+  const label = firstPage.find((l) => /성\s*명/.test(l.items.map((i) => i.str).join("")));
+  if (label) {
+    const labelX = Math.min(...label.items.map((i) => i.transform[4]));
+    const nearby = firstPage
+      .filter((l) => Math.abs(l.y - label.y) < 14)
+      .flatMap((l) => l.items)
+      .filter((i) => i.transform[4] > labelX)
+      .sort((a, b) => a.transform[4] - b.transform[4]);
+    for (const item of nearby) {
+      const m = String(item.str).match(/^\s*([가-힣]{2,5})\s*$/);
+      if (m && !/^(성명|인적사항|생년월일)$/.test(m[1])) return m[1];
+    }
   }
   return "";
 }
