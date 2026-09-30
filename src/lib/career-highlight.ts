@@ -143,6 +143,12 @@ function bestSpan(line: Line, rb: Set<string>): { score: number; boxes: Box[] } 
   for (let i = 0; i < its.length; i++) {
     let s = "";
     for (let j = i; j < Math.min(its.length, i + 4); j++) {
+      if (j > i) {
+        const prev = its[j - 1];
+        const gap = its[j].transform[4] - (prev.transform[4] + prev.width);
+        const fh = prev.height || Math.abs(prev.transform[3]) || 9;
+        if (gap > fh * 1.2) break; // 다른 칸(직무분야·담당업무 등)은 사업명에 포함하지 않음
+      }
       s += norm(its[j].str);
       if (s.length < 4) continue;
       const sc = dice(bigrams(s), rb);
@@ -182,7 +188,7 @@ export function matchRows(lines: Line[], rows: Row[]): Box[] {
           const f = bestSpan(l, rb);
           if (f.score > best.score) best = { ...f, lineKey: `${l.page}|${Math.round(l.y)}` };
         }
-        const need = endOk ? 0.5 : 0.72;
+        const need = endOk ? 0.5 : r.end ? 0.92 : 0.72; // 준공일이 다르면 거의 똑같은 이름만 인정
         if (best.score < need || !best.boxes.length) continue;
         found = true;
         hits.push(best);
