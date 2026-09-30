@@ -547,7 +547,7 @@ export default function SimilarServices() {
 
   // 상태 분류: 사용 제한 = 5년 경과, 90일 미만, LH기성/기성, 분담, 민간 등 조건 불충족 항목
   const isLimitedRow = (r: GroupedRow) => {
-    if (isExpired5y(r)) return true;
+    if (isOver5y(r)) return true;
     if (!includeUnder90 && computeUnder90(r)) return true;
     if ((r as any).is_lh_completion && !includeLh) return true;
     if ((r as any).is_progress && !includeProgress) return true;
