@@ -230,6 +230,7 @@ export default function Performances() {
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
   const [projectSearch, setProjectSearch] = useState<string>("");
+  const [statusTab, setStatusTab] = useState<"usable" | "limited" | "all">("usable");
   const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
@@ -638,6 +639,30 @@ export default function Performances() {
     return techRows.filter((t) => (t.row.project_name || "").toLowerCase().includes(q));
   }, [techRows, projectSearch]);
 
+  // 상태 분류: 사용 제한 = 집계에서 제외되거나 즉시 사용 불가능한 항목 (붉은/노란/주황 배경)
+  const isLimitedRow = (t: typeof techRows[number]) => {
+    if (t.expired) return true;
+    if (!includeUnder90 && t.under90) return true;
+    if (excludeUnder120 && t.under120) return true;
+    if (t.belowAmount) return true;
+    if (t.isPhase && !t.isLastPhase) return true;
+    if (excludePrivate && (t.row as any).is_private) return true;
+    return false;
+  };
+
+  const statusCounts = useMemo(() => {
+    let usable = 0, limited = 0;
+    visibleTechRows.forEach((t) => (isLimitedRow(t) ? limited++ : usable++));
+    return { usable, limited, all: visibleTechRows.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTechRows, includeUnder90, excludeUnder120, excludePrivate]);
+
+  const displayedRows = useMemo(() => {
+    if (statusTab === "all") return visibleTechRows;
+    return visibleTechRows.filter((t) => (statusTab === "usable" ? !isLimitedRow(t) : isLimitedRow(t)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTechRows, statusTab, includeUnder90, excludeUnder120, excludePrivate]);
+
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
     if (!includeUnder90 && t.under90) return false;
@@ -870,6 +895,25 @@ export default function Performances() {
           </Button>
         </div>
 
+        {selectedTech && visibleTechRows.length > 0 && (
+          <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "usable" | "limited" | "all")}>
+            <TabsList>
+              <TabsTrigger value="usable" className="gap-1.5">
+                사용 가능
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">{statusCounts.usable}</span>
+              </TabsTrigger>
+              <TabsTrigger value="limited" className="gap-1.5">
+                사용 제한
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">{statusCounts.limited}</span>
+              </TabsTrigger>
+              <TabsTrigger value="all" className="gap-1.5">
+                전체
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold">{statusCounts.all}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
         {loading ? (
           <Card className="p-8 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /></Card>
         ) : !selectedTech ? (
@@ -896,9 +940,11 @@ export default function Performances() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleTechRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">참여 사업이 없습니다</TableCell></TableRow>
-                  ) : visibleTechRows.map((t, i) => {
+                  {displayedRows.length === 0 ? (
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      {statusTab === "usable" ? "사용 가능한 항목이 없습니다" : statusTab === "limited" ? "사용 제한 항목이 없습니다" : "참여 사업이 없습니다"}
+                    </TableCell></TableRow>
+                  ) : displayedRows.map((t, i) => {
                     const blockUnder90 = !includeUnder90 && t.under90;
                     const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
                     const zeroOut = blockUnder90 || blockUnder120 || t.belowAmount;
@@ -947,7 +993,7 @@ export default function Performances() {
                     </TableRow>
                     );
                   })}
-                  {visibleTechRows.length > 0 && (
+                  {displayedRows.length > 0 && (
                     <TableRow className="font-semibold bg-muted/40">
                       <TableCell colSpan={8} className="text-right">합계 (선택 항목)</TableCell>
                       <TableCell className="text-right">{techTotals.simple.toFixed(2)}</TableCell>
@@ -964,9 +1010,11 @@ export default function Performances() {
                 <Checkbox checked={techAllChecked} disabled={techAllSelectableIds.length === 0} onCheckedChange={(c) => toggleTechAll(!!c)} />
                 <span className="text-xs font-medium">전체 선택</span>
               </div>
-              {visibleTechRows.length === 0 ? (
-                <Card className="p-4 text-center text-sm text-muted-foreground">참여 사업이 없습니다</Card>
-              ) : visibleTechRows.map((t) => {
+              {displayedRows.length === 0 ? (
+                <Card className="p-4 text-center text-sm text-muted-foreground">
+                  {statusTab === "usable" ? "사용 가능한 항목이 없습니다" : statusTab === "limited" ? "사용 제한 항목이 없습니다" : "참여 사업이 없습니다"}
+                </Card>
+              ) : displayedRows.map((t) => {
                 const expanded = expandedTechRows.has(t.row.id);
                 const blockUnder90 = !includeUnder90 && t.under90;
                 const blockUnder120 = excludeUnder120 && t.under120 && !blockUnder90;
@@ -1014,7 +1062,7 @@ export default function Performances() {
                   </Card>
                 );
               })}
-              {visibleTechRows.length > 0 && (
+              {displayedRows.length > 0 && (
                 <Card className="p-3 bg-muted/40 font-semibold text-sm flex justify-between">
                   <span>합계 (선택)</span>
                   <span>단순 {techTotals.simple.toFixed(2)} / 기간대비 {techTotals.period.toFixed(2)}</span>
