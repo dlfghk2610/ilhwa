@@ -137,6 +137,28 @@ export default function CareerHighlight() {
   const [perfColor, setPerfColor] = useState(() => localStorage.getItem("hl_perf_color") || "#7fdbff");
   useEffect(() => { localStorage.setItem("hl_career_color", careerColor); }, [careerColor]);
   useEffect(() => { localStorage.setItem("hl_perf_color", perfColor); }, [perfColor]);
+  const [palette, setPalette] = useState<string[]>(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem("hl_palette") || "");
+      if (Array.isArray(p) && p.length) return p;
+    } catch { /* ignore */ }
+    return ["#ffeb3b", "#7fdbff", "#a2f5a2", "#ffb3ba", "#ffd8a8", "#d0bfff", "#f9a8d4", "#9be7e4"];
+  });
+  useEffect(() => { localStorage.setItem("hl_palette", JSON.stringify(palette)); }, [palette]);
+
+  /** 팔레트에 색상 추가 (중복 시 무시, 최대 24개) */
+  const addToPalette = (color: string) => {
+    setPalette((p) => {
+      if (p.includes(color)) { toast.info("이미 저장된 색상입니다."); return p; }
+      toast.success("팔레트에 색상이 저장되었습니다.");
+      return [...p, color].slice(0, 24);
+    });
+  };
+
+  /** 팔레트에서 색상 제거 */
+  const removeFromPalette = (color: string) => {
+    setPalette((p) => (p.length <= 1 ? p : p.filter((c) => c !== color)));
+  };
   const [techName, setTechName] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
