@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Pencil, Check, RotateCcw } from "lucide-react";
+import { Pencil, Check, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useMenu, saveMenu, resetMenu, type MenuDef } from "@/lib/menu-config";
 import { LayoutDashboard, FileText, Award, Briefcase, Layers, Building2, Database, Building, LogOut, ShieldCheck, UserCog, Calculator, FlaskConical, GraduationCap, FolderArchive, Highlighter } from "lucide-react";
@@ -37,6 +37,11 @@ export function AppSidebar() {
   const finishEdit = () => { saveMenu(draft); setEditing(false); };
   const upd = (url: string, patch: Partial<MenuDef>) =>
     setDraft((d) => d.map((m) => (m.url === url ? { ...m, ...patch } : m)));
+  const move = (url: string, dir: -1 | 1) => setDraft((d) => {
+    const i = d.findIndex((m) => m.url === url); const j = i + dir;
+    if (j < 0 || j >= d.length) return d;
+    const n = [...d]; [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
   // 상위 메뉴 뒤에 하위 메뉴가 오도록 정렬
   const tops = menu.filter((m) => !m.parent || !menu.some((x) => x.url === m.parent && !x.parent));
   const ordered: (MenuDef & { child: boolean })[] = [];
@@ -76,8 +81,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             {editing && !collapsed ? (
               <div className="space-y-2 px-1 pb-2">
-                <p className="text-[11px] text-sidebar-foreground/60">메뉴명과 상위 메뉴를 지정하세요. 상위 메뉴를 고르면 그 아래 하위 메뉴로 표시됩니다.</p>
-                {draft.map((m) => {
+                <p className="text-[11px] text-sidebar-foreground/60">메뉴명·순서(▲▼)·상위 메뉴를 지정하세요. 상위 메뉴를 고르면 그 아래 하위 메뉴로 표시됩니다.</p>
+                {draft.map((m, i) => {
                   const Icon = ICONS[m.url];
                   const hasChildren = draft.some((x) => x.parent === m.url);
                   return (
@@ -85,6 +90,10 @@ export function AppSidebar() {
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 shrink-0" />
                         <Input value={m.title} onChange={(e) => upd(m.url, { title: e.target.value })} className="h-8 text-sm" />
+                        <div className="flex flex-col shrink-0">
+                          <button type="button" title="위로" disabled={i === 0} onClick={() => move(m.url, -1)} className="p-0.5 rounded hover:bg-sidebar-accent disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                          <button type="button" title="아래로" disabled={i === draft.length - 1} onClick={() => move(m.url, 1)} className="p-0.5 rounded hover:bg-sidebar-accent disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
+                        </div>
                       </div>
                       <select
                         value={m.parent ?? ""}

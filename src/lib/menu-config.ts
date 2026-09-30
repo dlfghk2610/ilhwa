@@ -19,6 +19,7 @@ export const DEFAULT_MENU: MenuDef[] = [
 ];
 
 const KEY = "menu_overrides_v1";
+const ORDER_KEY = "menu_order_v1";
 const EVT = "menu-overrides-changed";
 type Overrides = Record<string, { title?: string; parent?: string | null }>;
 
@@ -28,7 +29,10 @@ function load(): Overrides {
 
 export function getMenu(): MenuDef[] {
   const o = load();
-  return DEFAULT_MENU.map((m) => {
+  let order: string[] = [];
+  try { order = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]"); } catch { /* ignore */ }
+  const idx = (u: string) => { const i = order.indexOf(u); return i < 0 ? 1000 + DEFAULT_MENU.findIndex((d) => d.url === u) : i; };
+  return [...DEFAULT_MENU].sort((a, b) => idx(a.url) - idx(b.url)).map((m) => {
     const ov = o[m.url] ?? {};
     const parent = ov.parent === undefined ? m.parent : ov.parent || undefined;
     return { url: m.url, title: ov.title?.trim() || m.title, parent: parent && parent !== m.url ? parent : undefined };
@@ -45,11 +49,13 @@ export function saveMenu(items: MenuDef[]) {
     if (Object.keys(e).length) o[m.url] = e;
   });
   localStorage.setItem(KEY, JSON.stringify(o));
+  localStorage.setItem(ORDER_KEY, JSON.stringify(items.map((m) => m.url)));
   window.dispatchEvent(new Event(EVT));
 }
 
 export function resetMenu() {
   localStorage.removeItem(KEY);
+  localStorage.removeItem(ORDER_KEY);
   window.dispatchEvent(new Event(EVT));
 }
 
