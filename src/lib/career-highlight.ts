@@ -208,7 +208,7 @@ export function matchRows(lines: Line[], rows: Row[]): Box[] {
         const cand = pl.filter((l) => l.y - dl.y > -2 && l.y - dl.y < 24);
         let best: Hit = { score: 0, boxes: [], lineKey: "" };
         for (const l of cand) {
-          const f = bestSpan(l, rb);
+          const f = bestSpan(l, rb, ph);
           if (f.score > best.score) best = { ...f, lineKey: `${l.page}|${Math.round(l.y)}` };
         }
         const need = endOk ? 0.5 : r.end ? 0.92 : 0.72; // 준공일이 다르면 거의 똑같은 이름만 인정
@@ -220,7 +220,7 @@ export function matchRows(lines: Line[], rows: Row[]): Box[] {
     // 날짜로 못 찾으면 사업명만으로 (아주 엄격)
     if (!found && !r.start) { // 참여기간이 있는데 날짜가 안 맞으면 같은 이름이라도 칠하지 않음
       for (const l of lines) {
-        const f = bestSpan(l, rb);
+        const f = bestSpan(l, rb, ph);
         if (f.score >= 0.9) hits.push({ ...f, lineKey: `${l.page}|${Math.round(l.y)}` });
       }
     }
