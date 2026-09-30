@@ -230,6 +230,7 @@ export default function Performances() {
   const [excludePrivate, setExcludePrivate] = useState(false);
   const [minContractAmount, setMinContractAmount] = useState<string>("");
   const [projectSearch, setProjectSearch] = useState<string>("");
+  const [statusTab, setStatusTab] = useState<"usable" | "limited" | "all">("usable");
   const [minShareAmount, setMinShareAmount] = useState<string>("");
   const [expandedTechRows, setExpandedTechRows] = useState<Set<string>>(new Set());
   const toggleExpandedTechRow = (id: string) => setExpandedTechRows((prev) => {
@@ -637,6 +638,30 @@ export default function Performances() {
     if (!q) return techRows;
     return techRows.filter((t) => (t.row.project_name || "").toLowerCase().includes(q));
   }, [techRows, projectSearch]);
+
+  // 상태 분류: 사용 제한 = 집계에서 제외되거나 즉시 사용 불가능한 항목 (붉은/노란/주황 배경)
+  const isLimitedRow = (t: typeof techRows[number]) => {
+    if (t.expired) return true;
+    if (!includeUnder90 && t.under90) return true;
+    if (excludeUnder120 && t.under120) return true;
+    if (t.belowAmount) return true;
+    if (t.isPhase && !t.isLastPhase) return true;
+    if (excludePrivate && (t.row as any).is_private) return true;
+    return false;
+  };
+
+  const statusCounts = useMemo(() => {
+    let usable = 0, limited = 0;
+    visibleTechRows.forEach((t) => (isLimitedRow(t) ? limited++ : usable++));
+    return { usable, limited, all: visibleTechRows.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTechRows, includeUnder90, excludeUnder120, excludePrivate]);
+
+  const displayedRows = useMemo(() => {
+    if (statusTab === "all") return visibleTechRows;
+    return visibleTechRows.filter((t) => (statusTab === "usable" ? !isLimitedRow(t) : isLimitedRow(t)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTechRows, statusTab, includeUnder90, excludeUnder120, excludePrivate]);
 
   const isDefaultSelected = (t: typeof techRows[number]) => {
     if (t.expired) return false;
