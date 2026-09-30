@@ -225,8 +225,19 @@ export default function CareerHighlight() {
             <div className="space-y-2">
               <Label>① 경력 엑셀 (.xlsx, .xls)</Label>
               <Input type="file" accept=".xlsx,.xls" onChange={(e) => setCareerFile(e.target.files?.[0] || null)} />
-              <div className="flex items-center gap-2 text-sm"><span>경력 색상</span>
-                <input type="color" value={careerColor} onChange={(e) => setCareerColor(e.target.value)} className="h-8 w-12 cursor-pointer rounded border" /></div>
+              <div className="flex flex-wrap items-center gap-2 text-sm"><span>경력 색상</span>
+                <input type="color" value={careerColor} onChange={(e) => setCareerColor(e.target.value)} className="h-8 w-12 cursor-pointer rounded border" />
+                <Button type="button" variant="outline" size="sm" onClick={() => addToPalette(careerColor)}>＋ 팔레트 저장</Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {palette.map((c) => (
+                  <button key={c} type="button" title={`${c} — 클릭: 적용, 우클릭: 삭제`}
+                    onClick={() => setCareerColor(c)}
+                    onContextMenu={(e) => { e.preventDefault(); removeFromPalette(c); }}
+                    className={`h-7 w-7 shrink-0 rounded border-2 ${c === careerColor ? "border-foreground" : "border-border"} cursor-pointer transition-transform hover:scale-110`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>② 실적 엑셀 (.xlsx, .xls)</Label>
