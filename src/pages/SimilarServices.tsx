@@ -542,32 +542,6 @@ export default function SimilarServices() {
     return visible;
   }, [filtered, includeUnder90]);
 
-  // 사용 상태별 필터 탭 (사용 가능 / 사용 제한 / 전체)
-  const [statusTab, setStatusTab] = useState<"usable" | "limited" | "all">("usable");
-
-  // 상태 분류: 사용 제한 = 5년 경과, 90일 미만, LH기성/기성, 분담, 민간 등 조건 불충족 항목
-  const isLimitedRow = (r: GroupedRow) => {
-    if (isOver5y(r)) return true;
-    if (!includeUnder90 && computeUnder90(r)) return true;
-    if ((r as any).is_lh_completion && !includeLh) return true;
-    if ((r as any).is_progress && !includeProgress) return true;
-    if (r.is_dual_participation && !includeDual) return true;
-    if ((r as any).is_private && excludePrivate) return true;
-    return false;
-  };
-
-  const statusCounts = useMemo(() => {
-    let usable = 0, limited = 0;
-    groupedFiltered.forEach((r) => (isLimitedRow(r) ? limited++ : usable++));
-    return { usable, limited, all: groupedFiltered.length };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupedFiltered, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
-
-  const statusFiltered = useMemo(() => {
-    if (statusTab === "all") return groupedFiltered;
-    return groupedFiltered.filter((r) => (statusTab === "usable" ? !isLimitedRow(r) : isLimitedRow(r)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupedFiltered, statusTab, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -696,6 +670,33 @@ export default function SimilarServices() {
 
   const totalAppliedCount = groupedFiltered.reduce((s, r) => s + appliedCount(r), 0);
   const totalAppliedAmount = groupedFiltered.reduce((s, r) => s + appliedAmount(r), 0);
+
+  // 사용 상태별 필터 탭 (사용 가능 / 사용 제한 / 전체)
+  const [statusTab, setStatusTab] = useState<"usable" | "limited" | "all">("usable");
+
+  // 상태 분류: 사용 제한 = 5년 경과, 90일 미만, LH기성/기성, 분담, 민간 등 조건 불충족 항목
+  const isLimitedRow = (r: GroupedRow) => {
+    if (isOver5y(r)) return true;
+    if (!includeUnder90 && computeUnder90(r)) return true;
+    if ((r as any).is_lh_completion && !includeLh) return true;
+    if ((r as any).is_progress && !includeProgress) return true;
+    if (r.is_dual_participation && !includeDual) return true;
+    if ((r as any).is_private && excludePrivate) return true;
+    return false;
+  };
+
+  const statusCounts = useMemo(() => {
+    let usable = 0, limited = 0;
+    groupedFiltered.forEach((r) => (isLimitedRow(r) ? limited++ : usable++));
+    return { usable, limited, all: groupedFiltered.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupedFiltered, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
+
+  const statusFiltered = useMemo(() => {
+    if (statusTab === "all") return groupedFiltered;
+    return groupedFiltered.filter((r) => (statusTab === "usable" ? !isLimitedRow(r) : isLimitedRow(r)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupedFiltered, statusTab, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
 
   const handleExportExcel = async () => {
     const targets = (selectedIds.size > 0
