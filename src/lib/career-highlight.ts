@@ -9,7 +9,11 @@ export const norm = (s: string) =>
 
 export const toDate = (v: any): string => {
   if (v == null || v === "") return "";
-  if (v instanceof Date) return `${v.getFullYear()}.${String(v.getMonth() + 1).padStart(2, "0")}.${String(v.getDate()).padStart(2, "0")}`;
+  if (v instanceof Date) {
+    // 한국 시간대에서는 엑셀 날짜가 하루 전 23시대로 읽히는 문제 → 반나절 더해 가장 가까운 날짜로 보정
+    const d = new Date(v.getTime() + 12 * 3600 * 1000);
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  }
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (d && d.y > 1900) return `${d.y}.${String(d.m).padStart(2, "0")}.${String(d.d).padStart(2, "0")}`;
@@ -193,6 +197,7 @@ export function matchRows(lines: Line[], rows: Row[]): Box[] {
     const t = norm(r.project);
     if (t.length < 4) continue;
     const rb = bigrams(t);
+    const ph = phaseOf(r.project);
     let found = false;
     if (r.start) {
       for (const dl of lines) {
