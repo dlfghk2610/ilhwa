@@ -121,7 +121,17 @@ export function detectName(lines: Line[]): string {
 }
 
 const lineText = (l: Line) => norm(l.items.map((i) => i.str).join(""));
-const hasDate = (l: Line, d: string) => !!d && lineText(l).includes(norm(d));
+/** 줄 안의 날짜들을 yyyy.mm.dd로 통일 (2016.5.4 / 2016-05-04 / 2016년 5월 4일 / 16.05.04 모두 인식) */
+const lineDates = (l: Line): string[] => {
+  const t = l.items.map((i) => i.str).join("");
+  const out: string[] = [];
+  for (const m of t.matchAll(/((?:19|20)?\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/g)) {
+    let y = m[1]; if (y.length === 2) y = (Number(y) > 50 ? "19" : "20") + y;
+    out.push(`${y}.${m[2].padStart(2, "0")}.${m[3].padStart(2, "0")}`);
+  }
+  return out;
+};
+const hasDate = (l: Line, d: string) => !!d && (lineDates(l).includes(d) || lineText(l).includes(norm(d)));
 
 const bigrams = (s: string) => { const r = new Set<string>(); for (let i = 0; i < s.length - 1; i++) r.add(s.slice(i, i + 2)); return r; };
 /** Dice 유사도 (띄어쓰기·부호 무시, 오타 일부 허용) */
