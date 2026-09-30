@@ -142,7 +142,9 @@ function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[]
   const score = rb.size ? overlap(rb, all) / rb.size : 0;
   const boxes: Box[] = [];
   for (const it of line.items) {
-    const ib = bigrams(norm(it.str));
+    const n = norm(it.str);
+    if (n.length < 4) continue;
+    const ib = bigrams(n);
     if (ib.size && overlap(ib, rb) / ib.size >= 0.5) boxes.push(itemBox(line, it));
   }
   return { score, boxes };
@@ -151,11 +153,11 @@ function fuzzyInLine(line: Line, rb: Set<string>): { score: number; boxes: Box[]
 function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
   const boxes: Box[] = [];
   for (const r of rows) {
-    if (pdfName && r.name && norm(r.name) !== norm(pdfName)) continue;
     const t = norm(r.project);
     if (t.length < 3) continue;
     const rb = bigrams(t);
     const sd = norm(r.start), ed = norm(r.end);
+    let hit = false;
     if (sd) {
       // 착수일을 기준점으로 근처 줄에서 비슷한 사업명 찾기
       for (const dl of lines) {
@@ -165,13 +167,16 @@ function matchRows(lines: Line[], rows: Row[], pdfName: string): Box[] {
         let best = { score: 0, boxes: [] as Box[] };
         for (const l of cand) { const f = fuzzyInLine(l, rb); if (f.score > best.score && f.boxes.length) best = f; }
         if (best.score < 0.55) continue;
+        hit = true;
         boxes.push(...best.boxes, ...sBox);
         if (ed) {
           for (const l of lines.filter((l) => l.page === dl.page && dl.y - l.y >= 0 && dl.y - l.y < 45)) boxes.push(...findInLine(l, ed));
         }
       }
-    } else {
-      for (const l of lines) { const f = fuzzyInLine(l, rb); if (f.score >= 0.75) boxes.push(...f.boxes); }
+    }
+    // 날짜로 못 찾으면 사업명만으로 (더 엄격한 기준)
+    if (!hit) {
+      for (const l of lines) { const f = fuzzyInLine(l, rb); if (f.score >= 0.8) boxes.push(...f.boxes); }
     }
   }
   return boxes;
@@ -210,10 +215,9 @@ export default function CareerHighlight() {
   const removeFromPalette = (color: string) => {
     setPalette((p) => (p.length <= 1 ? p : p.filter((c) => c !== color)));
   };
-  const [techName, setTechName] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
-  const [stat, setStat] = useState<{ c: number; p: number; both: number } | null>(null);
+  const [stat, setStat] = useState<{ c: number; p: number; both: number; cr: number; pr: number } | null>(null);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
@@ -223,15 +227,8 @@ export default function CareerHighlight() {
     try {
       const [cRows, pRows, bytes] = await Promise.all([readExcel(careerFile), readExcel(perfFile), pdfFile.arrayBuffer()]);
       const lines = await extractLines(bytes);
-      let name = techName.trim();
-      if (!name) {
-        for (const l of lines) {
-          const m = l.items.map((i) => i.str).join("").match(/성명\s*[:：]\s*([가-힣]{2,5})/);
-          if (m) { name = m[1]; break; }
-        }
-      }
-      const cBoxes = matchRows(lines, cRows, name);
-      const pBoxes = matchRows(lines, pRows, name);
+      const cBoxes = matchRows(lines, cRows, "");
+      const pBoxes = matchRows(lines, pRows, "");
       const cMap = new Map(cBoxes.map((b) => [key(b), b]));
       const pMap = new Map(pBoxes.map((b) => [key(b), b]));
       const doc = await PDFDocument.load(bytes);
@@ -253,7 +250,7 @@ export default function CareerHighlight() {
       const out = await doc.save();
       if (url) URL.revokeObjectURL(url);
       setUrl(URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" })));
-      setStat({ c: cMap.size, p: pMap.size, both });
+      setStat({ c: cMap.size, p: pMap.size, both, cr: cRows.length, pr: pRows.length });
       if (!cMap.size && !pMap.size) toast.warning("일치하는 항목을 찾지 못했습니다. (스캔본 PDF는 인식 불가)");
       else toast.success("형광펜 표시 완료");
     } catch (e: any) {
@@ -310,17 +307,16 @@ export default function CareerHighlight() {
             <div className="space-y-2">
               <Label>③ 경력증명서 (.pdf)</Label>
               <Input type="file" accept=".pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
-              <Input placeholder="기술자 이름 (비우면 PDF 성명 자동 인식)" value={techName} onChange={(e) => setTechName(e.target.value)} />
             </div>
             <div className="md:col-span-3 flex flex-wrap items-center gap-2">
               <Button onClick={run} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Highlighter className="h-4 w-4" />} 형광펜 표시 실행
               </Button>
               <Button variant="outline" onClick={download} disabled={!url}><Download className="h-4 w-4" /> PDF 다운로드</Button>
-              {stat && <span className="text-sm text-muted-foreground">경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
+              {stat && <span className="text-sm text-muted-foreground">엑셀 인식: 경력 {stat.cr}건 · 실적 {stat.pr}건 → 표시: 경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
-              엑셀 열 이름 예: 기술자명/성명, 사업명, 착수일/시작일, 준공일/종료일. 사업명과 참여기간(날짜)이 함께 일치하는 항목만 표시됩니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 색상 선택 칸 옆 "＋ 팔레트 저장"으로 색상을 저장하면, 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
+              사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾아 사업명·참여기간에 형광펜을 칠합니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
             </p>
           </CardContent>
         </Card>
