@@ -315,17 +315,16 @@ export default function CareerHighlight() {
             <div className="space-y-2">
               <Label>③ 경력증명서 (.pdf)</Label>
               <Input type="file" accept=".pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
-              <Input placeholder="기술자 이름 (비우면 PDF 성명 자동 인식)" value={techName} onChange={(e) => setTechName(e.target.value)} />
             </div>
             <div className="md:col-span-3 flex flex-wrap items-center gap-2">
               <Button onClick={run} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Highlighter className="h-4 w-4" />} 형광펜 표시 실행
               </Button>
               <Button variant="outline" onClick={download} disabled={!url}><Download className="h-4 w-4" /> PDF 다운로드</Button>
-              {stat && <span className="text-sm text-muted-foreground">경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
+              {stat && <span className="text-sm text-muted-foreground">엑셀 인식: 경력 {stat.cr}건 · 실적 {stat.pr}건 → 표시: 경력 {stat.c}곳 · 실적 {stat.p}곳 · 중복(반반) {stat.both}곳</span>}
             </div>
             <p className="md:col-span-3 text-xs text-muted-foreground">
-              엑셀 열 이름 예: 기술자명/성명, 사업명, 착수일/시작일, 준공일/종료일. 사업명과 참여기간(날짜)이 함께 일치하는 항목만 표시됩니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 색상 선택 칸 옆 "＋ 팔레트 저장"으로 색상을 저장하면, 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
+              사업명(띄어쓰기·오타 무시)과 착수일을 기준으로 찾아 사업명·참여기간에 형광펜을 칠합니다. 경력·실적에 모두 있는 사업은 위쪽 절반은 경력 색, 아래쪽 절반은 실적 색으로 칠해집니다. 저장된 색상은 클릭으로 골라 쓰고 우클릭으로 삭제할 수 있습니다.
             </p>
           </CardContent>
         </Card>
