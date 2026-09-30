@@ -1234,7 +1234,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                 <span className="cursor-pointer"><Upload className="h-4 w-4 mr-1" />엑셀 가져오기</span>
               </Button>
             </label>
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
+            <Button onClick={() => openCreate()}><Plus className="h-4 w-4 mr-1" />사업 등록</Button>
           </div>
         </div>
 
