@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Pencil, Download, Upload, Search, Loader2, X, FileText } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
@@ -540,6 +541,33 @@ export default function SimilarServices() {
     });
     return visible;
   }, [filtered, includeUnder90]);
+
+  // 사용 상태별 필터 탭 (사용 가능 / 사용 제한 / 전체)
+  const [statusTab, setStatusTab] = useState<"usable" | "limited" | "all">("usable");
+
+  // 상태 분류: 사용 제한 = 5년 경과, 90일 미만, LH기성/기성, 분담, 민간 등 조건 불충족 항목
+  const isLimitedRow = (r: GroupedRow) => {
+    if (isExpired5y(r)) return true;
+    if (!includeUnder90 && computeUnder90(r)) return true;
+    if ((r as any).is_lh_completion && !includeLh) return true;
+    if ((r as any).is_progress && !includeProgress) return true;
+    if (r.is_dual_participation && !includeDual) return true;
+    if ((r as any).is_private && excludePrivate) return true;
+    return false;
+  };
+
+  const statusCounts = useMemo(() => {
+    let usable = 0, limited = 0;
+    groupedFiltered.forEach((r) => (isLimitedRow(r) ? limited++ : usable++));
+    return { usable, limited, all: groupedFiltered.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupedFiltered, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
+
+  const statusFiltered = useMemo(() => {
+    if (statusTab === "all") return groupedFiltered;
+    return groupedFiltered.filter((r) => (statusTab === "usable" ? !isLimitedRow(r) : isLimitedRow(r)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupedFiltered, statusTab, includeUnder90, includeLh, includeProgress, includeDual, excludePrivate, filterAnnouncementDate]);
 
   // 선택 (엑셀/PDF 내보내기 대상)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1143,6 +1171,23 @@ export default function SimilarServices() {
           </div>
         </Card>
 
+        <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "usable" | "limited" | "all")}>
+          <TabsList>
+            <TabsTrigger value="usable" className="gap-1.5">
+              사용 가능
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">{statusCounts.usable}</span>
+            </TabsTrigger>
+            <TabsTrigger value="limited" className="gap-1.5">
+              사용 제한
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">{statusCounts.limited}</span>
+            </TabsTrigger>
+            <TabsTrigger value="all" className="gap-1.5">
+              전체
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold">{statusCounts.all}</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Card className="shadow-card overflow-hidden">
           {/* 데스크톱 테이블 */}
           <div className="overflow-x-auto hidden md:block">
@@ -1171,11 +1216,11 @@ export default function SimilarServices() {
                   <TableRow><TableCell colSpan={15} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin inline text-primary" />
                   </TableCell></TableRow>
-                ) : groupedFiltered.length === 0 ? (
+                ) : statusFiltered.length === 0 ? (
                   <TableRow><TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
-                    실적 데이터베이스에서 동기화된 데이터가 없습니다.
+                    {statusTab === "usable" ? "사용 가능한 항목이 없습니다" : statusTab === "limited" ? "사용 제한 항목이 없습니다" : "실적 데이터베이스에서 동기화된 데이터가 없습니다."}
                   </TableCell></TableRow>
-                ) : groupedFiltered.map((r) => {
+                ) : statusFiltered.map((r) => {
                   const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
                   const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
                   const over5 = isOver5y(r);
@@ -1229,9 +1274,11 @@ export default function SimilarServices() {
           <div className="md:hidden divide-y">
             {loading ? (
               <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
-            ) : groupedFiltered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm px-4">실적 데이터베이스에서 동기화된 데이터가 없습니다.</div>
-            ) : groupedFiltered.map((r) => {
+            ) : statusFiltered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm px-4">
+                {statusTab === "usable" ? "사용 가능한 항목이 없습니다" : statusTab === "limited" ? "사용 제한 항목이 없습니다" : "실적 데이터베이스에서 동기화된 데이터가 없습니다."}
+              </div>
+            ) : statusFiltered.map((r) => {
               const phasePdfCount = (Array.isArray(r.phases) ? r.phases : []).filter((p) => (p as any).pdf_path).length;
               const hasPdf = phasePdfCount > 0 || !!(r as any).cert_pdf_path;
               const expanded = expandedIds.has(r.id);
@@ -1290,7 +1337,7 @@ export default function SimilarServices() {
           </div>
 
           <div className="px-4 py-2 text-xs text-muted-foreground border-t flex flex-col sm:flex-row gap-1 sm:justify-between">
-            <span>총 {groupedFiltered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
+            <span>총 {statusFiltered.length}건 {selectedIds.size > 0 && <span className="ml-2 text-primary">(선택 {selectedIds.size}건)</span>}</span>
             <span>적용건수 합계: <b>{totalAppliedCount.toFixed(2)}</b> / 적용금액 합계: <b>{Math.round(totalAppliedAmount).toLocaleString()}</b> 원</span>
           </div>
         </Card>
