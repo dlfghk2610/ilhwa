@@ -215,10 +215,9 @@ export default function CareerHighlight() {
   const removeFromPalette = (color: string) => {
     setPalette((p) => (p.length <= 1 ? p : p.filter((c) => c !== color)));
   };
-  const [techName, setTechName] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
-  const [stat, setStat] = useState<{ c: number; p: number; both: number } | null>(null);
+  const [stat, setStat] = useState<{ c: number; p: number; both: number; cr: number; pr: number } | null>(null);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
@@ -228,15 +227,8 @@ export default function CareerHighlight() {
     try {
       const [cRows, pRows, bytes] = await Promise.all([readExcel(careerFile), readExcel(perfFile), pdfFile.arrayBuffer()]);
       const lines = await extractLines(bytes);
-      let name = techName.trim();
-      if (!name) {
-        for (const l of lines) {
-          const m = l.items.map((i) => i.str).join("").match(/성명\s*[:：]\s*([가-힣]{2,5})/);
-          if (m) { name = m[1]; break; }
-        }
-      }
-      const cBoxes = matchRows(lines, cRows, name);
-      const pBoxes = matchRows(lines, pRows, name);
+      const cBoxes = matchRows(lines, cRows, "");
+      const pBoxes = matchRows(lines, pRows, "");
       const cMap = new Map(cBoxes.map((b) => [key(b), b]));
       const pMap = new Map(pBoxes.map((b) => [key(b), b]));
       const doc = await PDFDocument.load(bytes);
@@ -258,7 +250,7 @@ export default function CareerHighlight() {
       const out = await doc.save();
       if (url) URL.revokeObjectURL(url);
       setUrl(URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" })));
-      setStat({ c: cMap.size, p: pMap.size, both });
+      setStat({ c: cMap.size, p: pMap.size, both, cr: cRows.length, pr: pRows.length });
       if (!cMap.size && !pMap.size) toast.warning("일치하는 항목을 찾지 못했습니다. (스캔본 PDF는 인식 불가)");
       else toast.success("형광펜 표시 완료");
     } catch (e: any) {
