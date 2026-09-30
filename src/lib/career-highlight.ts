@@ -158,18 +158,42 @@ export const phaseOf = (s: string): string => {
 
 const ws = (s: string) => String(s ?? "").replace(/\s/g, "");
 
-/** 줄에서 연속된 글자 조각을 이어 붙여 사업명과 (띄어쓰기만 무시하고) 정확히 같은 구간 */
+const lev = (a: string, b: string, max: number) => {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let mn = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      mn = Math.min(mn, cur[j]);
+    }
+    if (mn > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+};
+
+/** 사업명과 가장 가까운 구간 (띄어쓰기 무시, 오타·추가 글자 최대 2자 허용) */
 function exactSpan(line: Line, t: string): Box[] | null {
   const its = line.items;
+  const MAX = 2;
+  let best: { d: number; b: Box[] } | null = null;
   for (let i = 0; i < its.length; i++) {
     let s = "";
     for (let j = i; j < its.length; j++) {
+      if (j > i) {
+        const prev = its[j - 1];
+        const gap = its[j].transform[4] - (prev.transform[4] + prev.width);
+        if (gap > (prev.height || Math.abs(prev.transform[3]) || 9) * 1.2) break;
+      }
       s += ws(its[j].str);
-      if (s === t) return its.slice(i, j + 1).map((it) => itemBox(line, it));
-      if (!t.startsWith(s)) break;
+      if (s.length > t.length + MAX) break;
+      if (s.length < t.length - MAX) continue;
+      const d = lev(s, t, MAX);
+      if (d <= MAX && (!best || d < best.d)) best = { d, b: its.slice(i, j + 1).map((it) => itemBox(line, it)) };
     }
   }
-  return null;
+  return best ? best.b : null;
 }
 
 export type Hit = { boxes: Box[]; key: string };
@@ -187,6 +211,9 @@ export function matchRows(lines: Line[], rows: Row[]): Hit[] {
       for (const l of cands) {
         const b = exactSpan(l, t);
         if (!b) continue;
+        const txt = l.items.map((i: any) => i.str).join("");
+        const ph = phaseOf(t), sp = phaseOf(txt);
+        if (ph && sp && ph !== sp) continue; // 1차·2차는 다른 사업
         const key = `${l.page}|${Math.round(l.y)}|${Math.round(b[0].x)}`;
         if (used.has(key)) continue;
         used.add(key); hits.push({ boxes: b, key }); return true;
@@ -196,6 +223,8 @@ export function matchRows(lines: Line[], rows: Row[]): Hit[] {
     if (r.start) {
       for (const dl of lines) {
         if (!hasDate(dl, r.start)) continue;
+        // 준공일까지 확인 (같은 줄 또는 바로 아래)
+        if (r.end && !byPage.get(dl.page)!.some((l) => (l === dl || (l.y < dl.y + 2 && dl.y - l.y < 45)) && hasDate(l, r.end))) continue;
         const cand = byPage.get(dl.page)!.filter((l) => l.y - dl.y > -2 && l.y - dl.y < 24).sort((a, b) => a.y - b.y);
         if (tryLines(cand)) break;
       }
