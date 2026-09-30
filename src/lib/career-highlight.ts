@@ -136,8 +136,14 @@ const itemBox = (line: Line, it: any): Box => {
   return { page: line.page, x: it.transform[4] - 1, y: line.y - h * 0.25, w: it.width + 2, h: h * 1.35 };
 };
 
+/** 사업명 끝의 차수 (예: (1차), 2차분, 제3차) — 없으면 "" */
+export const phaseOf = (s: string): string => {
+  const m = [...norm(s).matchAll(/(\d+)차(?!년)/g)];
+  return m.length ? String(Number(m[m.length - 1][1])) : "";
+};
+
 /** 줄에서 연속된 글자 조각(최대 4개)을 이어 붙여 사업명과 가장 비슷한 구간 */
-function bestSpan(line: Line, rb: Set<string>): { score: number; boxes: Box[] } {
+function bestSpan(line: Line, rb: Set<string>, ph = ""): { score: number; boxes: Box[] } {
   let best = { score: 0, boxes: [] as Box[] };
   const its = line.items;
   for (let i = 0; i < its.length; i++) {
@@ -151,6 +157,8 @@ function bestSpan(line: Line, rb: Set<string>): { score: number; boxes: Box[] } 
       }
       s += norm(its[j].str);
       if (s.length < 4) continue;
+      const sp = phaseOf(s);
+      if (ph && sp && ph !== sp) continue; // 1차와 2차는 서로 다른 사업
       const sc = dice(bigrams(s), rb);
       if (sc > best.score) best = { score: sc, boxes: its.slice(i, j + 1).map((it) => itemBox(line, it)) };
     }
