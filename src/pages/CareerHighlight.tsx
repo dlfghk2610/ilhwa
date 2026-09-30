@@ -49,7 +49,7 @@ export default function CareerHighlight() {
   };
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
-  const [stat, setStat] = useState<{ c: number; p: number; both: number; cr: number; pr: number; person: string; cs: string[]; ps: string[] } | null>(null);
+  const [stat, setStat] = useState<{ c: number; p: number; both: number; cr: number; pr: number; person: string; cs: string[]; ps: string[]; miss: { kind: string; project: string; start: string; end: string }[] } | null>(null);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
@@ -88,7 +88,10 @@ export default function CareerHighlight() {
       const out = await doc.save();
       if (url) URL.revokeObjectURL(url);
       setUrl(URL.createObjectURL(new Blob([out as BlobPart], { type: "application/pdf" })));
-      setStat({ c: cHits.length, p: pHits.length, both: bothN, cr: cRows.length, pr: pRows.length, person, cs: cw.sheets, ps: pw.sheets });
+      setStat({ c: cHits.length, p: pHits.length, both: bothN, cr: cRows.length, pr: pRows.length, person, cs: cw.sheets, ps: pw.sheets, miss: [
+        ...cRows.filter((_, i) => !cHits.some((h) => h.row === i)).map((r) => ({ kind: "경력", ...r })),
+        ...pRows.filter((_, i) => !pHits.some((h) => h.row === i)).map((r) => ({ kind: "실적", ...r })),
+      ] });
       if (!cMap.size && !pMap.size) toast.warning("일치하는 항목을 찾지 못했습니다. (스캔본 PDF는 인식 불가)");
       else toast.success("형광펜 표시 완료");
     } catch (e: any) {
@@ -163,6 +166,25 @@ export default function CareerHighlight() {
             </p>
           </CardContent>
         </Card>
+        {stat && stat.miss.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">형광펜 표시 안 된 엑셀 항목 ({stat.miss.length}건)</CardTitle></CardHeader>
+            <CardContent className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="p-2 w-16">구분</th><th className="p-2">사업명</th><th className="p-2 w-56">참여기간</th></tr></thead>
+                <tbody>
+                  {stat.miss.map((m, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="p-2">{m.kind}</td>
+                      <td className="p-2">{m.project}</td>
+                      <td className="p-2 whitespace-nowrap">{m.start || "-"} ~ {m.end || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
         {url && (
           <Card>
             <CardHeader><CardTitle className="text-base">미리보기</CardTitle></CardHeader>

@@ -196,7 +196,7 @@ function exactSpan(line: Line, t: string): Box[] | null {
   return best ? best.b : null;
 }
 
-export type Hit = { boxes: Box[]; key: string };
+export type Hit = { boxes: Box[]; key: string; row: number };
 
 /** 착수일 줄 바로 위/같은 줄에서 사업명이 정확히 일치하는 곳 — 엑셀 1행당 최대 1곳 */
 export function matchRows(lines: Line[], rows: Row[]): Hit[] {
@@ -204,7 +204,7 @@ export function matchRows(lines: Line[], rows: Row[]): Hit[] {
   lines.forEach((l) => { if (!byPage.has(l.page)) byPage.set(l.page, []); byPage.get(l.page)!.push(l); });
   const used = new Set<string>();
   const hits: Hit[] = [];
-  for (const r of rows) {
+  for (const [ri, r] of rows.entries()) {
     const t = ws(r.project);
     if (t.length < 2) continue;
     const tryLines = (cands: Line[]) => {
@@ -216,7 +216,7 @@ export function matchRows(lines: Line[], rows: Row[]): Hit[] {
         if (ph && sp && ph !== sp) continue; // 1차·2차는 다른 사업
         const key = `${l.page}|${Math.round(l.y)}|${Math.round(b[0].x)}`;
         if (used.has(key)) continue;
-        used.add(key); hits.push({ boxes: b, key }); return true;
+        used.add(key); hits.push({ boxes: b, key, row: ri }); return true;
       }
       return false;
     };
