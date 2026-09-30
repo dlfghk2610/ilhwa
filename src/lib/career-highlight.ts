@@ -203,7 +203,7 @@ export function matchRows(lines: Line[], rows: Row[]): Box[] {
       }
     }
     // 날짜로 못 찾으면 사업명만으로 (아주 엄격)
-    if (!found) {
+    if (!found && !r.start) { // 참여기간이 있는데 날짜가 안 맞으면 같은 이름이라도 칠하지 않음
       for (const l of lines) {
         const f = bestSpan(l, rb);
         if (f.score >= 0.9) hits.push({ ...f, lineKey: `${l.page}|${Math.round(l.y)}` });
