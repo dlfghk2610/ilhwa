@@ -29,26 +29,56 @@ const toDate = (v: any): string => {
   return m ? `${m[1]}.${m[2].padStart(2, "0")}.${m[3].padStart(2, "0")}` : "";
 };
 
+const DATE_RE = /^\s*(19|20)\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}/;
+
 async function readExcel(file: File): Promise<Row[]> {
   const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
   const out: Row[] = [];
+  const seen = new Set<string>();
+  const push = (r: Row) => {
+    const k = `${norm(r.project)}|${r.start}|${r.end}`;
+    if (seen.has(k)) return;
+    seen.add(k); out.push(r);
+  };
   for (const sn of wb.SheetNames) {
-    const rows = XLSX.utils.sheet_to_json<any>(wb.Sheets[sn], { defval: "" });
-    for (const r of rows) {
-      const keys = Object.keys(r);
-      const pick = (re: RegExp) => { const k = keys.find((k) => re.test(k.replace(/\s/g, ""))); return k ? r[k] : ""; };
-      const project = String(pick(/사업명|용역명|공사명|프로젝트/) || "").trim();
-      if (!project) continue;
-      out.push({
-        name: String(pick(/기술자|성명|이름/) || "").trim(),
-        project,
-        start: toDate(pick(/착수|시작|참여시작|From/i)),
-        end: toDate(pick(/준공|종료|완료|참여종료|To/i)),
-      });
+    const grid = XLSX.utils.sheet_to_json<any[]>(wb.Sheets[sn], { header: 1, defval: "" });
+    const hi = grid.slice(0, 15).findIndex((row) => row.some((c) => /사업명|용역명|공사명|프로젝트/.test(String(c).replace(/\s/g, ""))));
+    if (hi >= 0) {
+      const head = grid[hi].map((c) => String(c).replace(/\s/g, ""));
+      const col = (re: RegExp) => head.findIndex((h) => re.test(h));
+      const cp = col(/사업명|용역명|공사명|프로젝트/), cn = col(/기술자|성명|이름/);
+      const cs = col(/착수|시작|From/i), ce = col(/준공|종료|완료|To/i), cperiod = col(/참여기간|기간/);
+      for (const row of grid.slice(hi + 1)) {
+        const project = String(row[cp] ?? "").trim();
+        if (!project) continue;
+        let start = cs >= 0 ? toDate(row[cs]) : "", end = ce >= 0 ? toDate(row[ce]) : "";
+        if (!start && cperiod >= 0) {
+          const ds = String(row[cperiod]).match(/(19|20)\d{2}\D*\d{1,2}\D*\d{1,2}/g) || [];
+          start = toDate(ds[0] || ""); end = toDate(ds[1] || "");
+        }
+        push({ name: cn >= 0 ? String(row[cn] ?? "").trim() : "", project, start, end });
+      }
+      continue;
+    }
+    // 헤더 없는 시트: 날짜 셀 + 가장 긴 한글 텍스트를 사업명으로 추정
+    for (const row of grid) {
+      const dates: string[] = [];
+      let project = "";
+      for (const c of row) {
+        if (c instanceof Date || (typeof c === "string" && DATE_RE.test(c))) { const d = toDate(c); if (d) dates.push(d); continue; }
+        const s = String(c ?? "").trim();
+        if (/[가-힣]/.test(s) && s.length >= 6 && s.length > project.length && !/^\(?[주자]\)/.test(s)) project = s;
+      }
+      if (!dates.length || !project) continue;
+      push({ name: "", project, start: dates[0], end: dates[1] || "" });
     }
   }
   return out;
 }
+
+/** 2글자 조각 (오타·띄어쓰기 무시 유사도용) */
+const bigrams = (s: string) => { const r = new Set<string>(); for (let i = 0; i < s.length - 1; i++) r.add(s.slice(i, i + 2)); return r; };
+const overlap = (a: Set<string>, b: Set<string>) => { let n = 0; a.forEach((x) => { if (b.has(x)) n++; }); return n; };
 
 type Line = { page: number; y: number; items: any[] };
 
