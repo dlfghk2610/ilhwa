@@ -13,6 +13,7 @@ export const DEFAULT_MENU: MenuDef[] = [
   { url: "/pq-educations", title: "PQ 기술자 교육현황" },
   { url: "/similar-services", title: "PQ 유사용역 (회사실적)" },
   { url: "/pq-dev-records", title: "PQ 개발·투자·활용실적" },
+  { url: "/pq-self-eval", title: "PQ 점수 자기평가서" },
   { url: "/pq-forms", title: "PQ 작성양식관리" },
   { url: "/performance-database", title: "실적 데이터베이스 관리" },
   { url: "/external-performance-database", title: "타회사 실적 데이터베이스 관리" },

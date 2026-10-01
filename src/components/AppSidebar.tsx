@@ -16,7 +16,7 @@ const ICONS: Record<string, any> = {
   "/": LayoutDashboard, "/bids": FileText, "/performances": Award, "/careers": Briefcase,
   "/career-highlight": Highlighter, "/personal-history": UserCog, "/overlaps": Layers,
   "/pq-educations": GraduationCap, "/similar-services": Building2, "/pq-dev-records": FlaskConical,
-  "/pq-forms": FolderArchive, "/performance-database": Database, "/external-performance-database": Building,
+  "/pq-forms": FolderArchive, "/pq-self-eval": Calculator, "/performance-database": Database, "/external-performance-database": Building,
 };
 
 export function AppSidebar() {
