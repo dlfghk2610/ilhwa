@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ReportFormatDialog } from "@/components/performance/ReportFormatDialog";
+import type { PerformanceReportRow } from "@/lib/performance-report";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -16,7 +18,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { exportToExcel } from "@/lib/excel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
 import * as pdfjsLib from "pdfjs-dist";
@@ -216,6 +217,9 @@ export default function Performances() {
   const [loading, setLoading] = useState(true);
   const [addSeqNumbers, setAddSeqNumbers] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportInitialFormat, setReportInitialFormat] = useState<"xlsx" | "pdf">("xlsx");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [selectedTech, setSelectedTech] = useState<string>("");
   const [techEvalFilter, setTechEvalFilter] = useState<string[]>([]);
@@ -253,6 +257,7 @@ export default function Performances() {
   async function fetchMyCompany() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    setCurrentUserId(user.id);
     const { data } = await supabase.from("profiles").select("company").eq("id", user.id).maybeSingle();
     setMyCompany((data as any)?.company ?? "");
   }
@@ -385,7 +390,7 @@ export default function Performances() {
     });
   }
 
-  function exportExcel() {
+  function getReportRows(): PerformanceReportRow[] {
     const tech = selectedTech.trim();
     let sorted = getTargets();
     if (tech) {
@@ -399,42 +404,45 @@ export default function Performances() {
         return aStart.localeCompare(bStart);
       });
     }
-    if (sorted.length === 0) { toast.error("선택된 사업이 없습니다"); return; }
-    const data = sorted.map((r, i) => {
-      const base: Record<string, any> = addSeqNumbers ? { 연번: i + 1 } : {};
+    return sorted.map((r, i) => {
       const cps = getContractPeriods(r);
       const contractDays = cps.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
-      const row: Record<string, any> = {
-        ...base,
-        사업명: r.project_name,
-        사업개요: r.service_overview ?? "",
-        발주처: r.client ?? "",
-        계약기간: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
-        계약기간일수: contractDays || "",
-        계약금액: r.contract_amount ?? "",
-        "지분율": r.share_rate != null ? r.share_rate / 100 : "",
-        지분금액: r.share_amount ?? "",
-        평가종류: r.evaluation_types.join(", "),
-        사업종류: r.service_types.join(", "),
-        각사지분율: r.company_share_rate ?? "",
+      const part = tech ? r.participants?.find((p) => p.name === tech) : undefined;
+      const periods = part ? getPeriods(part) : [];
+      const partDays = cps.reduce((s, cp) => s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
+      const evalWeight = r.evaluation_types.includes("평가") || techEvalFilter.some((type) => r.evaluation_types.includes(type)) ? 1 : 0.6;
+      const serviceWeight = techServiceFilter.some((type) => r.service_types.includes(type)) ? 1 : 0.6;
+      const ratio = contractDays > 0 ? Math.min(1, partDays / contractDays) : 0;
+      return {
+        sequence: i + 1,
+        projectName: r.project_name,
+        serviceOverview: r.service_overview ?? "",
+        client: r.client ?? "",
+        contractAmount: r.contract_amount != null ? Number(r.contract_amount) / 1_000_000 : "",
+        shareAmount: r.share_amount != null ? Number(r.share_amount) / 1_000_000 : "",
+        shareRate: r.share_rate ?? "",
+        evaluationTypes: r.evaluation_types.join(", "),
+        serviceTypes: r.service_types.join(", "),
+        contractPeriod: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        contractDays: contractDays || "",
+        participationPeriod: periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        participationDays: part ? partDays : "",
+        simpleCount: evalWeight * serviceWeight,
+        periodCount: ratio * evalWeight * serviceWeight,
+        duties: part?.duties ?? "",
+        company: (r as any).is_external_company ? ((r as any).external_company_name ?? "") : myCompany,
+        position: part?.position ?? "",
+        specialty: part?.specialty ?? "",
+        responsibility: part?.responsibility ?? "",
+        notes: r.notes ?? "",
       };
-      if (tech) {
-        const part = r.participants?.find((p) => p.name === tech);
-        const periods = part ? getPeriods(part) : [];
-        const partDays = cps.reduce((s, cp) =>
-          s + periods.reduce((ss, pd) => ss + (cp.start && cp.end && pd.start && pd.end ? overlapDays(cp.start, cp.end, pd.start, pd.end) : 0), 0), 0);
-        row["참여기간"] = periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n");
-        row["참여기간일수"] = part ? partDays : "";
-        row["전문분야"] = part?.specialty ?? "";
-        row["소속업체"] = (r as any).is_external_company ? ((r as any).external_company_name ?? "") : myCompany;
-        row["직위"] = part?.position ?? "";
-        row["책임정도"] = part?.responsibility ?? "";
-      }
-      row["비고"] = r.notes ?? "";
-      return row;
     });
-    const filename = tech ? `PQ개인별실적 - ${tech}` : "PQ개인별실적";
-    exportToExcel(data, filename);
+  }
+
+  function openReportDialog(format: "xlsx" | "pdf") {
+    if (getTargets().length === 0) { toast.error("선택된 사업이 없습니다"); return; }
+    setReportInitialFormat(format);
+    setReportDialogOpen(true);
   }
 
   async function exportMergedPdf(includeParticipants: boolean) {
@@ -908,7 +916,8 @@ export default function Performances() {
             <Checkbox checked={addSeqNumbers} onCheckedChange={(v) => setAddSeqNumbers(!!v)} />
             <span className="text-xs">연번 기입 (참여기간 오름차순)</span>
           </label>
-          <Button variant="outline" onClick={exportExcel}><Download className="h-4 w-4 mr-1" /> 엑셀</Button>
+          <Button variant="outline" onClick={() => openReportDialog("xlsx")}><Download className="h-4 w-4 mr-1" /> 엑셀 내보내기</Button>
+          <Button variant="outline" onClick={() => openReportDialog("pdf")}><FileText className="h-4 w-4 mr-1" /> PDF 출력</Button>
           <Button variant="outline" disabled={exportingPdf} onClick={() => exportMergedPdf(false)}>
             {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
             실적증명서 PDF
@@ -918,6 +927,16 @@ export default function Performances() {
             실적+참여자명단 PDF
           </Button>
         </div>
+
+        <ReportFormatDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          rows={getReportRows()}
+          techName={selectedTech.trim()}
+          userId={currentUserId}
+          initialFormat={reportInitialFormat}
+          includeSequence={addSeqNumbers}
+        />
 
         {selectedTech && visibleTechRows.length > 0 && (
           <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "usable" | "limited" | "all")}>
