@@ -308,7 +308,7 @@ export default function PqSelfEval() {
             {Math.abs(shareSum - 100) > 0.001 && <p className="text-xs text-destructive">지분율 합계가 {fmt(shareSum)}%입니다. 100%가 되도록 맞춰주세요.</p>}
           </Card>
 
-          <Card className="p-6 order-first lg:order-none sticky top-2 z-10 lg:static flex flex-col justify-center items-center text-center bg-primary text-primary-foreground">
+          <Card className="p-6 order-first lg:order-none flex flex-col justify-center items-center text-center bg-primary text-primary-foreground">
             <Trophy className="h-8 w-8 mb-2 opacity-90" />
             <div className="text-sm opacity-90">{projectName || "사업명 미입력"} · {clientKey}</div>
             <div className="text-xs opacity-80 mt-1">최종 PQ 점수</div>
