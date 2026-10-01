@@ -45,6 +45,16 @@ export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId,
   }, [storageKey, open]);
 
   const columns = useMemo(() => order.filter((id) => enabled.has(id)).map((id) => PERFORMANCE_REPORT_COLUMNS.find((c) => c.id === id)).filter((c): c is (typeof PERFORMANCE_REPORT_COLUMNS)[number] => Boolean(c)), [order, enabled]);
+  const previewGroups = useMemo(() => {
+    const groups: Array<{ label: string; count: number; standalone: boolean }> = [];
+    columns.forEach((column) => {
+      const label = column.group || column.label;
+      const previous = groups[groups.length - 1];
+      if (column.group && previous?.label === label && !previous.standalone) previous.count += 1;
+      else groups.push({ label, count: 1, standalone: !column.group });
+    });
+    return groups;
+  }, [columns]);
   const previewRows = rows.slice(0, 4);
   const pageRatio = orientation === "landscape" ? "aspect-[1.414/1]" : "aspect-[1/1.414]";
 
@@ -84,7 +94,7 @@ export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[94vh] w-[96vw] max-w-[1400px] overflow-hidden p-0">
+      <DialogContent className="grid h-[94vh] w-[96vw] max-w-[1400px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-0">
         <DialogHeader className="border-b px-5 py-4 pr-12">
           <DialogTitle>실적 출력 양식 설정</DialogTitle>
           <DialogDescription>항목을 선택하고 끌어서 순서를 바꾸면 A4 미리보기에 바로 반영됩니다.</DialogDescription>
@@ -108,7 +118,7 @@ export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId,
             <div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold">A4 실시간 미리보기</h3><p className="text-xs text-muted-foreground">선택된 실적 {rows.length}건 · 화면에는 최대 4건 표시</p></div><span className="text-xs font-medium text-muted-foreground">A4 {orientation === "landscape" ? "가로" : "세로"}</span></div>
             <div className={cn("mx-auto min-w-[620px] max-w-[980px] overflow-hidden border bg-card p-[4%] shadow-elevated", pageRatio)}>
               <div className="mb-4 border-b-2 border-primary pb-2 text-center"><h2 className="text-lg font-bold text-primary">PQ 기술자 실적 현황</h2><p className="mt-1 text-xs text-muted-foreground">{techName || "기술자 미지정"}</p></div>
-              <div className="overflow-hidden border text-[8px]"><table className="w-full table-fixed border-collapse"><thead><tr className="bg-primary text-primary-foreground">{columns.map((column) => <th key={column.id} className="border-r p-1 text-center font-semibold last:border-r-0">{column.group || column.label}</th>)}</tr><tr className="bg-secondary text-secondary-foreground">{columns.map((column) => <th key={column.id} className="border-r p-1 text-center font-medium last:border-r-0">{column.group ? column.label : ""}</th>)}</tr></thead><tbody>{previewRows.map((row, index) => <tr key={index} className="even:bg-muted/50">{columns.map((column) => <td key={column.id} className={cn("truncate border-r border-t p-1 last:border-r-0", column.align === "right" ? "text-right" : "text-center")}>{String(row[column.id] ?? "-")}</td>)}</tr>)}</tbody></table></div>
+              <div className="overflow-hidden border text-[8px]"><table className="w-full table-fixed border-collapse"><thead><tr className="bg-primary text-primary-foreground">{previewGroups.map((group, index) => <th key={`${group.label}-${index}`} colSpan={group.count} rowSpan={group.standalone ? 2 : 1} className="border-r p-1 text-center font-semibold last:border-r-0">{group.label}</th>)}</tr><tr className="bg-secondary text-secondary-foreground">{columns.filter((column) => column.group).map((column) => <th key={column.id} className="border-r p-1 text-center font-medium last:border-r-0">{column.label}</th>)}</tr></thead><tbody>{previewRows.map((row, index) => <tr key={index} className="even:bg-muted/50">{columns.map((column) => <td key={column.id} className={cn("truncate border-r border-t p-1 last:border-r-0", column.align === "right" ? "text-right" : "text-center")}>{String(row[column.id] ?? "-")}</td>)}</tr>)}</tbody></table></div>
               {!previewRows.length && <div className="py-10 text-center text-xs text-muted-foreground">선택된 실적이 없습니다.</div>}
             </div>
           </section>
