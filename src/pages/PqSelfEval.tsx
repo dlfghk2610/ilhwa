@@ -123,18 +123,18 @@ export default function PqSelfEval() {
       <div className="space-y-4">
         <Card className="p-4 space-y-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
+            <div className="space-y-1 w-full sm:w-auto">
               <Label>발주처</Label>
               <Select value={client} onValueChange={setClient}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>{CLIENTS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {client === "직접 입력" && (
               <div className="space-y-1"><Label>발주처명</Label><Input className="w-44" value={customClient} onChange={(e) => setCustomClient(e.target.value)} /></div>
             )}
-            <Button variant="outline" onClick={saveTpl}><Save className="h-4 w-4 mr-1" />설정 저장</Button>
-            <Button variant="outline" onClick={loadTpl}><FolderOpen className="h-4 w-4 mr-1" />템플릿 불러오기</Button>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={saveTpl}><Save className="h-4 w-4 mr-1" />설정 저장</Button>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={loadTpl}><FolderOpen className="h-4 w-4 mr-1" />템플릿 불러오기</Button>
             {savedList.length > 0 && <span className="text-xs text-muted-foreground">저장됨: {savedList.join(", ")}</span>}
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -144,10 +144,10 @@ export default function PqSelfEval() {
           </div>
         </Card>
 
-        <Card className="p-4 space-y-3">
+        <Card className="p-3 sm:p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">항목별 자기평가표</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={loadData} disabled={data.loading}><RefreshCw className={`h-4 w-4 mr-1 ${data.loading ? "animate-spin" : ""}`} />DB 다시 불러오기</Button>
               <Button size="sm" variant="outline" onClick={() => setItems((x) => [...x, { id: uid(), name: "새 항목", source: "manual", full: 10, base: 0, dir: "higher", step: 1, deduct: 1, unit: "", manual: 0 }])}><Plus className="h-4 w-4 mr-1" />항목 추가</Button>
             </div>
@@ -155,7 +155,58 @@ export default function PqSelfEval() {
           <p className="text-xs text-muted-foreground">
             DB 연동: 재직 기술자 {data.tech}명 · 최근 5년 유사용역 지분금액 {fmt(data.similarAmt / 1e6, 0)}백만원 · 진행중 업무 {fmt(data.overlapAvg)}건/인 · 우리 분담 사업비 {fmt(ourBudget / 1e6, 0)}백만원
           </p>
-          <div className="overflow-x-auto">
+          <div className="md:hidden space-y-3">
+            {evals.map(({ it, cur, score, deduct, reason }) => (
+              <div key={it.id} className={`rounded-lg border p-3 space-y-2 ${deduct > 0 ? "bg-destructive/5 border-destructive/30" : ""}`}>
+                <div className="flex items-center gap-2">
+                  <Input className="h-9 flex-1" value={it.name} onChange={(e) => upd(it.id, { name: e.target.value })} />
+                  <Button size="icon" variant="ghost" onClick={() => setItems((x) => x.filter((y) => y.id !== it.id))}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-[11px] text-muted-foreground">현재 산출값</div>
+                    {it.source === "credit" || it.source === "manual"
+                      ? <Input type="number" className="h-9 w-24" value={it.manual ?? 0} onChange={(e) => upd(it.id, { manual: num(e.target.value) })} />
+                      : <div className="text-lg font-semibold">{fmt(cur)} <span className="text-xs font-normal text-muted-foreground">{it.unit}</span></div>}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-muted-foreground">획득 점수</div>
+                    <div className="text-2xl font-bold tabular-nums">{fmt(score)}<span className="text-sm text-muted-foreground font-normal"> / {it.full}</span></div>
+                  </div>
+                </div>
+                <div className="text-xs">{deduct > 0 ? <><Badge variant="destructive" className="mr-1">-{fmt(deduct)}</Badge>{reason}</> : <span className="text-muted-foreground">{reason}</span>}</div>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground py-1">배점 기준 수정</summary>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="col-span-2 space-y-1"><Label className="text-xs">연동</Label>
+                      <Select value={it.source} onValueChange={(v) => upd(it.id, { source: v as Source })}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tech">기술자 DB</SelectItem><SelectItem value="similar">유사용역</SelectItem>
+                          <SelectItem value="overlap">업무중첩</SelectItem><SelectItem value="credit">신용도(입력)</SelectItem>
+                          <SelectItem value="manual">직접 입력</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1"><Label className="text-xs">만점</Label><Input type="number" className="h-9" value={it.full} onChange={(e) => upd(it.id, { full: num(e.target.value) })} /></div>
+                    <div className="space-y-1"><Label className="text-xs">기준값</Label>
+                      <div className="flex gap-1">
+                        <Select value={it.dir} onValueChange={(v) => upd(it.id, { dir: v as Item["dir"] })}>
+                          <SelectTrigger className="h-9 w-16"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="higher">이상</SelectItem><SelectItem value="lower">이하</SelectItem></SelectContent>
+                        </Select>
+                        <Input type="number" className="h-9 flex-1" value={it.base} onChange={(e) => upd(it.id, { base: num(e.target.value) })} />
+                      </div>
+                    </div>
+                    <div className="space-y-1"><Label className="text-xs">감점 단위</Label><Input type="number" className="h-9" value={it.step} onChange={(e) => upd(it.id, { step: num(e.target.value) })} /></div>
+                    <div className="space-y-1"><Label className="text-xs">단위당 감점</Label><Input type="number" className="h-9" value={it.deduct} onChange={(e) => upd(it.id, { deduct: num(e.target.value) })} /></div>
+                  </div>
+                </details>
+              </div>
+            ))}
+            <div className="flex justify-between rounded-lg bg-muted px-3 py-2 font-semibold"><span>우리회사 합계</span><span>{fmt(ourScore)} / {fullTotal}</span></div>
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
                 <TableHead className="min-w-32">평가 항목</TableHead><TableHead>연동</TableHead><TableHead>만점</TableHead>
@@ -220,7 +271,21 @@ export default function PqSelfEval() {
               <h2 className="font-semibold">공동수급(도급사) 구성</h2>
               <Button size="sm" onClick={() => setPartners((x) => [...x, { id: uid(), name: "", share: 0, score: 0 }])}><Plus className="h-4 w-4 mr-1" />도급사 추가</Button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="md:hidden space-y-2">
+              <div className="flex justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm"><span className="font-medium">우리회사 {fmt(ourShareN)}%</span><span>{fmt(ourScore)}점 → {fmt(ourScore * ourShareN / 100)}</span></div>
+              {partners.map((p) => (
+                <div key={p.id} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex gap-2"><Input className="h-9 flex-1" placeholder="회사명" value={p.name} onChange={(e) => updP(p.id, { name: e.target.value })} />
+                    <Button size="icon" variant="ghost" onClick={() => setPartners((x) => x.filter((y) => y.id !== p.id))}><Trash2 className="h-4 w-4" /></Button></div>
+                  <div className="grid grid-cols-3 gap-2 items-end text-xs">
+                    <div className="space-y-1"><Label className="text-xs">지분율(%)</Label><Input type="number" className="h-9" value={p.share} onChange={(e) => updP(p.id, { share: num(e.target.value) })} /></div>
+                    <div className="space-y-1"><Label className="text-xs">PQ점수</Label><Input type="number" className="h-9" value={p.score} onChange={(e) => updP(p.id, { score: num(e.target.value) })} /></div>
+                    <div className="text-right pb-2"><div className="text-muted-foreground">반영</div><div className="font-semibold text-sm">{fmt(p.score * p.share / 100)}</div></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader><TableRow><TableHead>회사명</TableHead><TableHead>지분율(%)</TableHead><TableHead>도급사 PQ점수</TableHead><TableHead>반영 점수</TableHead><TableHead /></TableRow></TableHeader>
                 <TableBody>
@@ -243,7 +308,7 @@ export default function PqSelfEval() {
             {Math.abs(shareSum - 100) > 0.001 && <p className="text-xs text-destructive">지분율 합계가 {fmt(shareSum)}%입니다. 100%가 되도록 맞춰주세요.</p>}
           </Card>
 
-          <Card className="p-6 flex flex-col justify-center items-center text-center bg-primary text-primary-foreground">
+          <Card className="p-6 order-first lg:order-none flex flex-col justify-center items-center text-center bg-primary text-primary-foreground">
             <Trophy className="h-8 w-8 mb-2 opacity-90" />
             <div className="text-sm opacity-90">{projectName || "사업명 미입력"} · {clientKey}</div>
             <div className="text-xs opacity-80 mt-1">최종 PQ 점수</div>
