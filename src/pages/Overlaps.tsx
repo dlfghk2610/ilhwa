@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { projectFileName } from "@/lib/filename";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -721,12 +722,12 @@ export default function Overlaps() {
   };
 
 
-  const downloadPdf = async (path: string) => {
+  const downloadPdf = async (path: string, kind = "") => {
     const { data, error } = await supabase.storage.from("overlap-documents").download(path);
     if (error || !data) { toast.error("다운로드 실패"); return; }
     const url = URL.createObjectURL(data);
     const a = document.createElement("a");
-    a.href = url; a.download = path.split("/").pop() || "file.pdf"; a.click();
+    a.href = url; a.download = projectFileName(form.project_name, kind, path); a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -1421,7 +1422,7 @@ export default function Overlaps() {
                       </Button>
                       {a.pdf_path && (
                         <>
-                          <button type="button" onClick={() => downloadPdf(a.pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={pdfFileName || ""}>
+                          <button type="button" onClick={() => downloadPdf(a.pdf_path!, `변경계약서${i + 1}`)} className="text-xs text-primary underline truncate max-w-[220px]" title={pdfFileName || ""}>
                             <FileTextIcon className="inline h-3 w-3 mr-0.5" />{pdfFileName}
                           </button>
                           <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
@@ -1490,7 +1491,7 @@ export default function Overlaps() {
                       </Button>
                       {s.suspension_pdf_path && (
                         <>
-                          <button type="button" onClick={() => downloadPdf(s.suspension_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={sFile || ""}>
+                          <button type="button" onClick={() => downloadPdf(s.suspension_pdf_path!, `중지공문${i + 1}`)} className="text-xs text-primary underline truncate max-w-[220px]" title={sFile || ""}>
                             <FileTextIcon className="inline h-3 w-3 mr-0.5" />{sFile}
                           </button>
                           <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
@@ -1510,7 +1511,7 @@ export default function Overlaps() {
                       </Button>
                       {s.resume_pdf_path && (
                         <>
-                          <button type="button" onClick={() => downloadPdf(s.resume_pdf_path!)} className="text-xs text-primary underline truncate max-w-[220px]" title={rFile || ""}>
+                          <button type="button" onClick={() => downloadPdf(s.resume_pdf_path!, `재개공문${i + 1}`)} className="text-xs text-primary underline truncate max-w-[220px]" title={rFile || ""}>
                             <FileTextIcon className="inline h-3 w-3 mr-0.5" />{rFile}
                           </button>
                           <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => {
@@ -1634,7 +1635,7 @@ export default function Overlaps() {
                     </Button>
                     {path && (
                       <>
-                        <button type="button" onClick={() => downloadPdf(path)} className="text-xs text-primary underline truncate max-w-[200px]" title={filename || ""}>
+                        <button type="button" onClick={() => downloadPdf(path, f.label.replace(/\s*\(.*?\)\s*/g, ""))} className="text-xs text-primary underline truncate max-w-[200px]" title={filename || ""}>
                           <FileTextIcon className="inline h-3 w-3 mr-0.5" />{filename}
                         </button>
                         <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm((s) => ({ ...s, [f.key]: null }))}>

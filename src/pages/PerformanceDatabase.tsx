@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { projectFileName } from "@/lib/filename";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -437,13 +438,13 @@ export default function PerformanceDatabase({ external = false }: { external?: b
   }
 
 
-  async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string) {
+  async function downloadFromBucket(bucket: "performance-certs" | "participant-lists", path: string, projectName?: string, kind?: string) {
     try {
       const { data, error } = await supabase.storage.from(bucket).download(path);
       if (error) throw error;
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
-      a.href = url; a.download = path.split("/").pop() || "download";
+      a.href = url; a.download = projectFileName(projectName, kind ?? (bucket === "performance-certs" ? "실적증명서" : "참여자명단"), path);
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) { toast.error(e?.message ?? "다운로드 실패"); }
@@ -1190,8 +1191,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                               </div>
                             )}
                             <div className="mt-3 flex flex-wrap justify-end gap-1 border-t pt-3">
-                              {row.cert_pdf_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("performance-certs", row.cert_pdf_path || "")}><FileText className="h-4 w-4" />실적증명</Button>}
-                              {row.participant_file_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("participant-lists", row.participant_file_path || "")}><Download className="h-4 w-4" />참여자명단</Button>}
+                              {row.cert_pdf_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("performance-certs", row.cert_pdf_path || "", row.project_name)}><FileText className="h-4 w-4" />실적증명</Button>}
+                              {row.participant_file_path && <Button size="sm" variant="ghost" onClick={() => downloadFromBucket("participant-lists", row.participant_file_path || "", row.project_name)}><Download className="h-4 w-4" />참여자명단</Button>}
                               <Button size="sm" variant="ghost" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" />수정</Button>
                               <Button size="sm" variant="ghost" onClick={() => handleCopy(row)}><Copy className="h-4 w-4" />복사</Button>
                               <Button size="sm" variant="ghost" onClick={() => setDeleteId(row.id)}><Trash2 className="h-4 w-4 text-destructive" />삭제</Button>
@@ -1300,8 +1301,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <TableCell className="hidden lg:table-cell">{r.participants.length}명</TableCell>
                   <TableCell className="hidden xl:table-cell">
                     <div className="flex gap-1">
-                      {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
-                      {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
+                      {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!, r.project_name)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
+                      {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!, r.project_name)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -1320,8 +1321,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                         <div className="2xl:hidden"><span className="text-muted-foreground mr-2">사업종류:</span><span className="inline-flex flex-wrap gap-1 align-middle">{r.service_types.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</span></div>
                         <div className="lg:hidden"><span className="text-muted-foreground mr-2">참여인원:</span>{r.participants.length}명</div>
                         <div className="xl:hidden flex items-center gap-2 flex-wrap"><span className="text-muted-foreground">파일:</span>
-                          {r.cert_pdf_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)}><FileText className="h-3 w-3 mr-1" />실적증명</Button>}
-                          {r.participant_file_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)}><Download className="h-3 w-3 mr-1" />참여자</Button>}
+                          {r.cert_pdf_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!, r.project_name)}><FileText className="h-3 w-3 mr-1" />실적증명</Button>}
+                          {r.participant_file_path && <Button size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!, r.project_name)}><Download className="h-3 w-3 mr-1" />참여자</Button>}
                           {!r.cert_pdf_path && !r.participant_file_path && <span>-</span>}
                         </div>
                       </div>
@@ -1391,8 +1392,8 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                         {(r.cert_pdf_path || r.participant_file_path) && (
                           <div className="flex gap-1 items-center">
                             <span className="text-muted-foreground">파일: </span>
-                            {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
-                            {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
+                            {r.cert_pdf_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("performance-certs", r.cert_pdf_path!, r.project_name)} title="실적증명PDF"><FileText className="h-4 w-4" /></Button>}
+                            {r.participant_file_path && <Button size="icon" variant="ghost" onClick={() => downloadFromBucket("participant-lists", r.participant_file_path!, r.project_name)} title="참여자명단"><Download className="h-4 w-4" /></Button>}
                           </div>
                         )}
                         <div className="flex gap-2 pt-2">
@@ -1615,7 +1616,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <div className="flex items-center gap-2">
                     <Input type="file" accept="application/pdf" onChange={(e) => setForm({ ...form, cert_pdf_file: e.target.files?.[0] || null })} />
                     {form.cert_pdf_path && !form.cert_pdf_file && (
-                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("performance-certs", form.cert_pdf_path, form.project_name)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
                     )}
                   </div>
                 </div>
@@ -1624,7 +1625,7 @@ export default function PerformanceDatabase({ external = false }: { external?: b
                   <div className="flex items-center gap-2">
                     <Input type="file" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => handleParticipantFileChange(e.target.files?.[0] || null)} />
                     {form.participant_file_path && !form.participant_file && (
-                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadFromBucket("participant-lists", form.participant_file_path, form.project_name)}><Download className="h-3 w-3 mr-1" />다운로드</Button>
                     )}
                   </div>
                   {form.participant_file_path && !form.participant_file && (
