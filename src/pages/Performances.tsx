@@ -404,7 +404,7 @@ export default function Performances() {
         return aStart.localeCompare(bStart);
       });
     }
-    return sorted.map((r, i) => {
+    return sorted.flatMap((r, i) => {
       const cps = getContractPeriods(r);
       const contractDays = cps.reduce((s, pd) => s + (pd.start && pd.end ? daysBetween(pd.start, pd.end) : 0), 0);
       const part = tech ? r.participants?.find((p) => p.name === tech) : undefined;
@@ -413,7 +413,7 @@ export default function Performances() {
       const evalWeight = r.evaluation_types.includes("평가") || techEvalFilter.some((type) => r.evaluation_types.includes(type)) ? 1 : 0.6;
       const serviceWeight = techServiceFilter.some((type) => r.service_types.includes(type)) ? 1 : 0.6;
       const ratio = contractDays > 0 ? Math.min(1, partDays / contractDays) : 0;
-      return {
+      const baseRow: PerformanceReportRow = {
         sequence: i + 1,
         projectName: r.project_name,
         serviceOverview: r.service_overview ?? "",
@@ -423,9 +423,9 @@ export default function Performances() {
         shareRate: r.share_rate ?? "",
         evaluationTypes: r.evaluation_types.join(", "),
         serviceTypes: r.service_types.join(", "),
-        contractPeriod: cps.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        contractPeriod: cps[0] ? `${isoToDisplay(cps[0].start)} ~ ${isoToDisplay(cps[0].end)}` : "",
         contractDays: contractDays || "",
-        participationPeriod: periods.map((pd) => `${isoToDisplay(pd.start)} ~ ${isoToDisplay(pd.end)}`).join("\n"),
+        participationPeriod: periods[0] ? `${isoToDisplay(periods[0].start)} ~ ${isoToDisplay(periods[0].end)}` : "",
         participationDays: part ? partDays : "",
         simpleCount: evalWeight * serviceWeight,
         periodCount: ratio * evalWeight * serviceWeight,
@@ -436,6 +436,16 @@ export default function Performances() {
         responsibility: part?.responsibility ?? "",
         notes: r.notes ?? "",
       };
+      const periodRowCount = Math.max(cps.length, periods.length, 1);
+      return Array.from({ length: periodRowCount }, (_, periodIndex) => {
+        if (periodIndex === 0) return baseRow;
+        const contractPeriod = cps[periodIndex];
+        const participationPeriod = periods[periodIndex];
+        return {
+          contractPeriod: contractPeriod ? `${isoToDisplay(contractPeriod.start)} ~ ${isoToDisplay(contractPeriod.end)}` : "",
+          participationPeriod: participationPeriod ? `${isoToDisplay(participationPeriod.start)} ~ ${isoToDisplay(participationPeriod.end)}` : "",
+        };
+      });
     });
   }
 
