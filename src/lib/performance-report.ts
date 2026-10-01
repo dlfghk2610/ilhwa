@@ -198,6 +198,11 @@ export async function exportPerformancePdf(rows: PerformanceReportRow[], ids: st
     });
     y -= rowHeight;
   });
+  pdf.getPages().forEach((pdfPage, index, allPages) => {
+    const label = `${index + 1} / ${allPages.length}`;
+    const textWidth = font.widthOfTextAtSize(label, 7);
+    pdfPage.drawText(label, { x: (pageSize[0] - textWidth) / 2, y: 10, size: 7, font, color: rgb(0.4, 0.45, 0.5) });
+  });
   const bytes = await pdf.save();
   downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), fileFor(techName, "pdf"));
 }

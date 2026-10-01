@@ -935,6 +935,7 @@ export default function Performances() {
           techName={selectedTech.trim()}
           userId={currentUserId}
           initialFormat={reportInitialFormat}
+          includeSequence={addSeqNumbers}
         />
 
         {selectedTech && visibleTechRows.length > 0 && (

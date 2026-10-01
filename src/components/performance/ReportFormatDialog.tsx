@@ -14,7 +14,7 @@ import { DEFAULT_REPORT_COLUMN_IDS, PERFORMANCE_REPORT_COLUMNS, PerformanceRepor
 import { toast } from "sonner";
 
 type Template = { name: string; columnIds: string[]; orientation: ReportOrientation };
-type Props = { open: boolean; onOpenChange: (open: boolean) => void; rows: PerformanceReportRow[]; techName: string; userId?: string | null; initialFormat: "xlsx" | "pdf" };
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; rows: PerformanceReportRow[]; techName: string; userId?: string | null; initialFormat: "xlsx" | "pdf"; includeSequence?: boolean };
 
 function SortableField({ id, enabled, onToggle }: { id: string; enabled: boolean; onToggle: () => void }) {
   const field = PERFORMANCE_REPORT_COLUMNS.find((column) => column.id === id);
@@ -29,7 +29,7 @@ function SortableField({ id, enabled, onToggle }: { id: string; enabled: boolean
   );
 }
 
-export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId, initialFormat }: Props) {
+export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId, initialFormat, includeSequence = false }: Props) {
   const storageKey = `performance_report_templates_v1:${userId || "local"}`;
   const [order, setOrder] = useState(() => PERFORMANCE_REPORT_COLUMNS.map((c) => c.id));
   const [enabled, setEnabled] = useState(() => new Set(DEFAULT_REPORT_COLUMN_IDS));
@@ -43,6 +43,11 @@ export function ReportFormatDialog({ open, onOpenChange, rows, techName, userId,
   useEffect(() => {
     try { setTemplates(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { setTemplates([]); }
   }, [storageKey, open]);
+  useEffect(() => {
+    if (!open) return;
+    setEnabled(new Set(includeSequence ? DEFAULT_REPORT_COLUMN_IDS : DEFAULT_REPORT_COLUMN_IDS.filter((id) => id !== "sequence")));
+    setSelectedTemplate("");
+  }, [open, includeSequence]);
 
   const columns = useMemo(() => order.filter((id) => enabled.has(id)).map((id) => PERFORMANCE_REPORT_COLUMNS.find((c) => c.id === id)).filter((c): c is (typeof PERFORMANCE_REPORT_COLUMNS)[number] => Boolean(c)), [order, enabled]);
   const previewGroups = useMemo(() => {
