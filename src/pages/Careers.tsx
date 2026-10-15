@@ -14,9 +14,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, ChevronUp, ChevronDown, ChevronRight, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, ChevronUp, ChevronDown, ChevronRight, Star, FileText, Loader2 } from "lucide-react";
 import { exportToExcel, importFromExcel } from "@/lib/excel";
 import * as XLSX from "xlsx";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfjsWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+import { extractLines, matchRows, toDate as hlToDate } from "@/lib/career-highlight";
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 import {
   CareerEntry, classifyEval, computeRecognition, daysToYearMonth,
   dateDiffDaysInclusive, evalWeight, selectOptimal, computeShifted, fmtDate,
@@ -480,11 +484,86 @@ function TechnicianDetail({
       .eq("technician_id", tech.id)
       .order("period_start", { ascending: true });
     if (error) toast.error(error.message);
-    else setEntries((data as CareerEntry[]) || []);
+    else {
+      const list = ((data as any[]) || []).slice();
+      // 경력증명서 PDF 순서가 있으면 그 순서대로, 매칭 안 된 항목은 뒤에 날짜순
+      list.sort((a, b) => (a.pdf_order ?? 1e9) - (b.pdf_order ?? 1e9));
+      setEntries(list as CareerEntry[]);
+    }
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [tech.id]);
+
+  // ── 경력증명서 PDF 첨부 ──
+  const pdfRef = useRef<HTMLInputElement>(null);
+  const [pdfPath, setPdfPath] = useState<string | null>((tech as any).career_pdf_path || null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  useEffect(() => { setPdfPath((tech as any).career_pdf_path || null); }, [tech.id]);
+
+  /** PDF 본문에서 각 사업 위치를 찾아 순번·쪽수 저장 */
+  const applyPdf = async (bytes: ArrayBuffer) => {
+    const { data } = await supabase.from("career_entries").select("*").eq("technician_id", tech.id);
+    const list = (data as any[]) || [];
+    const lines = await extractLines(pdfjsLib, bytes);
+    const rows = list.map((e) => ({ project: e.project_name || "", start: hlToDate(e.period_start), end: hlToDate(e.period_end_text) }));
+    const hits = matchRows(lines, rows);
+    const pos = new Map<number, { page: number; y: number }>();
+    hits.forEach((h) => { const b = h.boxes[0]; if (b) pos.set(h.row, { page: b.page, y: b.y }); });
+    const ordered = [...pos.entries()].sort((a, b) => a[1].page - b[1].page || b[1].y - a[1].y);
+    const orderOf = new Map<number, number>();
+    ordered.forEach(([ri], i) => orderOf.set(ri, i + 1));
+    await Promise.all(list.map((e, i) => (supabase as any).from("career_entries").update({
+      pdf_order: orderOf.get(i) ?? null,
+      pdf_page: pos.has(i) ? pos.get(i)!.page + 1 : null,
+    }).eq("id", e.id)));
+    return { matched: pos.size, total: list.length };
+  };
+
+  const handlePdfUpload = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const f = ev.target.files?.[0];
+    ev.target.value = "";
+    if (!f) return;
+    setPdfBusy(true);
+    try {
+      const bytes = await f.arrayBuffer();
+      const path = `${tech.id}/${Date.now()}.pdf`;
+      const { error: upErr } = await supabase.storage.from("career-pdfs").upload(path, f, { contentType: "application/pdf" });
+      if (upErr) throw upErr;
+      if (pdfPath) await supabase.storage.from("career-pdfs").remove([pdfPath]);
+      await (supabase as any).from("technicians").update({ career_pdf_path: path }).eq("id", tech.id);
+      (tech as any).career_pdf_path = path;
+      setPdfPath(path);
+      const r = await applyPdf(bytes);
+      toast.success(`경력증명서 첨부 완료 · ${r.matched}/${r.total}건 순서 인식`);
+      load();
+    } catch (err: any) {
+      toast.error("PDF 첨부 실패: " + (err?.message || err));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const openPdf = async (page?: number) => {
+    if (!pdfPath) return;
+    const w = window.open("", "_blank");
+    const { data, error } = await supabase.storage.from("career-pdfs").download(pdfPath);
+    if (error || !data) { w?.close(); toast.error("PDF를 열 수 없습니다"); return; }
+    const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+    if (w) w.location.href = url + (page ? `#page=${page}` : "");
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  };
+
+  const removePdf = async () => {
+    if (!pdfPath || !confirm("첨부된 경력증명서 PDF를 삭제할까요?")) return;
+    await supabase.storage.from("career-pdfs").remove([pdfPath]);
+    await (supabase as any).from("technicians").update({ career_pdf_path: null }).eq("id", tech.id);
+    await (supabase as any).from("career_entries").update({ pdf_order: null, pdf_page: null }).eq("technician_id", tech.id);
+    (tech as any).career_pdf_path = null;
+    setPdfPath(null);
+    toast.success("삭제되었습니다");
+    load();
+  };
 
   const saveSpecialty = async () => {
     const val = specialtyDraft.trim() || null;
@@ -517,6 +596,8 @@ function TechnicianDetail({
           참여직위: e.participation_position || "",
           환산일수: r.convertedDays,
           민간: r.isPrivate ? "민간" : "",
+          증명서순번: (e as any).pdf_order ?? "",
+          PDF쪽수: (e as any).pdf_page ?? "",
         };
       });
       const totalRecog = rows.reduce((s, r) => s + Number(r.인정일 || 0), 0);
@@ -769,6 +850,10 @@ function TechnicianDetail({
       const { error: insErr } = await supabase.from("career_entries").insert(inserts);
       if (insErr) { toast.error(insErr.message); return; }
       toast.success(`${inserts.length}건 업로드되었습니다 (${formatLabel})`);
+      if (pdfPath) {
+        const { data: blob } = await supabase.storage.from("career-pdfs").download(pdfPath);
+        if (blob) await applyPdf(await blob.arrayBuffer());
+      }
       load();
     } catch (err: any) {
       toast.error("업로드 실패: " + (err?.message || err));
@@ -814,15 +899,31 @@ function TechnicianDetail({
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         
         <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" />엑셀 업로드</Button>
+        <Button variant="outline" size="sm" onClick={() => pdfRef.current?.click()} disabled={pdfBusy}>
+          {pdfBusy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}경력증명서 PDF첨부
+        </Button>
+        {pdfPath && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => openPdf()}><FileText className="h-4 w-4 mr-1" />경력증명서 보기</Button>
+            <Button variant="ghost" size="sm" onClick={removePdf} className="text-destructive">PDF 삭제</Button>
+          </>
+        )}
         <Button variant="outline" size="sm" onClick={exportEntries} disabled={!entries.length}><Download className="h-4 w-4 mr-1" />엑셀 내보내기</Button>
         <Button variant="ghost" size="sm" onClick={clearAll} disabled={!entries.length} className="text-destructive">
           <Trash2 className="h-4 w-4 mr-1" />전체 삭제
         </Button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
+        <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handlePdfUpload} />
       </div>
+      {pdfPath && (
+        <div className="text-xs text-muted-foreground">
+          경력증명서 순서로 정렬됨 · 매칭 {entries.filter((e: any) => e.pdf_order != null).length}/{entries.length}건
+          {entries.some((e: any) => e.pdf_order == null) && " (매칭 안 된 사업은 맨 아래에 날짜순으로 표시)"}
+        </div>
+      )}
 
       <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -959,6 +1060,7 @@ function MobileRecognitionList({
             {isOpen && (
               <div className="mt-3 pt-3 border-t space-y-1.5 text-xs">
                 <DetailRow label="참여기간">{formatIso(r.entry.period_start)} ~ {r.entry.period_end_text || ""}</DetailRow>
+                <DetailRow label="경력증명서">{(r.entry as any).pdf_page ? `${(r.entry as any).pdf_page}쪽` : "-"}</DetailRow>
                 <DetailRow label="사업공종">{r.entry.service_field || "-"}</DetailRow>
                 <DetailRow label="전문분야">
                   {r.entry.specialty || "-"}
@@ -1060,6 +1162,7 @@ function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: 
               <TableHead>참여회사</TableHead>
               <TableHead>참여직위</TableHead>
               <TableHead className="text-right">환산일수</TableHead>
+              <TableHead className="text-center">PDF쪽</TableHead>
               <TableHead>민간</TableHead>
             </TableRow>
           </TableHeader>
@@ -1127,6 +1230,7 @@ function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: 
                     );
                   })()}
                 </TableCell>
+                <TableCell className="text-center">{(r.entry as any).pdf_page ? `${(r.entry as any).pdf_page}쪽` : "-"}</TableCell>
                 <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{isManual && "(수기)"}</Badge>}</TableCell>
               </TableRow>
               );

@@ -110,6 +110,8 @@ export type Database = {
           notes: string | null
           participation_company: string | null
           participation_position: string | null
+          pdf_order: number | null
+          pdf_page: number | null
           period_end_text: string | null
           period_start: string | null
           project_name: string | null
@@ -130,6 +132,8 @@ export type Database = {
           notes?: string | null
           participation_company?: string | null
           participation_position?: string | null
+          pdf_order?: number | null
+          pdf_page?: number | null
           period_end_text?: string | null
           period_start?: string | null
           project_name?: string | null
@@ -150,6 +154,8 @@ export type Database = {
           notes?: string | null
           participation_company?: string | null
           participation_position?: string | null
+          pdf_order?: number | null
+          pdf_page?: number | null
           period_end_text?: string | null
           period_start?: string | null
           project_name?: string | null
@@ -955,6 +961,7 @@ export type Database = {
         Row: {
           birth_date: string | null
           calc_standard: string
+          career_pdf_path: string | null
           company: string | null
           created_at: string
           created_by: string
@@ -971,6 +978,7 @@ export type Database = {
         Insert: {
           birth_date?: string | null
           calc_standard?: string
+          career_pdf_path?: string | null
           company?: string | null
           created_at?: string
           created_by: string
@@ -987,6 +995,7 @@ export type Database = {
         Update: {
           birth_date?: string | null
           calc_standard?: string
+          career_pdf_path?: string | null
           company?: string | null
           created_at?: string
           created_by?: string
