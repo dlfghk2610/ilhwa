@@ -841,7 +841,8 @@ function TechnicianDetail({
         <div className="text-xs text-muted-foreground">
           경력증명서 순서로 정렬됨 · 매칭 {entries.filter((e: any) => e.pdf_order != null).length}/{entries.length}건
           {entries.some((e: any) => e.pdf_order == null) && " (매칭 안 된 사업은 맨 아래에 날짜순으로 표시)"}
-      </div>
+        </div>
+      )}
 
       <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
