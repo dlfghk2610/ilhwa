@@ -769,6 +769,10 @@ function TechnicianDetail({
       const { error: insErr } = await supabase.from("career_entries").insert(inserts);
       if (insErr) { toast.error(insErr.message); return; }
       toast.success(`${inserts.length}건 업로드되었습니다 (${formatLabel})`);
+      if (pdfPath) {
+        const { data: blob } = await supabase.storage.from("career-pdfs").download(pdfPath);
+        if (blob) await applyPdf(await blob.arrayBuffer());
+      }
       load();
     } catch (err: any) {
       toast.error("업로드 실패: " + (err?.message || err));
@@ -814,14 +818,29 @@ function TechnicianDetail({
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         
         <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" />엑셀 업로드</Button>
+        <Button variant="outline" size="sm" onClick={() => pdfRef.current?.click()} disabled={pdfBusy}>
+          {pdfBusy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}경력증명서 PDF첨부
+        </Button>
+        {pdfPath && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => openPdf()}><FileText className="h-4 w-4 mr-1" />경력증명서 보기</Button>
+            <Button variant="ghost" size="sm" onClick={removePdf} className="text-destructive">PDF 삭제</Button>
+          </>
+        )}
         <Button variant="outline" size="sm" onClick={exportEntries} disabled={!entries.length}><Download className="h-4 w-4 mr-1" />엑셀 내보내기</Button>
         <Button variant="ghost" size="sm" onClick={clearAll} disabled={!entries.length} className="text-destructive">
           <Trash2 className="h-4 w-4 mr-1" />전체 삭제
         </Button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
+        <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handlePdfUpload} />
+      </div>
+      {pdfPath && (
+        <div className="text-xs text-muted-foreground">
+          경력증명서 순서로 정렬됨 · 매칭 {entries.filter((e: any) => e.pdf_order != null).length}/{entries.length}건
+          {entries.some((e: any) => e.pdf_order == null) && " (매칭 안 된 사업은 맨 아래에 날짜순으로 표시)"}
       </div>
 
       <Card className="p-3 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
@@ -959,6 +978,7 @@ function MobileRecognitionList({
             {isOpen && (
               <div className="mt-3 pt-3 border-t space-y-1.5 text-xs">
                 <DetailRow label="참여기간">{formatIso(r.entry.period_start)} ~ {r.entry.period_end_text || ""}</DetailRow>
+                <DetailRow label="경력증명서">{(r.entry as any).pdf_page ? `${(r.entry as any).pdf_page}쪽` : "-"}</DetailRow>
                 <DetailRow label="사업공종">{r.entry.service_field || "-"}</DetailRow>
                 <DetailRow label="전문분야">
                   {r.entry.specialty || "-"}
@@ -1128,6 +1148,7 @@ function RecognitionView({ entries, tech, excludePrivate, setPrivateOverride }: 
                     );
                   })()}
                 </TableCell>
+                <TableCell className="text-center">{(r.entry as any).pdf_page ? `${(r.entry as any).pdf_page}쪽` : "-"}</TableCell>
                 <TableCell>{excludePrivate && r.isPrivate && <Badge variant="destructive" className="text-[10px]">민간{isManual && "(수기)"}</Badge>}</TableCell>
               </TableRow>
               );
