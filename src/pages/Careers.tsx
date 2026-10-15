@@ -508,9 +508,41 @@ function TechnicianDetail({
     const lines = await extractLines(pdfjsLib, bytes);
     const rows = list.map((e) => ({ project: e.project_name || "", start: hlToDate(e.period_start), end: hlToDate(e.period_end_text) }));
     const hits = matchRows(lines, rows);
-    const pos = new Map<number, { page: number; y: number }>();
+    const pos = new Map<number, { page: number; y: number; tie?: number }>();
     hits.forEach((h) => { const b = h.boxes[0]; if (b) pos.set(h.row, { page: b.page, y: b.y }); });
-    const ordered = [...pos.entries()].sort((a, b) => a[1].page - b[1].page || b[1].y - a[1].y);
+
+    // 2단계: 정확 매칭 실패 → 사업명 유사도(띄어쓰기·기호 무시)로 가장 비슷한 줄
+    const clean = (s: string) => String(s || "").replace(/[\s·ㆍ.,()\[\]{}\-_~'"“”‘’:;/\\&+㈜]/g, "");
+    const grams = (s: string) => { const r = new Set<string>(); for (let i = 0; i < s.length - 1; i++) r.add(s.slice(i, i + 2)); return r; };
+    const usedLines = new Set<string>([...pos.values()].map((p) => `${p.page}|${Math.round(p.y)}`));
+    const lineInfo = lines.map((l) => ({ l, t: clean(l.items.map((i: any) => i.str).join("")) }))
+      .filter((x) => x.t.length >= 4);
+    list.forEach((e, i) => {
+      if (pos.has(i)) return;
+      const t = clean(e.project_name || "");
+      if (t.length < 3) return;
+      const a = grams(t);
+      let best: { s: number; l: any } | null = null;
+      for (const { l, t: lt } of lineInfo) {
+        if (usedLines.has(`${l.page}|${Math.round(l.y)}`)) continue;
+        const b = grams(lt.length > t.length + 10 && lt.includes(t.slice(0, 4)) ? lt.slice(lt.indexOf(t.slice(0, 4)), lt.indexOf(t.slice(0, 4)) + t.length + 4) : lt);
+        let n = 0; a.forEach((g) => { if (b.has(g)) n++; });
+        const s = (2 * n) / (a.size + b.size || 1);
+        if (s >= 0.55 && (!best || s > best.s)) best = { s, l };
+      }
+      if (best) { pos.set(i, { page: best.l.page, y: best.l.y }); usedLines.add(`${best.l.page}|${Math.round(best.l.y)}`); }
+    });
+
+    // 3단계: 그래도 못 찾으면 참여시작일 기준 바로 앞 사업 위치 다음에 끼워넣기
+    const byDate = list.map((e, i) => ({ i, d: e.period_start || "" })).sort((a, b) => a.d.localeCompare(b.d));
+    byDate.forEach(({ i }, k) => {
+      if (pos.has(i)) return;
+      let ref: { page: number; y: number } | undefined;
+      for (let j = k - 1; j >= 0 && !ref; j--) ref = pos.get(byDate[j].i);
+      if (!ref) for (let j = k + 1; j < byDate.length && !ref; j++) { const p = pos.get(byDate[j].i); if (p) ref = { page: p.page, y: p.y + 0.5 }; }
+      if (ref) pos.set(i, { page: ref.page, y: ref.y - 0.01, tie: k });
+    });
+    const ordered = [...pos.entries()].sort((a, b) => a[1].page - b[1].page || b[1].y - a[1].y || (a[1].tie ?? 0) - (b[1].tie ?? 0));
     const orderOf = new Map<number, number>();
     ordered.forEach(([ri], i) => orderOf.set(ri, i + 1));
     await Promise.all(list.map((e, i) => (supabase as any).from("career_entries").update({
