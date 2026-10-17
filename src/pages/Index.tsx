@@ -59,6 +59,27 @@ export default function Index() {
     try { return localStorage.getItem(BG_KEY); } catch { return null; }
   });
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const [bgTf, setBgTf] = useState<BgTransform>(loadTf);
+  const [adjusting, setAdjusting] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+
+  const saveTf = (tf: BgTransform) => {
+    setBgTf(tf);
+    try { localStorage.setItem(BG_TF_KEY, JSON.stringify(tf)); } catch { /* ignore */ }
+  };
+  const zoomBy = (delta: number) =>
+    saveTf({ ...bgTf, scale: Math.min(5, Math.max(1, Math.round((bgTf.scale + delta) * 100) / 100)) });
+  const onBgPointerDown = (e: React.PointerEvent) => {
+    if (!adjusting) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: bgTf.x, baseY: bgTf.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onBgPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    saveTf({ ...bgTf, x: d.baseX + (e.clientX - d.startX), y: d.baseY + (e.clientY - d.startY) });
+  };
+  const onBgPointerUp = () => { dragRef.current = null; };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-dash-bg", bgUrl ? "1" : "0");
