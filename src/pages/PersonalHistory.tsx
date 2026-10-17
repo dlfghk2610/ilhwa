@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type PersonalCareer = {
   id: string;
@@ -108,14 +109,15 @@ export default function PersonalHistory() {
   const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
   const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const toggle = (name: string) => setCollapsed((p) => ({ ...p, [name]: !p[name] }));
-  const expandAll = () => setCollapsed({});
-  const collapseAll = () => {
+  // 기본값: 모든 기술자 카드 접힘 (expanded 에 없는 이름 = 접힘)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggle = (name: string) => setExpanded((p) => ({ ...p, [name]: !p[name] }));
+  const expandAll = () => {
     const next: Record<string, boolean> = {};
     filtered.forEach(([n]) => { next[n] = true; });
-    setCollapsed(next);
+    setExpanded(next);
   };
+  const collapseAll = () => setExpanded({});
 
   const load = async () => {
     setLoading(true);
