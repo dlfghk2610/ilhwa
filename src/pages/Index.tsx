@@ -81,7 +81,7 @@ export default function Index() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-2xl font-bold">PQ</h2>
-              <p className="mt-1 text-primary-foreground/80">사업수행능력평가 데이터를 한 곳에서 관리하세요</p>
+              <p className="mt-1 text-primary-foreground/80">사업수행능력평가 관리</p>
             </div>
             {companyName && (
               <div className="flex items-center gap-2 rounded-lg bg-primary-foreground/15 backdrop-blur px-4 py-2.5 border border-primary-foreground/20">
