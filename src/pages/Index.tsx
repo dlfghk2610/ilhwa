@@ -203,17 +203,17 @@ export default function Index() {
           </>
         )}
 
-        <div className="relative z-10 rounded-xl gradient-primary-soft border border-primary-foreground/15 p-6 text-primary-foreground shadow-elevated">
+        <div className="dash-hero relative z-10 rounded-xl p-6 shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-2xl font-bold">PQ</h2>
-              <p className="mt-1 text-primary-foreground/80">사업수행능력평가 관리</p>
+              <p className="dash-hero-sub mt-1">사업수행능력평가 관리</p>
             </div>
             {companyName && (
-              <div className="flex items-center gap-2 rounded-lg bg-primary-foreground/15 backdrop-blur px-4 py-2.5 border border-primary-foreground/20">
+              <div className="dash-hero-chip flex items-center gap-2 rounded-lg backdrop-blur px-4 py-2.5">
                 <Building2 className="h-5 w-5" />
                 <div className="leading-tight">
-                  <div className="text-[11px] uppercase tracking-wider text-primary-foreground/70">접속회사</div>
+                  <div className="dash-hero-sub text-[11px] uppercase tracking-wider">접속회사</div>
                   <div className="text-base font-bold">{companyName}</div>
                 </div>
               </div>
