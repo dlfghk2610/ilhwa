@@ -59,7 +59,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">PQ</span>
+              <span className="text-sm font-semibold text-sidebar-foreground">PQ관리</span>
               <span className="text-xs text-sidebar-foreground/60">사업수행능력평가</span>
             </div>
           )}
