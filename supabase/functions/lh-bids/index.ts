@@ -105,8 +105,14 @@ Deno.serve(async (req) => {
       const hint = lastErr
         ? " 공공데이터포털에서 '한국토지주택공사 입찰공고정보' 서비스 활용신청이 필요합니다."
         : "";
-      return new Response(JSON.stringify({ error: `LH API 오류: ${msg}.${hint}` }), {
-        status: 502,
+      // 200으로 응답해 화면이 오류로 멈추지 않고 안내 메시지만 표시되도록 함
+      return new Response(JSON.stringify({
+        error: `LH API 오류: ${msg}.${hint}`,
+        code: lastErr ? "KEY_NOT_REGISTERED" : "LH_API_ERROR",
+        items: [],
+        totalCount: 0,
+      }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
