@@ -87,7 +87,7 @@ export default function Index() {
               <div className="flex items-center gap-2 rounded-lg bg-primary-foreground/15 backdrop-blur px-4 py-2.5 border border-primary-foreground/20">
                 <Building2 className="h-5 w-5" />
                 <div className="leading-tight">
-                  <div className="text-[11px] uppercase tracking-wider text-primary-foreground/70">접속 회사</div>
+                  <div className="text-[11px] uppercase tracking-wider text-primary-foreground/70">접속회사</div>
                   <div className="text-base font-bold">{companyName}</div>
                 </div>
               </div>
