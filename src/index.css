@@ -103,3 +103,15 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
 }
+
+/* 대시보드 전체화면 배경 이미지: 사이드바·헤더를 반투명하게 */
+html[data-dash-bg="1"] .app-header {
+  background-color: hsl(var(--card) / 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+html[data-dash-bg="1"] [data-sidebar="sidebar"] {
+  background-color: hsl(var(--sidebar-background) / 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
