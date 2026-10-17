@@ -346,8 +346,8 @@ export default function PersonalHistory() {
                           </div>
                           {isCollapsed ? (
                             <>
-                              {prof?.specialty && <div className="text-[11px] text-muted-foreground truncate">{prof.specialty}</div>}
-                              {primaryCert?.name && <div className="text-[11px] text-muted-foreground truncate">자격: {primaryCert.name}</div>}
+                              {prof?.specialty && <div className="text-[11px] text-muted-foreground line-clamp-2" title={prof.specialty}>{prof.specialty}</div>}
+                              {primaryCert?.name && <div className="text-[11px] text-muted-foreground line-clamp-2" title={primaryCert.name}>자격: {primaryCert.name}</div>}
                               {prof?.birth_date && (
                                 <div className="text-[11px] text-muted-foreground truncate">
                                   {formatBirth(prof.birth_date)}{age ? ` · 만 ${age}` : ""}
