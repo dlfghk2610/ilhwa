@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ChevronRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PersonalCareer = {
@@ -67,6 +67,27 @@ const diffYM = (start?: string | null, end?: string | null) => {
   return `${y}년 ${m}개월`;
 };
 
+// 전(前)직장 + 현직장 총 근무기간 합산 (재직중이면 공고일 기준)
+const totalWorkYM = (list: PersonalCareer[], annDate: string) => {
+  let months = 0;
+  list.forEach((r, idx) => {
+    const isLast = idx === list.length - 1;
+    const next = list[idx + 1];
+    const isCurrent = !r.resign_date && isLast;
+    const end = r.resign_date || (isLast ? (annDate || null) : (next?.hire_date || null));
+    const s = parseDate(r.hire_date);
+    const e = parseDate(end);
+    if (!s || !e || e < s) return;
+    let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+    if (e.getDate() < s.getDate()) m -= 1;
+    if (m > 0) months += m;
+  });
+  if (months <= 0) return "";
+  const y = Math.floor(months / 12);
+  const m2 = months % 12;
+  return `${y}년 ${m2}개월`;
+};
+
 const diffDays = (start?: string | null, end?: string | null) => {
   const s = parseDate(start);
   const e = parseDate(end);
@@ -109,15 +130,8 @@ export default function PersonalHistory() {
   const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
   const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
-  // 기본값: 모든 기술자 카드 접힘 (expanded 에 없는 이름 = 접힘)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (name: string) => setExpanded((p) => ({ ...p, [name]: !p[name] }));
-  const expandAll = () => {
-    const next: Record<string, boolean> = {};
-    filtered.forEach(([n]) => { next[n] = true; });
-    setExpanded(next);
-  };
-  const collapseAll = () => setExpanded({});
+  // 카드 클릭 시 접힘/펼침 대신 상세 탭(다이얼로그)으로 표시
+  const [viewTech, setViewTech] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -313,12 +327,6 @@ export default function PersonalHistory() {
             <div className="text-xs text-muted-foreground">
               기술자별로 인적사항·학력·자격증·근무처 이력을 입력하세요. 재직중인 경우 공고일 기준으로 근무기간이 계산됩니다.
             </div>
-            {filtered.length > 0 && (
-              <div className="flex gap-1 shrink-0">
-                <Button size="sm" variant="outline" onClick={expandAll}>모두 펼치기</Button>
-                <Button size="sm" variant="outline" onClick={collapseAll}>모두 접기</Button>
-              </div>
-            )}
           </div>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
@@ -330,176 +338,43 @@ export default function PersonalHistory() {
                 const firstHire = list[0]?.hire_date;
                 const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
                 const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
-                const isCollapsed = !expanded[name];
                 const prof = profileMap.get(name);
                 const age = koreanAge(prof?.birth_date, announcementDate);
                 const primaryCert = prof?.certifications?.find((c) => c.is_primary) || prof?.certifications?.[0];
+                const totalWork = totalWorkYM(list, announcementDate);
                 return (
-                  <div key={name} className={cn("border rounded-md", isCollapsed ? "p-2 space-y-1 hover:shadow-card transition-shadow" : "col-span-full p-3 space-y-2")}>
+                  <div
+                    key={name}
+                    className="border rounded-md p-2 space-y-1 hover:shadow-card transition-shadow cursor-pointer"
+                    onClick={() => setViewTech(name)}
+                    title="클릭하면 상세 이력이 열립니다"
+                  >
                     <div className="flex items-start justify-between gap-1">
-                      <button type="button" onClick={() => toggle(name)} className="flex items-start gap-1.5 text-left flex-1 min-w-0">
-                        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" />}
+                      <div className="flex items-start gap-1.5 text-left flex-1 min-w-0 min-h-[1.25rem]">
+                        <ChevronRight className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <div className="min-w-0">
-                          <div className={cn("font-semibold truncate", isCollapsed ? "text-sm" : "text-base")}>
+                          <div className="font-semibold truncate text-sm">
                             {name}
                             {list.length > 0 && <span className="text-[11px] text-muted-foreground font-normal"> ({list.length}곳)</span>}
                           </div>
-                          {isCollapsed ? (
-                            <>
-                              {prof?.specialty && <div className="text-[11px] text-muted-foreground line-clamp-2" title={prof.specialty}>{prof.specialty}</div>}
-                              {primaryCert?.name && <div className="text-[11px] text-muted-foreground line-clamp-2" title={primaryCert.name}>자격: {primaryCert.name}</div>}
-                              {prof?.birth_date && (
-                                <div className="text-[11px] text-muted-foreground truncate">
-                                  {formatBirth(prof.birth_date)}{age ? ` · 만 ${age}` : ""}
-                                </div>
-                              )}
-                              {announcementDate && firstHire && (
-                                <div className="text-[11px] text-muted-foreground truncate">이적 {totalDays.toLocaleString()}일 · {totalYM}</div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-xs text-muted-foreground mt-1 space-x-2">
-                                {prof?.specialty && <span>전문분야: <span className="font-medium text-foreground">{prof.specialty}</span></span>}
-                                {prof?.birth_date && <span>생년월일: <span className="font-medium text-foreground">{formatBirth(prof.birth_date)}</span></span>}
-                                {age && <span>만 {age}</span>}
-                                {primaryCert?.name && <span>· 대표자격: <span className="font-medium text-foreground">{primaryCert.name}</span></span>}
-                              </div>
-                              {announcementDate && firstHire && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
-                                  {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
-                                </div>
-                              )}
-                            </>
+                          {totalWork && <div className="text-[11px] text-muted-foreground truncate">총 근무 {totalWork}</div>}
+                          {prof?.specialty && <div className="text-[11px] text-muted-foreground line-clamp-2" title={prof.specialty}>{prof.specialty}</div>}
+                          {primaryCert?.name && <div className="text-[11px] text-muted-foreground line-clamp-2" title={primaryCert.name}>자격: {primaryCert.name}</div>}
+                          {prof?.birth_date && (
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {formatBirth(prof.birth_date)}{age ? ` · 만 ${age}` : ""}
+                            </div>
+                          )}
+                          {announcementDate && firstHire && (
+                            <div className="text-[11px] text-muted-foreground truncate">이적 {totalDays.toLocaleString()}일 · {totalYM}</div>
                           )}
                         </div>
-                      </button>
-                      <div className="flex gap-0.5 shrink-0">
-                        {isCollapsed ? (
-                          <>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" title="수정" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" title="삭제" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">수정</span></Button>
-                            <Button size="sm" variant="ghost" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </>
-                        )}
+                      </div>
+                      <div className="flex gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" title="수정" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" title="삭제" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
-                    {!isCollapsed && (
-                      <>
-                        {/* Profile details */}
-                        {prof && (prof.specialty || prof.address || prof.grade_kepa || prof.grade_eval || prof.educations?.length || prof.certifications?.length) ? (
-                          <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5 break-words">
-                            {prof.address && (
-                              <div><span className="text-muted-foreground">주소: </span><span className="text-foreground">{prof.address}</span></div>
-                            )}
-                            {(prof.grade_kepa || prof.grade_eval) && (
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                                {prof.grade_kepa && <div><span className="text-muted-foreground">건기협 등급: </span><span className="text-foreground">{prof.grade_kepa}</span></div>}
-                                {prof.grade_eval && <div><span className="text-muted-foreground">평가협회 등급: </span><span className="text-foreground">{prof.grade_eval}</span></div>}
-                              </div>
-                            )}
-                            {prof.educations?.length ? (
-                              <div>
-                                <div className="text-muted-foreground">학력</div>
-                                <ul className="list-disc list-inside space-y-0.5">
-                                  {prof.educations.map((e, i) => (
-                                    <li key={i}>{[e.school, e.major, e.degree].filter(Boolean).join(" · ")}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ) : null}
-                            {prof.certifications?.length ? (
-                              <div>
-                                <div className="text-muted-foreground">자격증</div>
-                                <ul className="space-y-0.5">
-                                  {prof.certifications.map((c, i) => (
-                                    <li key={i}>
-                                      {c.is_primary && <Star className="inline h-3 w-3 -mt-0.5 mr-0.5 text-amber-500" />}
-                                      <span className="text-foreground">{c.name}</span>
-                                      {c.number && <span className="text-muted-foreground"> ({c.number})</span>}
-                                      {c.acquired_date && <span className="text-muted-foreground"> · {c.acquired_date}</span>}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {/* Desktop: table */}
-                        {list.length > 0 && (
-                        <div className="hidden md:block overflow-auto">
-                          <Table className="min-w-[780px] text-sm">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-12">순번</TableHead>
-                                <TableHead>근무처(회사)</TableHead>
-                                <TableHead>부서</TableHead>
-                                <TableHead>직위</TableHead>
-                                <TableHead>입사일</TableHead>
-                                <TableHead>퇴사일</TableHead>
-                                <TableHead>근무기간</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {list.map((r, idx) => {
-                                const isLast = idx === list.length - 1;
-                                const next = list[idx + 1];
-                                const isCurrent = !r.resign_date && isLast;
-                                const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
-                                const period = diffYM(r.hire_date, endDate);
-                                return (
-                                  <TableRow key={r.id}>
-                                    <TableCell>{idx + 1}</TableCell>
-                                    <TableCell className="font-medium">{r.company}{isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}</TableCell>
-                                    <TableCell>{r.department || ""}</TableCell>
-                                    <TableCell>{r.position || ""}</TableCell>
-                                    <TableCell>{r.hire_date || ""}</TableCell>
-                                    <TableCell>{r.resign_date || (isCurrent ? <span className="text-xs text-primary">재직중</span> : "")}</TableCell>
-                                    <TableCell>{period || <span className="text-muted-foreground text-xs">{isCurrent && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        )}
-                        {/* Mobile: cards */}
-                        {list.length > 0 && (
-                        <div className="md:hidden space-y-2">
-                          {list.map((r, idx) => {
-                            const isLast = idx === list.length - 1;
-                            const next = list[idx + 1];
-                            const isCurrent = !r.resign_date && isLast;
-                            const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
-                            const period = diffYM(r.hire_date, endDate);
-                            return (
-                              <div key={r.id} className="rounded-md border bg-muted/30 p-2.5 text-sm">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="font-medium truncate">
-                                    <span className="text-xs text-muted-foreground mr-1">#{idx + 1}</span>
-                                    {r.company}
-                                    {isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}
-                                  </div>
-                                </div>
-                                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                                  {r.department && <div>부서: <span className="text-foreground">{r.department}</span></div>}
-                                  {r.position && <div>직위: <span className="text-foreground">{r.position}</span></div>}
-                                  {r.hire_date && <div>입사: <span className="text-foreground">{r.hire_date}</span></div>}
-                                  <div>퇴사: <span className="text-foreground">{r.resign_date || (isCurrent ? "재직중" : "-")}</span></div>
-                                  <div className="col-span-2">기간: <span className="text-foreground">{period || (isCurrent && !announcementDate ? "공고일 필요" : "-")}</span></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        )}
-                      </>
-                    )}
                   </div>
                 );
               })}
@@ -507,6 +382,143 @@ export default function PersonalHistory() {
           )}
         </Card>
       </div>
+
+      {/* 상세 보기 탭 (다이얼로그) */}
+      <Dialog open={!!viewTech} onOpenChange={(o) => !o && setViewTech(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogHeader><DialogTitle>{viewTech} 상세 이력</DialogTitle></DialogHeader>
+          {(() => {
+            const name = viewTech;
+            if (!name) return null;
+            const list = grouped.find(([n]) => n === name)?.[1] || [];
+            const prof = profileMap.get(name);
+            const firstHire = list[0]?.hire_date;
+            const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
+            const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
+            const totalWork = totalWorkYM(list, announcementDate);
+            const age = koreanAge(prof?.birth_date, announcementDate);
+            const primaryCert = prof?.certifications?.find((c) => c.is_primary) || prof?.certifications?.[0];
+            return (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">총 근무기간(전직장+현직장): <span className="font-medium text-foreground">{totalWork || "-"}</span></span>
+                  {prof?.specialty && <span className="text-muted-foreground">전문분야: <span className="font-medium text-foreground">{prof.specialty}</span></span>}
+                  {prof?.birth_date && <span className="text-muted-foreground">생년월일: <span className="font-medium text-foreground">{formatBirth(prof.birth_date)}</span></span>}
+                  {age && <span className="text-muted-foreground">만 {age}</span>}
+                  {primaryCert?.name && <span className="text-muted-foreground">대표자격: <span className="font-medium text-foreground">{primaryCert.name}</span></span>}
+                  {announcementDate && firstHire && (
+                    <span className="text-muted-foreground">이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일 ({totalYM})</span></span>
+                  )}
+                </div>
+                {prof && (prof.address || prof.grade_kepa || prof.grade_eval || prof.educations?.length || prof.certifications?.length) ? (
+                  <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5 break-words">
+                    {prof.address && (
+                      <div><span className="text-muted-foreground">주소: </span><span className="text-foreground">{prof.address}</span></div>
+                    )}
+                    {(prof.grade_kepa || prof.grade_eval) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                        {prof.grade_kepa && <div><span className="text-muted-foreground">건기협 등급: </span><span className="text-foreground">{prof.grade_kepa}</span></div>}
+                        {prof.grade_eval && <div><span className="text-muted-foreground">평가협회 등급: </span><span className="text-foreground">{prof.grade_eval}</span></div>}
+                      </div>
+                    )}
+                    {prof.educations?.length ? (
+                      <div>
+                        <div className="text-muted-foreground">학력</div>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {prof.educations.map((e, i) => (
+                            <li key={i}>{[e.school, e.major, e.degree].filter(Boolean).join(" · ")}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {prof.certifications?.length ? (
+                      <div>
+                        <div className="text-muted-foreground">자격증</div>
+                        <ul className="space-y-0.5">
+                          {prof.certifications.map((c, i) => (
+                            <li key={i}>
+                              {c.is_primary && <Star className="inline h-3 w-3 -mt-0.5 mr-0.5 text-amber-500" />}
+                              <span className="text-foreground">{c.name}</span>
+                              {c.number && <span className="text-muted-foreground"> ({c.number})</span>}
+                              {c.acquired_date && <span className="text-muted-foreground"> · {c.acquired_date}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {list.length > 0 && (
+                  <div className="hidden md:block overflow-auto">
+                    <Table className="min-w-[780px] text-sm">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">순번</TableHead>
+                          <TableHead>근무처(회사)</TableHead>
+                          <TableHead>부서</TableHead>
+                          <TableHead>직위</TableHead>
+                          <TableHead>입사일</TableHead>
+                          <TableHead>퇴사일</TableHead>
+                          <TableHead>근무기간</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {list.map((r, idx) => {
+                          const isLast = idx === list.length - 1;
+                          const next = list[idx + 1];
+                          const isCurrent = !r.resign_date && isLast;
+                          const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
+                          const period = diffYM(r.hire_date, endDate);
+                          return (
+                            <TableRow key={r.id}>
+                              <TableCell>{idx + 1}</TableCell>
+                              <TableCell className="font-medium">{r.company}{isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}</TableCell>
+                              <TableCell>{r.department || ""}</TableCell>
+                              <TableCell>{r.position || ""}</TableCell>
+                              <TableCell>{r.hire_date || ""}</TableCell>
+                              <TableCell>{r.resign_date || (isCurrent ? <span className="text-xs text-primary">재직중</span> : "")}</TableCell>
+                              <TableCell>{period || <span className="text-muted-foreground text-xs">{isCurrent && !announcementDate ? "공고일 입력 시 계산" : ""}</span>}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {list.length > 0 && (
+                  <div className="md:hidden space-y-2">
+                    {list.map((r, idx) => {
+                      const isLast = idx === list.length - 1;
+                      const next = list[idx + 1];
+                      const isCurrent = !r.resign_date && isLast;
+                      const endDate = r.resign_date || (isLast ? (announcementDate || null) : (next?.hire_date || null));
+                      const period = diffYM(r.hire_date, endDate);
+                      return (
+                        <div key={r.id} className="rounded-md border bg-muted/30 p-2.5 text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-medium truncate">
+                              <span className="text-xs text-muted-foreground mr-1">#{idx + 1}</span>
+                              {r.company}
+                              {isCurrent && announcementDate ? <span className="ml-1 text-xs text-primary">(재직중)</span> : null}
+                            </div>
+                          </div>
+                          <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                            {r.department && <div>부서: <span className="text-foreground">{r.department}</span></div>}
+                            {r.position && <div>직위: <span className="text-foreground">{r.position}</span></div>}
+                            {r.hire_date && <div>입사: <span className="text-foreground">{r.hire_date}</span></div>}
+                            <div>퇴사: <span className="text-foreground">{r.resign_date || (isCurrent ? "재직중" : "-")}</span></div>
+                            <div className="col-span-2">기간: <span className="text-foreground">{period || (isCurrent && !announcementDate ? "공고일 필요" : "-")}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
