@@ -19,7 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, FileText as FileTextIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, ArrowRightLeft, FileText as FileTextIcon } from "lucide-react";
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
@@ -972,14 +972,17 @@ export default function Overlaps() {
 
 
         {/* 시트탭 (엑셀 스타일) — 사업을 끌어다 놓아 이동 */}
-        <div className="flex items-end gap-1 -mb-2 px-1">
+        <div className="sticky top-14 z-20 flex items-end gap-1 -mb-2 bg-background px-1 pt-2">
           {(["진행중", "준공"] as const).map((s) => {
             const count = rows.filter((r) => statusOf(r) === s).length;
             const active = sheet === s;
             return (
-              <button
+              <Button
                 key={s}
                 type="button"
+                variant="ghost"
+                size="sm"
+                aria-pressed={active}
                 onClick={() => setSheet(s)}
                 onDragOver={(e) => { e.preventDefault(); setDragOverSheet(s); }}
                 onDragLeave={() => setDragOverSheet((p) => (p === s ? null : p))}
@@ -989,12 +992,12 @@ export default function Overlaps() {
                   const id = e.dataTransfer.getData("text/plain") || draggingIdRef.current;
                   if (id) moveToSheet(id, s);
                 }}
-                className={`px-4 py-1.5 text-xs md:text-sm rounded-t-md border border-b-0 transition-colors ${
+                className={`px-4 py-1.5 text-xs md:text-sm rounded-b-none rounded-t-md border border-b-0 transition-colors ${
                   active ? "bg-card font-semibold text-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
                 } ${dragOverSheet === s ? "ring-2 ring-primary ring-offset-1 bg-primary/10" : ""}`}
               >
                 {s} <span className="text-[10px] opacity-70">({count})</span>
-              </button>
+              </Button>
             );
           })}
           <span className="ml-2 pb-1 text-[10px] text-muted-foreground hidden md:inline">사업 행을 끌어서 탭에 놓으면 이동됩니다</span>
@@ -1020,7 +1023,7 @@ export default function Overlaps() {
                   <TableHead className="w-[72px]">과업<br/>중지일</TableHead>
                   <TableHead className="w-[72px]">협의<br/>완료일</TableHead>
                   <TableHead className="w-[110px]">비고</TableHead>
-                  <TableHead className="text-right w-[72px]">관리</TableHead>
+                  <TableHead className="text-right w-[104px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1042,7 +1045,7 @@ export default function Overlaps() {
                   const susp = effectiveSuspensionDate(r);
                   const agree = effectiveAgreementDate(r);
                   return (
-                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
+                  <TableRow key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; setDragOverSheet(null); }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`cursor-pointer hover:bg-muted/30 ${isCivilianLike(r) ? "bg-green-50" : ""} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`} onClick={() => openEdit(r)}>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
                     </TableCell>
@@ -1066,7 +1069,8 @@ export default function Overlaps() {
                     <TableCell className="align-top">{fmtDateCell(susp)}</TableCell>
                     <TableCell className="align-top">{fmtDateCell(agree)}</TableCell>
                     <TableCell className="align-top break-words whitespace-normal"><span className="line-clamp-3">{r.notes || "-"}</span></TableCell>
-                    <TableCell className="text-right align-top" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-right align-top whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`${r.project_name} ${sheet === "진행중" ? "준공" : "진행중"}으로 이동`} title={sheet === "진행중" ? "준공으로 이동" : "진행중으로 이동"} onClick={() => moveToSheet(r.id, sheet === "진행중" ? "준공" : "진행중")}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </TableCell>
@@ -1096,7 +1100,7 @@ export default function Overlaps() {
             const agree = effectiveAgreementDate(r);
             const isOpen = !!expanded[r.id];
             return (
-              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); }} onDragEnd={() => { draggingIdRef.current = null; }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
+              <div key={r.id} draggable onDragStart={(e) => { draggingIdRef.current = r.id; e.dataTransfer.setData("text/plain", r.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { draggingIdRef.current = null; setDragOverSheet(null); }} onContextMenu={(e) => openContextMenu(e, r.id)} className={`border rounded-md ${isCivilianLike(r) ? "bg-green-50" : "bg-card"} ${pdfExcludedIds.has(r.id) ? "opacity-60" : ""}`}>
                 <div className="flex items-start">
                   <div className="pl-3 pt-3.5">
                     <Checkbox checked={!pdfExcludedIds.has(r.id)} onCheckedChange={() => togglePdfInclude(r.id)} aria-label="PDF 병합 포함" />
