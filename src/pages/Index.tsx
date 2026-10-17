@@ -80,7 +80,7 @@ export default function Index() {
         <div className="rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h2 className="text-2xl font-bold">엔지니어링 PQ Manager</h2>
+              <h2 className="text-2xl font-bold">PQ</h2>
               <p className="mt-1 text-primary-foreground/80">사업수행능력평가 데이터를 한 곳에서 관리하세요</p>
             </div>
             {companyName && (
