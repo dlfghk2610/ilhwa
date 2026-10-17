@@ -233,7 +233,7 @@ export function ThemeSettings() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" title="색상 테마">
+        <Button variant="ghost" size="icon" className="h-8 w-8" title="색상 테마">
           <Palette className="h-4 w-4" />
         </Button>
       </PopoverTrigger>

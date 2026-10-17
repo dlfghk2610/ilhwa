@@ -17,8 +17,10 @@ export const AppLayout = ({ children, title, headerActions }: { children: React.
           <header className="app-header h-14 flex items-center border-b bg-card px-4 gap-4 sticky top-0 z-10 shadow-card">
             <SidebarTrigger />
             <h1 className="text-lg font-semibold text-foreground flex-1 truncate">{shown}</h1>
-            {headerActions}
-            <ThemeSettings />
+            <div className="flex shrink-0 items-center gap-1">
+              {headerActions}
+              <ThemeSettings />
+            </div>
           </header>
           <main className="flex-1 p-6">{children}</main>
         </div>
