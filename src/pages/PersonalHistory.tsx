@@ -394,9 +394,6 @@ export default function PersonalHistory() {
                         {/* Profile details */}
                         {prof && (prof.specialty || prof.address || prof.grade_kepa || prof.grade_eval || prof.educations?.length || prof.certifications?.length) ? (
                           <div className="rounded-md bg-muted/30 p-2.5 text-xs space-y-1.5 break-words">
-                            {prof.specialty && (
-                              <div><span className="text-muted-foreground">전문분야: </span><span className="text-foreground">{prof.specialty}</span></div>
-                            )}
                             {prof.address && (
                               <div><span className="text-muted-foreground">주소: </span><span className="text-foreground">{prof.address}</span></div>
                             )}
