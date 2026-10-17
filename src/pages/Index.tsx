@@ -1,21 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { FileText, Award, Briefcase, Layers, Building2, ArrowRight, CalendarClock, User, GraduationCap, FlaskConical } from "lucide-react";
+import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
-const menus = [
-  { title: "입찰참가관리", url: "/bids", icon: FileText, table: "bid_participations", desc: "입찰 사업 진행 현황" },
-  { title: "PQ 기술자 실적관리", url: "/performances", icon: Award, table: "personal_performances", desc: "기술자 개별 실적" },
-  { title: "PQ 기술자 경력관리", url: "/careers", icon: Briefcase, table: "personal_careers", desc: "기술자 경력 이력" },
-  { title: "PQ 기술자 이력사항", url: "/personal-history", icon: User, table: "personal_profiles", desc: "기술자 프로필/근무처/자격" },
-  { title: "PQ 기술자 업무중첩도", url: "/overlaps", icon: Layers, table: "technician_overlaps", desc: "기술자별 참여 일정" },
-  { title: "PQ 기술자 교육현황", url: "/pq-educations", icon: GraduationCap, table: "pq_educations", desc: "기술자 교육 이수 현황" },
-  { title: "PQ 유사용역 (회사실적)", url: "/similar-services", icon: Building2, table: "similar_services", desc: "회사 누적 실적" },
-  { title: "PQ 개발·투자·활용실적", url: "/pq-dev-records", icon: FlaskConical, table: "pq_dev_records", desc: "개발/투자/활용 실적" },
-];
+const BG_KEY = "dashboard_bg_v1";
 
 const fmtDT = (iso: string | null) => {
   if (!iso) return "-";
@@ -26,22 +19,35 @@ const fmtDT = (iso: string | null) => {
 
 type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null };
 
+const fileToCompressedDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1920;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image load failed"));
+    };
+    img.src = url;
+  });
+
 export default function Index() {
   const { user } = useAuth();
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [companyName, setCompanyName] = useState<string>("");
   const [upcomingOpenings, setUpcomingOpenings] = useState<UpcomingBid[]>([]);
-
-  useEffect(() => {
-    (async () => {
-      const result: Record<string, number> = {};
-      await Promise.all(menus.map(async (m) => {
-        const { count } = await (supabase as any).from(m.table).select("*", { count: "exact", head: true });
-        result[m.table] = count ?? 0;
-      }));
-      setCounts(result);
-    })();
-  }, []);
+  const [bgUrl, setBgUrl] = useState<string | null>(() => {
+    try { return localStorage.getItem(BG_KEY); } catch { return null; }
+  });
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -65,7 +71,6 @@ export default function Index() {
     })();
   }, []);
 
-
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -74,9 +79,53 @@ export default function Index() {
     })();
   }, [user]);
 
+  const handleBgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      localStorage.setItem(BG_KEY, dataUrl);
+      setBgUrl(dataUrl);
+      toast.success("대시보드 배경 이미지를 설정했습니다.");
+    } catch {
+      toast.error("이미지를 저장하지 못했습니다. 다른 이미지를 시도해 주세요.");
+    }
+  };
+
+  const clearBg = () => {
+    try { localStorage.removeItem(BG_KEY); } catch { /* ignore */ }
+    setBgUrl(null);
+  };
+
   return (
     <AppLayout title="대시보드">
-      <div className="space-y-6">
+      <div className="relative space-y-6">
+        {bgUrl && (
+          <>
+            <div
+              className="absolute inset-0 -z-10 rounded-xl bg-cover bg-center"
+              style={{ backgroundImage: `url(${bgUrl})` }}
+              aria-hidden
+            />
+            <div className="absolute inset-0 -z-10 rounded-xl bg-background/80" aria-hidden />
+          </>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bgInputRef.current?.click()}>
+            <ImagePlus className="h-3.5 w-3.5" />
+            배경 이미지 {bgUrl ? "변경" : "설정"}
+          </Button>
+          {bgUrl && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearBg}>
+              <RotateCcw className="h-3.5 w-3.5" />
+              배경 초기화
+            </Button>
+          )}
+        </div>
+
         <div className="rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -126,25 +175,6 @@ export default function Index() {
             )}
           </CardContent>
         </Card>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {menus.map((m) => (
-            <Link key={m.url} to={m.url}>
-              <Card className="hover:shadow-elevated transition-shadow cursor-pointer h-full">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-base">{m.title}</CardTitle>
-                  <m.icon className="h-5 w-5 text-accent" />
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">{m.desc}</p>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
       </div>
     </AppLayout>
   );
