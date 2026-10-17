@@ -112,3 +112,28 @@ html[data-dash-bg="1"] .app-header {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+
+/* 대시보드 히어로: 배경이 연하면 진한 글자, 배경이 진하면 흰 글자 (data-dash-hero 가 자동 전환) */
+.dash-hero {
+  --hero-on-dark: 210 40% 98%;
+  --hero-fg: var(--foreground);
+  background: linear-gradient(135deg, hsl(var(--background) / 0.7), hsl(var(--primary-glow) / 0.18));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: hsl(var(--hero-fg));
+  border: 1px solid hsl(var(--border));
+}
+.dash-hero-sub { color: hsl(var(--hero-fg) / 0.72); }
+.dash-hero-chip {
+  background: hsl(var(--primary) / 0.08);
+  border: 1px solid hsl(var(--border));
+}
+html[data-dash-hero="dark"] .dash-hero {
+  --hero-fg: var(--hero-on-dark);
+  background: var(--gradient-primary-soft);
+  border-color: hsl(var(--hero-on-dark) / 0.16);
+}
+html[data-dash-hero="dark"] .dash-hero-chip {
+  background: hsl(var(--hero-on-dark) / 0.14);
+  border-color: hsl(var(--hero-on-dark) / 0.2);
+}
