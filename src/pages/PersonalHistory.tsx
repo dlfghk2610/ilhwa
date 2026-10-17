@@ -130,15 +130,8 @@ export default function PersonalHistory() {
   const [educations, setEducations] = useState<Education[]>([{ school: "", major: "", degree: "학사" }]);
   const [certifications, setCertifications] = useState<Certification[]>([{ name: "", number: "", acquired_date: "", is_primary: true }]);
   const [deleteTech, setDeleteTech] = useState<string | null>(null);
-  // 기본값: 모든 기술자 카드 접힘 (expanded 에 없는 이름 = 접힘)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (name: string) => setExpanded((p) => ({ ...p, [name]: !p[name] }));
-  const expandAll = () => {
-    const next: Record<string, boolean> = {};
-    filtered.forEach(([n]) => { next[n] = true; });
-    setExpanded(next);
-  };
-  const collapseAll = () => setExpanded({});
+  // 카드 클릭 시 접힘/펼침 대신 상세 탭(다이얼로그)으로 표시
+  const [viewTech, setViewTech] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
