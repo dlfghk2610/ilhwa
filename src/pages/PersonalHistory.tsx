@@ -327,12 +327,6 @@ export default function PersonalHistory() {
             <div className="text-xs text-muted-foreground">
               기술자별로 인적사항·학력·자격증·근무처 이력을 입력하세요. 재직중인 경우 공고일 기준으로 근무기간이 계산됩니다.
             </div>
-            {filtered.length > 0 && (
-              <div className="flex gap-1 shrink-0">
-                <Button size="sm" variant="outline" onClick={expandAll}>모두 펼치기</Button>
-                <Button size="sm" variant="outline" onClick={collapseAll}>모두 접기</Button>
-              </div>
-            )}
           </div>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
