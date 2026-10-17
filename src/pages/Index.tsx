@@ -212,7 +212,7 @@ export default function Index() {
           </>
         )}
 
-        <div className="relative z-10 rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
+        <div className="relative z-10 rounded-xl gradient-primary-soft border border-primary-foreground/15 p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-2xl font-bold">PQ</h2>
@@ -230,7 +230,7 @@ export default function Index() {
           </div>
         </div>
 
-        <Card className="relative z-10 shadow-card">
+        <Card className="relative z-10 shadow-card bg-card/55 backdrop-blur-md border-border/60">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent" />
