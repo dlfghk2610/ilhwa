@@ -50,6 +50,12 @@ export default function Index() {
   const bgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    document.documentElement.setAttribute("data-dash-bg", bgUrl ? "1" : "0");
+    return () => document.documentElement.removeAttribute("data-dash-bg");
+  }, [bgUrl]);
+
+
+  useEffect(() => {
     (async () => {
       const now = new Date();
       const in7days = new Date(now.getTime() + 7 * 86400000);
@@ -104,11 +110,12 @@ export default function Index() {
         {bgUrl && (
           <>
             <div
-              className="absolute inset-0 z-0 rounded-xl bg-cover bg-center"
+              className="fixed inset-0 z-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${bgUrl})` }}
               aria-hidden
             />
-            <div className="absolute inset-0 z-0 rounded-xl bg-background/30" aria-hidden />
+            <div className="fixed inset-0 z-0 bg-background/30" aria-hidden />
+
           </>
         )}
         <div className="relative z-10 flex justify-end gap-2">
