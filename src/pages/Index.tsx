@@ -118,16 +118,28 @@ export default function Index() {
 
           </>
         )}
-        <div className="relative z-10 flex justify-end gap-2">
+        <div className="relative z-20 -mt-6 -mr-6 flex justify-end gap-1">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bgInputRef.current?.click()}>
-            <ImagePlus className="h-3.5 w-3.5" />
-            배경 이미지 {bgUrl ? "변경" : "설정"}
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
+            title={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
+            className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
+            onClick={() => bgInputRef.current?.click()}
+          >
+            <ImagePlus />
           </Button>
           {bgUrl && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearBg}>
-              <RotateCcw className="h-3.5 w-3.5" />
-              배경 초기화
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="배경 초기화"
+              title="배경 초기화"
+              className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
+              onClick={clearBg}
+            >
+              <RotateCcw />
             </Button>
           )}
         </div>
