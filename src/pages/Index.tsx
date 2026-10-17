@@ -53,6 +53,41 @@ const fileToCompressedDataUrl = (file: File): Promise<string> =>
     img.src = url;
   });
 
+const srgbLuma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+const hslLuma = (spec: string): number | null => {
+  const m = spec.trim().match(/^(-?[\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const s = Number(m[2]) / 100;
+  const l = Number(m[3]) / 100;
+  const a = s * Math.min(l, 1 - l);
+  const ch = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return srgbLuma(ch(0), ch(8), ch(4));
+};
+
+const imageLuma = (src: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = 24;
+      c.height = 24;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return resolve(null);
+      ctx.drawImage(img, 0, 0, 24, 24);
+      const d = ctx.getImageData(0, 0, 24, 24).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += srgbLuma(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255);
+      resolve(sum / (d.length / 4));
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+
 export default function Index() {
   const { user } = useAuth();
   const [companyName, setCompanyName] = useState<string>("");
@@ -87,6 +122,24 @@ export default function Index() {
   useEffect(() => {
     document.documentElement.setAttribute("data-dash-bg", bgUrl ? "1" : "0");
     return () => document.documentElement.removeAttribute("data-dash-bg");
+  }, [bgUrl]);
+
+  // 배경(사진 또는 화면 바탕색)이 연한지 진한지 측정해 히어로 글자색을 고른다
+  useEffect(() => {
+    const root = document.documentElement;
+    const ref = { current: null as number | null };
+    const apply = () => {
+      const cs = getComputedStyle(root);
+      const base = ref.current ?? hslLuma(cs.getPropertyValue("--background")) ?? 0.95;
+      const prim = hslLuma(cs.getPropertyValue("--primary")) ?? 0.3;
+      root.setAttribute("data-dash-hero", base * 0.75 + prim * 0.25 < 0.34 ? "dark" : "light");
+    };
+    let alive = true;
+    if (bgUrl) imageLuma(bgUrl).then((l) => { if (alive) { ref.current = l; apply(); } });
+    else apply();
+    const mo = new MutationObserver(apply);
+    mo.observe(root, { attributes: true, attributeFilter: ["style"] });
+    return () => { alive = false; mo.disconnect(); };
   }, [bgUrl]);
 
 
