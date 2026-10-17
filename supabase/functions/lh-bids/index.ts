@@ -51,8 +51,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const serviceKey = Deno.env.get("LH_API_KEY");
-    if (!serviceKey) {
+    const serviceKeys = [Deno.env.get("LH_API_KEY"), Deno.env.get("G2B_API_KEY")].filter(
+      (k, i, a): k is string => !!k && a.indexOf(k) === i,
+    );
+    if (serviceKeys.length === 0) {
       return new Response(JSON.stringify({ error: "LH API 인증키가 설정되지 않았습니다." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
