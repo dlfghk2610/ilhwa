@@ -144,7 +144,8 @@ export default function Bids() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
 
-  // 나라장터 불러오기
+  // 나라장터/LH 불러오기
+  const [g2bSource, setG2bSource] = useState<"g2b" | "lh">("g2b");
   const [g2bOpen, setG2bOpen] = useState(false);
   const [g2bKeyword, setG2bKeyword] = useState("");
   const [g2bBegin, setG2bBegin] = useState(() => {
@@ -163,7 +164,7 @@ export default function Bids() {
   const g2bSearch = async () => {
     setG2bLoading(true);
     setG2bSelected(new Set());
-    const { data, error } = await supabase.functions.invoke("g2b-bids", {
+    const { data, error } = await supabase.functions.invoke(g2bSource === "lh" ? "lh-bids" : "g2b-bids", {
       body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
     });
     if (error || data?.error) {
