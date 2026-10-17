@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw, Move, ZoomIn, ZoomOut, Check } from "lucide-react";
 import { toast } from "sonner";
+import { DashboardBackground } from "@/components/DashboardBackground";
 
 const BG_KEY = "dashboard_bg_v1";
 const BG_TF_KEY = "dashboard_bg_tf_v1";
@@ -178,20 +179,15 @@ export default function Index() {
         </div>
         {bgUrl && (
           <>
-            <div
-              className={`fixed inset-0 z-0 bg-cover bg-center ${adjusting ? "cursor-move touch-none" : "pointer-events-none"}`}
-              style={{
-                backgroundImage: `url(${bgUrl})`,
-                transform: `translate(${bgTf.x}px, ${bgTf.y}px) scale(${bgTf.scale})`,
-                transformOrigin: "center",
-              }}
-              aria-hidden
+            <DashboardBackground
+              url={bgUrl}
+              transform={bgTf}
+              adjusting={adjusting}
               onPointerDown={onBgPointerDown}
               onPointerMove={onBgPointerMove}
               onPointerUp={onBgPointerUp}
-              onPointerCancel={onBgPointerUp}
             />
-            <div className="fixed inset-0 z-0 bg-background/30 pointer-events-none" aria-hidden />
+            <div className="fixed inset-0 z-0 bg-background/10 pointer-events-none" aria-hidden />
             {adjusting && (
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/85 backdrop-blur px-3 py-2 shadow-elevated">
                 <Button variant="outline" size="icon" aria-label="축소" title="축소" className="h-8 w-8 rounded-full" onClick={() => zoomBy(-0.1)} disabled={bgTf.scale <= 1}>
@@ -230,7 +226,7 @@ export default function Index() {
           </div>
         </div>
 
-        <Card className="relative z-10 shadow-card bg-card/55 backdrop-blur-md border-border/60">
+        <Card className="relative z-10 shadow-card bg-card/25 backdrop-blur-md border-border/60">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent" />
