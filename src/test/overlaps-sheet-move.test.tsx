@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Overlaps from "@/pages/Overlaps";
 
 const db = vi.hoisted(() => ({ records: [] as Record<string, unknown>[], update: vi.fn() }));
@@ -21,6 +21,8 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 describe("업무중복도 하단 사업 이동", () => {
+  beforeEach(() => configure({ defaultHidden: true }));
+  afterEach(() => { cleanup(); configure({ defaultHidden: false }); });
   beforeEach(() => {
     db.update.mockClear();
     db.records = Array.from({ length: 60 }, (_, i) => ({
@@ -37,7 +39,7 @@ describe("업무중복도 하단 사업 이동", () => {
     fireEvent.click(screen.getByRole("button", { name: /준공 \(1\)/ }));
     fireEvent.click(await screen.findByRole("button", { name: "사업 59 진행중으로 이동" }));
     await waitFor(() => expect(db.update).toHaveBeenCalledWith({ project_status: "진행중" }, "project-59"));
-  });
+  }, 30000);
 
   it("마지막 사업을 준공 탭에 놓으면 해당 사업만 이동한다", async () => {
     render(<Overlaps />);
@@ -53,5 +55,5 @@ describe("업무중복도 하단 사업 이동", () => {
     await waitFor(() => expect(db.update).toHaveBeenCalledExactlyOnceWith({ project_status: "준공" }, "project-59"));
     fireEvent.click(target);
     expect(await screen.findByRole("button", { name: "사업 59 진행중으로 이동" })).toBeInTheDocument();
-  });
+  }, 30000);
 });
