@@ -2,7 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 // 한국토지주택공사(LH) 입찰공고정보 - 입찰공고일자 기준 목록 조회 (XML)
 const API_URL =
-  "https://openapi.ebid.lh.or.kr/ebid.com.openapi.service.OpenBidInfoList.dev";
+  "http://openapi.ebid.lh.or.kr/ebid.com.openapi.service.OpenBidInfoList.dev";
 
 type FetchBody = {
   keyword?: string;
