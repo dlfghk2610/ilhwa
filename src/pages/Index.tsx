@@ -143,8 +143,8 @@ export default function Index() {
     <AppLayout title="대시보드" headerActions={
       <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="대시보드 배경 설정" title="대시보드 배경 설정">
-            <ImagePlus className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="대시보드 배경 설정" title="대시보드 배경 설정">
+            <ImagePlus className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-4">
