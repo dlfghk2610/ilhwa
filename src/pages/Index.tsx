@@ -104,15 +104,14 @@ export default function Index() {
         {bgUrl && (
           <>
             <div
-              className="absolute inset-0 -z-10 rounded-xl bg-cover bg-center"
+              className="absolute inset-0 z-0 rounded-xl bg-cover bg-center"
               style={{ backgroundImage: `url(${bgUrl})` }}
               aria-hidden
             />
-            <div className="absolute inset-0 -z-10 rounded-xl bg-background/80" aria-hidden />
+            <div className="absolute inset-0 z-0 rounded-xl bg-background/30" aria-hidden />
           </>
         )}
-
-        <div className="flex justify-end gap-2">
+        <div className="relative z-10 flex justify-end gap-2">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bgInputRef.current?.click()}>
             <ImagePlus className="h-3.5 w-3.5" />
@@ -126,7 +125,7 @@ export default function Index() {
           )}
         </div>
 
-        <div className="rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
+        <div className="relative z-10 rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-2xl font-bold">PQ</h2>
@@ -144,7 +143,7 @@ export default function Index() {
           </div>
         </div>
 
-        <Card className="shadow-card">
+        <Card className="relative z-10 shadow-card">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent" />
