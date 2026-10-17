@@ -144,7 +144,8 @@ export default function Bids() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
 
-  // 나라장터 불러오기
+  // 나라장터/LH 불러오기
+  const [g2bSource, setG2bSource] = useState<"g2b" | "lh">("g2b");
   const [g2bOpen, setG2bOpen] = useState(false);
   const [g2bKeyword, setG2bKeyword] = useState("");
   const [g2bBegin, setG2bBegin] = useState(() => {
@@ -158,12 +159,20 @@ export default function Bids() {
   const [g2bSelected, setG2bSelected] = useState<Set<string>>(new Set());
   const [g2bImporting, setG2bImporting] = useState(false);
 
-  const g2bKey = (it: G2BItem) => `${it.bidNtceNo}-${it.bidNtceOrd}`;
+  const g2bKey = (it: G2BItem) => `${g2bSource}-${it.bidNtceNo}-${it.bidNtceOrd}`;
+
+  const openImport = (source: "g2b" | "lh") => {
+    setG2bSource(source);
+    setG2bItems([]);
+    setG2bTotal(0);
+    setG2bSelected(new Set());
+    setG2bOpen(true);
+  };
 
   const g2bSearch = async () => {
     setG2bLoading(true);
     setG2bSelected(new Set());
-    const { data, error } = await supabase.functions.invoke("g2b-bids", {
+    const { data, error } = await supabase.functions.invoke(g2bSource === "lh" ? "lh-bids" : "g2b-bids", {
       body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
     });
     if (error || data?.error) {
@@ -405,8 +414,11 @@ export default function Bids() {
               <Input placeholder="사업명/발주처/상태 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setG2bOpen(true)}>
+              <Button size="sm" variant="outline" onClick={() => openImport("g2b")}>
                 <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => openImport("lh")}>
+                <CloudDownload className="mr-1 h-4 w-4" />LH 불러오기
               </Button>
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
             </div>
@@ -692,10 +704,10 @@ export default function Bids() {
           </DialogContent>
         </Dialog>
 
-        {/* 나라장터 불러오기 Dialog */}
+        {/* 나라장터/LH 불러오기 Dialog */}
         <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
           <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>나라장터 입찰공고 불러오기</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{g2bSource === "lh" ? "LH(한국토지주택공사) 입찰공고 불러오기" : "나라장터 입찰공고 불러오기"}</DialogTitle></DialogHeader>
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1 flex-1 min-w-[180px]">
                 <Label className="text-xs">공고명 검색어</Label>
