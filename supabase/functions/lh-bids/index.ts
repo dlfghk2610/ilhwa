@@ -79,20 +79,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    const params = new URLSearchParams({
-      serviceKey,
-      numOfRows: String(numOfRows),
-      pageNo: String(pageNo),
-      tndrbidRegDtStart: toApiDt(beginDate),
-      tndrbidRegDtEnd: toApiDt(endDate),
-    });
+    let text = "";
+    let lastErr = "";
+    let ok = false;
+    for (const key of serviceKeys) {
+      const params = new URLSearchParams({
+        serviceKey: key,
+        numOfRows: String(numOfRows),
+        pageNo: String(pageNo),
+        tndrbidRegDtStart: toApiDt(beginDate),
+        tndrbidRegDtEnd: toApiDt(endDate),
+      });
+      const res = await fetch(`${API_URL}?${params.toString()}`);
+      text = await res.text();
+      if (text.includes("SERVICE KEY IS NOT REGISTERED")) {
+        lastErr = "SERVICE KEY IS NOT REGISTERED";
+        continue; // 다음 인증키로 재시도
+      }
+      ok = true;
+      break;
+    }
 
-    const res = await fetch(`${API_URL}?${params.toString()}`);
-    const text = await res.text();
-
-    if (text.includes("<resultCode>") && !text.includes("<resultCode>00</resultCode>")) {
-      const msg = getTag(text, ["resultMsg", "returnReasonCode", "errMsg"]) || "알 수 없는 오류";
-      return new Response(JSON.stringify({ error: `LH API 오류: ${msg}` }), {
+    if (!ok || (text.includes("<resultCode>") && !text.includes("<resultCode>00</resultCode>"))) {
+      const msg = getTag(text, ["resultMsg", "returnReasonCode", "errMsg"]) || lastErr || "알 수 없는 오류";
+      const hint = lastErr
+        ? " 공공데이터포털에서 '한국토지주택공사 입찰공고정보' 서비스 활용신청이 필요합니다."
+        : "";
+      return new Response(JSON.stringify({ error: `LH API 오류: ${msg}.${hint}` }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
