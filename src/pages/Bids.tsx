@@ -19,7 +19,33 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload } from "lucide-react";
+
+// 나라장터 공고 항목
+type G2BItem = {
+  bidNtceNo: string;
+  bidNtceOrd: string;
+  projectName: string;
+  client: string;
+  announcementDate: string;
+  bidBeginDate: string;
+  bidCloseDate: string;
+  openingDate: string;
+  estimatedPrice: number | null;
+  noticeUrl: string;
+  noticeType: string;
+  contractMethod: string;
+  bidMethod: string;
+};
+
+// "YYYY-MM-DD HH:mm:ss" (KST) → ISO
+const kstToIso = (s: string): string | null => {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+09:00`;
+};
+const kstToDate = (s: string): string => (s ? s.slice(0, 10) : "");
 
 const EVAL_TYPES = ["평가", "전략", "사후", "소규모", "기후"];
 const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료"];
