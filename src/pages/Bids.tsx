@@ -405,6 +405,9 @@ export default function Bids() {
               <Input placeholder="사업명/발주처/상태 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setG2bOpen(true)}>
+                <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
+              </Button>
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
             </div>
           </div>
@@ -686,6 +689,84 @@ export default function Bids() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 나라장터 불러오기 Dialog */}
+        <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>나라장터 입찰공고 불러오기</DialogTitle></DialogHeader>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1 flex-1 min-w-[180px]">
+                <Label className="text-xs">공고명 검색어</Label>
+                <Input
+                  placeholder="예: 엔지니어링, 감독, 설계..."
+                  value={g2bKeyword}
+                  onChange={(e) => setG2bKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && g2bSearch()}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">공고일 시작</Label>
+                <Input type="date" value={g2bBegin} onChange={(e) => setG2bBegin(e.target.value)} className="w-[150px]" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">공고일 종료</Label>
+                <Input type="date" value={g2bEnd} onChange={(e) => setG2bEnd(e.target.value)} className="w-[150px]" />
+              </div>
+              <Button onClick={g2bSearch} disabled={g2bLoading}>
+                {g2bLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
+                조회
+              </Button>
+            </div>
+
+            <div className="border rounded-md max-h-[50vh] overflow-y-auto">
+              {g2bLoading ? (
+                <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+              ) : g2bItems.length === 0 ? (
+                <div className="text-center py-12 text-sm text-muted-foreground">
+                  검색어와 기간을 입력하고 [조회]를 누르세요.
+                </div>
+              ) : (
+                <ul className="divide-y">
+                  {g2bItems.map((it) => {
+                    const k = g2bKey(it);
+                    return (
+                      <li key={k} className="flex items-start gap-2 px-3 py-2.5 hover:bg-muted/40">
+                        <Checkbox
+                          className="mt-1"
+                          checked={g2bSelected.has(k)}
+                          onCheckedChange={() => g2bToggle(k)}
+                        />
+                        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => g2bToggle(k)}>
+                          <div className="font-medium text-sm break-words">{it.projectName}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>{it.client}</span>
+                            {it.announcementDate && <span>공고 {it.announcementDate.slice(0, 10)}</span>}
+                            {it.bidCloseDate && <span className="text-foreground">마감 {it.bidCloseDate.slice(0, 16)}</span>}
+                            {it.estimatedPrice != null && <span>추정가 {Number(it.estimatedPrice).toLocaleString()}원</span>}
+                            {it.bidNtceNo && <span>공고번호 {it.bidNtceNo}</span>}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+              <span className="text-xs text-muted-foreground">
+                조회 {g2bTotal}건 중 {g2bItems.length}건 표시 · 선택 {g2bSelected.size}건
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setG2bOpen(false)}>닫기</Button>
+                <Button onClick={g2bImport} disabled={g2bSelected.size === 0 || g2bImporting}>
+                  {g2bImporting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  선택 항목 가져오기
+                </Button>
+              </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
