@@ -230,7 +230,7 @@ export default function Index() {
           </div>
         </div>
 
-        <Card className="relative z-10 shadow-card bg-card/70 backdrop-blur-md border-border/60">
+        <Card className="relative z-10 shadow-card bg-card/55 backdrop-blur-md border-border/60">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent" />
