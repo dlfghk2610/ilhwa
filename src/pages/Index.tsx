@@ -139,39 +139,76 @@ export default function Index() {
   return (
     <AppLayout title="대시보드">
       <div className="relative flow-root space-y-6">
-        <div className="absolute -top-6 -right-6 z-20 flex justify-end gap-1">
+        <div className="absolute top-2 right-2 z-20 flex justify-end gap-1.5">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
           <Button
             variant="outline"
             size="icon"
             aria-label={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
             title={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
-            className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
+            className="h-7 w-7 rounded-lg border-border/60 bg-card/70 backdrop-blur"
             onClick={() => bgInputRef.current?.click()}
           >
             <ImagePlus />
           </Button>
           {bgUrl && (
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="배경 초기화"
-              title="배경 초기화"
-              className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
-              onClick={clearBg}
-            >
-              <RotateCcw />
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={adjusting ? "배경 조정 완료" : "배경 위치·크기 조정"}
+                title={adjusting ? "배경 조정 완료" : "배경 위치·크기 조정"}
+                className={`h-7 w-7 rounded-lg border-border/60 backdrop-blur ${adjusting ? "bg-primary text-primary-foreground" : "bg-card/70"}`}
+                onClick={() => setAdjusting((v) => !v)}
+              >
+                {adjusting ? <Check /> : <Move />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="배경 초기화"
+                title="배경 초기화"
+                className="h-7 w-7 rounded-lg border-border/60 bg-card/70 backdrop-blur"
+                onClick={() => { clearBg(); saveTf(DEFAULT_TF); setAdjusting(false); }}
+              >
+                <RotateCcw />
+              </Button>
+            </>
           )}
         </div>
         {bgUrl && (
           <>
             <div
-              className="fixed inset-0 z-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${bgUrl})` }}
+              className={`fixed inset-0 z-0 bg-cover bg-center ${adjusting ? "cursor-move touch-none" : "pointer-events-none"}`}
+              style={{
+                backgroundImage: `url(${bgUrl})`,
+                transform: `translate(${bgTf.x}px, ${bgTf.y}px) scale(${bgTf.scale})`,
+                transformOrigin: "center",
+              }}
               aria-hidden
+              onPointerDown={onBgPointerDown}
+              onPointerMove={onBgPointerMove}
+              onPointerUp={onBgPointerUp}
+              onPointerCancel={onBgPointerUp}
             />
-            <div className="fixed inset-0 z-0 bg-background/30" aria-hidden />
+            <div className="fixed inset-0 z-0 bg-background/30 pointer-events-none" aria-hidden />
+            {adjusting && (
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/85 backdrop-blur px-3 py-2 shadow-elevated">
+                <Button variant="outline" size="icon" aria-label="축소" title="축소" className="h-8 w-8 rounded-full" onClick={() => zoomBy(-0.1)} disabled={bgTf.scale <= 1}>
+                  <ZoomOut />
+                </Button>
+                <span className="text-xs font-medium w-12 text-center tabular-nums">{Math.round(bgTf.scale * 100)}%</span>
+                <Button variant="outline" size="icon" aria-label="확대" title="확대" className="h-8 w-8 rounded-full" onClick={() => zoomBy(0.1)} disabled={bgTf.scale >= 5}>
+                  <ZoomIn />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8 rounded-full text-xs" onClick={() => saveTf(DEFAULT_TF)}>
+                  위치 초기화
+                </Button>
+                <Button size="sm" className="h-8 rounded-full text-xs" onClick={() => setAdjusting(false)}>
+                  완료
+                </Button>
+              </div>
+            )}
           </>
         )}
 
