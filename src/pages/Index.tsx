@@ -106,7 +106,7 @@ export default function Index() {
 
   return (
     <AppLayout title="대시보드">
-      <div className="relative space-y-6">
+      <div className="relative flow-root space-y-6">
         <div className="absolute -top-6 -right-6 z-20 flex justify-end gap-1">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
           <Button
