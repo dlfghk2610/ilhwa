@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw, Move, ZoomIn, ZoomOut, Check } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardBackground } from "@/components/DashboardBackground";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const BG_KEY = "dashboard_bg_v1";
 const BG_TF_KEY = "dashboard_bg_tf_v1";
@@ -62,6 +63,7 @@ export default function Index() {
   const bgInputRef = useRef<HTMLInputElement>(null);
   const [bgTf, setBgTf] = useState<BgTransform>(loadTf);
   const [adjusting, setAdjusting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
   const saveTf = (tf: BgTransform) => {
@@ -138,45 +140,38 @@ export default function Index() {
   };
 
   return (
-    <AppLayout title="대시보드">
-      <div className="relative flow-root space-y-6">
-        <div className="absolute top-2 right-2 z-20 flex justify-end gap-1.5">
-          <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
-            title={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
-            className="h-7 w-7 rounded-lg border-border/60 bg-card/70 backdrop-blur"
-            onClick={() => bgInputRef.current?.click()}
-          >
-            <ImagePlus />
+    <AppLayout title="대시보드" headerActions={
+      <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="대시보드 배경 설정" title="대시보드 배경 설정">
+            <ImagePlus className="h-5 w-5" />
           </Button>
-          {bgUrl && (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label={adjusting ? "배경 조정 완료" : "배경 위치·크기 조정"}
-                title={adjusting ? "배경 조정 완료" : "배경 위치·크기 조정"}
-                className={`h-7 w-7 rounded-lg border-border/60 backdrop-blur ${adjusting ? "bg-primary text-primary-foreground" : "bg-card/70"}`}
-                onClick={() => setAdjusting((v) => !v)}
-              >
-                {adjusting ? <Check /> : <Move />}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="배경 초기화"
-                title="배경 초기화"
-                className="h-7 w-7 rounded-lg border-border/60 bg-card/70 backdrop-blur"
-                onClick={() => { clearBg(); saveTf(DEFAULT_TF); setAdjusting(false); }}
-              >
-                <RotateCcw />
-              </Button>
-            </>
-          )}
-        </div>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-4">
+          <h2 className="text-sm font-semibold">대시보드 배경 설정</h2>
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => bgInputRef.current?.click()}>
+            <ImagePlus className="h-4 w-4" />배경 이미지 {bgUrl ? "변경" : "설정"}
+          </Button>
+          {bgUrl && <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">확대·축소</span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" className="h-8 w-8" aria-label="축소" title="축소" disabled={bgTf.scale <= 1} onClick={() => zoomBy(-0.1)}><ZoomOut className="h-4 w-4" /></Button>
+                <span className="w-12 text-center text-xs tabular-nums">{Math.round(bgTf.scale * 100)}%</span>
+                <Button variant="outline" size="icon" className="h-8 w-8" aria-label="확대" title="확대" disabled={bgTf.scale >= 5} onClick={() => zoomBy(0.1)}><ZoomIn className="h-4 w-4" /></Button>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => { setAdjusting(!adjusting); setSettingsOpen(false); }}>
+              {adjusting ? <Check className="h-4 w-4" /> : <Move className="h-4 w-4" />}{adjusting ? "배경 조정 완료" : "배경 위치 이동"}
+            </Button>
+            <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => saveTf(DEFAULT_TF)}><RotateCcw className="h-4 w-4" />위치·크기 초기화</Button>
+            <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { clearBg(); saveTf(DEFAULT_TF); setAdjusting(false); }}><RotateCcw className="h-4 w-4" />배경 이미지 삭제</Button>
+          </>}
+        </PopoverContent>
+      </Popover>
+    }>
+      <div className="relative flow-root space-y-6">
+        <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
         {bgUrl && (
           <>
             <DashboardBackground
