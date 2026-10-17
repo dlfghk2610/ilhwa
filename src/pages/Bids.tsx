@@ -19,7 +19,33 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload } from "lucide-react";
+
+// 나라장터 공고 항목
+type G2BItem = {
+  bidNtceNo: string;
+  bidNtceOrd: string;
+  projectName: string;
+  client: string;
+  announcementDate: string;
+  bidBeginDate: string;
+  bidCloseDate: string;
+  openingDate: string;
+  estimatedPrice: number | null;
+  noticeUrl: string;
+  noticeType: string;
+  contractMethod: string;
+  bidMethod: string;
+};
+
+// "YYYY-MM-DD HH:mm:ss" (KST) → ISO
+const kstToIso = (s: string): string | null => {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+09:00`;
+};
+const kstToDate = (s: string): string => (s ? s.slice(0, 10) : "");
 
 const EVAL_TYPES = ["평가", "전략", "사후", "소규모", "기후"];
 const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료"];
@@ -117,6 +143,84 @@ export default function Bids() {
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
+
+  // 나라장터 불러오기
+  const [g2bOpen, setG2bOpen] = useState(false);
+  const [g2bKeyword, setG2bKeyword] = useState("");
+  const [g2bBegin, setG2bBegin] = useState(() => {
+    const d = new Date(Date.now() - 30 * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [g2bEnd, setG2bEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [g2bLoading, setG2bLoading] = useState(false);
+  const [g2bItems, setG2bItems] = useState<G2BItem[]>([]);
+  const [g2bTotal, setG2bTotal] = useState(0);
+  const [g2bSelected, setG2bSelected] = useState<Set<string>>(new Set());
+  const [g2bImporting, setG2bImporting] = useState(false);
+
+  const g2bKey = (it: G2BItem) => `${it.bidNtceNo}-${it.bidNtceOrd}`;
+
+  const g2bSearch = async () => {
+    setG2bLoading(true);
+    setG2bSelected(new Set());
+    const { data, error } = await supabase.functions.invoke("g2b-bids", {
+      body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || error?.message || "조회 실패");
+      setG2bItems([]);
+    } else {
+      setG2bItems(data.items || []);
+      setG2bTotal(data.totalCount || 0);
+      if ((data.items || []).length === 0) toast.info("조회된 공고가 없습니다.");
+    }
+    setG2bLoading(false);
+  };
+
+  const g2bToggle = (k: string) => {
+    setG2bSelected((prev) => {
+      const n = new Set(prev);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
+  };
+
+  const g2bImport = async () => {
+    if (!user || g2bSelected.size === 0) return;
+    setG2bImporting(true);
+    const picked = g2bItems.filter((it) => g2bSelected.has(g2bKey(it)));
+    const payload = picked.map((it) => ({
+      project_name: it.projectName || "(제목 없음)",
+      client: it.client || null,
+      announcement_date: kstToDate(it.announcementDate) || null,
+      bid_start_date: kstToDate(it.bidBeginDate) || null,
+      bid_end_at: kstToIso(it.bidCloseDate),
+      opening_at: kstToIso(it.openingDate),
+      estimated_amount: it.estimatedPrice,
+      status: "검토중",
+      notes: [
+        it.bidNtceNo ? `공고번호: ${it.bidNtceNo}-${it.bidNtceOrd}` : "",
+        it.noticeType ? `공고종류: ${it.noticeType}` : "",
+        it.contractMethod ? `계약방법: ${it.contractMethod}` : "",
+        it.bidMethod ? `입찰방식: ${it.bidMethod}` : "",
+        it.noticeUrl ? `공고링크: ${it.noticeUrl}` : "",
+      ].filter(Boolean).join("\n") || null,
+      share_rates: [],
+      participants: [],
+      evaluation_types: [],
+      service_types: [],
+      notify_hours_before: 24,
+      created_by: user.id,
+    }));
+    const { error } = await supabase.from("bid_participations").insert(payload as any);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`${payload.length}건의 공고를 가져왔습니다.`);
+      setG2bOpen(false);
+      load();
+    }
+    setG2bImporting(false);
+  };
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
@@ -301,6 +405,9 @@ export default function Bids() {
               <Input placeholder="사업명/발주처/상태 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setG2bOpen(true)}>
+                <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
+              </Button>
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
             </div>
           </div>
@@ -582,6 +689,84 @@ export default function Bids() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 나라장터 불러오기 Dialog */}
+        <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>나라장터 입찰공고 불러오기</DialogTitle></DialogHeader>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1 flex-1 min-w-[180px]">
+                <Label className="text-xs">공고명 검색어</Label>
+                <Input
+                  placeholder="예: 엔지니어링, 감독, 설계..."
+                  value={g2bKeyword}
+                  onChange={(e) => setG2bKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && g2bSearch()}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">공고일 시작</Label>
+                <Input type="date" value={g2bBegin} onChange={(e) => setG2bBegin(e.target.value)} className="w-[150px]" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">공고일 종료</Label>
+                <Input type="date" value={g2bEnd} onChange={(e) => setG2bEnd(e.target.value)} className="w-[150px]" />
+              </div>
+              <Button onClick={g2bSearch} disabled={g2bLoading}>
+                {g2bLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
+                조회
+              </Button>
+            </div>
+
+            <div className="border rounded-md max-h-[50vh] overflow-y-auto">
+              {g2bLoading ? (
+                <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
+              ) : g2bItems.length === 0 ? (
+                <div className="text-center py-12 text-sm text-muted-foreground">
+                  검색어와 기간을 입력하고 [조회]를 누르세요.
+                </div>
+              ) : (
+                <ul className="divide-y">
+                  {g2bItems.map((it) => {
+                    const k = g2bKey(it);
+                    return (
+                      <li key={k} className="flex items-start gap-2 px-3 py-2.5 hover:bg-muted/40">
+                        <Checkbox
+                          className="mt-1"
+                          checked={g2bSelected.has(k)}
+                          onCheckedChange={() => g2bToggle(k)}
+                        />
+                        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => g2bToggle(k)}>
+                          <div className="font-medium text-sm break-words">{it.projectName}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>{it.client}</span>
+                            {it.announcementDate && <span>공고 {it.announcementDate.slice(0, 10)}</span>}
+                            {it.bidCloseDate && <span className="text-foreground">마감 {it.bidCloseDate.slice(0, 16)}</span>}
+                            {it.estimatedPrice != null && <span>추정가 {Number(it.estimatedPrice).toLocaleString()}원</span>}
+                            {it.bidNtceNo && <span>공고번호 {it.bidNtceNo}</span>}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+              <span className="text-xs text-muted-foreground">
+                조회 {g2bTotal}건 중 {g2bItems.length}건 표시 · 선택 {g2bSelected.size}건
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setG2bOpen(false)}>닫기</Button>
+                <Button onClick={g2bImport} disabled={g2bSelected.size === 0 || g2bImporting}>
+                  {g2bImporting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  선택 항목 가져오기
+                </Button>
+              </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
