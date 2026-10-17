@@ -106,7 +106,32 @@ export default function Index() {
 
   return (
     <AppLayout title="대시보드">
-      <div className="relative space-y-6">
+      <div className="relative flow-root space-y-6">
+        <div className="absolute -top-6 -right-6 z-20 flex justify-end gap-1">
+          <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
+            title={`배경 이미지 ${bgUrl ? "변경" : "설정"}`}
+            className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
+            onClick={() => bgInputRef.current?.click()}
+          >
+            <ImagePlus />
+          </Button>
+          {bgUrl && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="배경 초기화"
+              title="배경 초기화"
+              className="h-7 w-7 rounded-none rounded-bl-lg border-border/60 bg-card/70 backdrop-blur"
+              onClick={clearBg}
+            >
+              <RotateCcw />
+            </Button>
+          )}
+        </div>
         {bgUrl && (
           <>
             <div
@@ -115,22 +140,8 @@ export default function Index() {
               aria-hidden
             />
             <div className="fixed inset-0 z-0 bg-background/30" aria-hidden />
-
           </>
         )}
-        <div className="relative z-10 flex justify-end gap-2">
-          <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bgInputRef.current?.click()}>
-            <ImagePlus className="h-3.5 w-3.5" />
-            배경 이미지 {bgUrl ? "변경" : "설정"}
-          </Button>
-          {bgUrl && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearBg}>
-              <RotateCcw className="h-3.5 w-3.5" />
-              배경 초기화
-            </Button>
-          )}
-        </div>
 
         <div className="relative z-10 rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
