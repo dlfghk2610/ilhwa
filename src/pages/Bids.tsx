@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload, RefreshCw } from "lucide-react";
 
 // 나라장터 공고 항목
 type G2BItem = {
