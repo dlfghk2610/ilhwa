@@ -144,6 +144,84 @@ export default function Bids() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
 
+  // 나라장터 불러오기
+  const [g2bOpen, setG2bOpen] = useState(false);
+  const [g2bKeyword, setG2bKeyword] = useState("");
+  const [g2bBegin, setG2bBegin] = useState(() => {
+    const d = new Date(Date.now() - 30 * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [g2bEnd, setG2bEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [g2bLoading, setG2bLoading] = useState(false);
+  const [g2bItems, setG2bItems] = useState<G2BItem[]>([]);
+  const [g2bTotal, setG2bTotal] = useState(0);
+  const [g2bSelected, setG2bSelected] = useState<Set<string>>(new Set());
+  const [g2bImporting, setG2bImporting] = useState(false);
+
+  const g2bKey = (it: G2BItem) => `${it.bidNtceNo}-${it.bidNtceOrd}`;
+
+  const g2bSearch = async () => {
+    setG2bLoading(true);
+    setG2bSelected(new Set());
+    const { data, error } = await supabase.functions.invoke("g2b-bids", {
+      body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error || error?.message || "조회 실패");
+      setG2bItems([]);
+    } else {
+      setG2bItems(data.items || []);
+      setG2bTotal(data.totalCount || 0);
+      if ((data.items || []).length === 0) toast.info("조회된 공고가 없습니다.");
+    }
+    setG2bLoading(false);
+  };
+
+  const g2bToggle = (k: string) => {
+    setG2bSelected((prev) => {
+      const n = new Set(prev);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
+  };
+
+  const g2bImport = async () => {
+    if (!user || g2bSelected.size === 0) return;
+    setG2bImporting(true);
+    const picked = g2bItems.filter((it) => g2bSelected.has(g2bKey(it)));
+    const payload = picked.map((it) => ({
+      project_name: it.projectName || "(제목 없음)",
+      client: it.client || null,
+      announcement_date: kstToDate(it.announcementDate) || null,
+      bid_start_date: kstToDate(it.bidBeginDate) || null,
+      bid_end_at: kstToIso(it.bidCloseDate),
+      opening_at: kstToIso(it.openingDate),
+      estimated_amount: it.estimatedPrice,
+      status: "검토중",
+      notes: [
+        it.bidNtceNo ? `공고번호: ${it.bidNtceNo}-${it.bidNtceOrd}` : "",
+        it.noticeType ? `공고종류: ${it.noticeType}` : "",
+        it.contractMethod ? `계약방법: ${it.contractMethod}` : "",
+        it.bidMethod ? `입찰방식: ${it.bidMethod}` : "",
+        it.noticeUrl ? `공고링크: ${it.noticeUrl}` : "",
+      ].filter(Boolean).join("\n") || null,
+      share_rates: [],
+      participants: [],
+      evaluation_types: [],
+      service_types: [],
+      notify_hours_before: 24,
+      created_by: user.id,
+    }));
+    const { error } = await supabase.from("bid_participations").insert(payload as any);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`${payload.length}건의 공고를 가져왔습니다.`);
+      setG2bOpen(false);
+      load();
+    }
+    setG2bImporting(false);
+  };
+
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const n = new Set(prev);
