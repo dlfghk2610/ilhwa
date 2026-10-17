@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, ChevronDown, ChevronRight, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, ChevronRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PersonalCareer = {
@@ -65,6 +65,27 @@ const diffYM = (start?: string | null, end?: string | null) => {
   const y = Math.floor(months / 12);
   const m = months % 12;
   return `${y}년 ${m}개월`;
+};
+
+// 전(前)직장 + 현직장 총 근무기간 합산 (재직중이면 공고일 기준)
+const totalWorkYM = (list: PersonalCareer[], annDate: string) => {
+  let months = 0;
+  list.forEach((r, idx) => {
+    const isLast = idx === list.length - 1;
+    const next = list[idx + 1];
+    const isCurrent = !r.resign_date && isLast;
+    const end = r.resign_date || (isLast ? (annDate || null) : (next?.hire_date || null));
+    const s = parseDate(r.hire_date);
+    const e = parseDate(end);
+    if (!s || !e || e < s) return;
+    let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+    if (e.getDate() < s.getDate()) m -= 1;
+    if (m > 0) months += m;
+  });
+  if (months <= 0) return "";
+  const y = Math.floor(months / 12);
+  const m2 = months % 12;
+  return `${y}년 ${m2}개월`;
 };
 
 const diffDays = (start?: string | null, end?: string | null) => {
