@@ -104,15 +104,14 @@ export default function Index() {
         {bgUrl && (
           <>
             <div
-              className="absolute inset-0 -z-10 rounded-xl bg-cover bg-center"
+              className="absolute inset-0 z-0 rounded-xl bg-cover bg-center"
               style={{ backgroundImage: `url(${bgUrl})` }}
               aria-hidden
             />
-            <div className="absolute inset-0 -z-10 rounded-xl bg-background/80" aria-hidden />
+            <div className="absolute inset-0 z-0 rounded-xl bg-background/55" aria-hidden />
           </>
         )}
-
-        <div className="flex justify-end gap-2">
+        <div className="relative z-10 flex justify-end gap-2">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => bgInputRef.current?.click()}>
             <ImagePlus className="h-3.5 w-3.5" />
