@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload, RefreshCw } from "lucide-react";
 
 // 나라장터 공고 항목
 type G2BItem = {
@@ -268,6 +268,38 @@ export default function Bids() {
 
   useEffect(() => { load(); }, []);
 
+  // 나라장터에서 불러온 사업: 공고번호로 재조회해 입찰·개찰 일정 갱신
+  const [syncing, setSyncing] = useState(false);
+  const syncFromG2B = async () => {
+    const targets = rows
+      .map((r) => ({ r, m: (r.notes || "").match(/공고번호:\s*([A-Za-z0-9]+)(?:-(\d+))?/) }))
+      .filter((x) => x.m);
+    if (targets.length === 0) { toast.info("나라장터에서 불러온 사업이 없습니다."); return; }
+    setSyncing(true);
+    let updated = 0;
+    for (const { r, m } of targets) {
+      const { data } = await supabase.functions.invoke("g2b-bids", { body: { bidNtceNo: m![1], numOfRows: 50 } });
+      const list: G2BItem[] = data?.items || [];
+      if (!list.length) continue;
+      // 가장 최신 차수(정정공고 포함) 사용
+      const it = [...list].sort((a, b) => Number(b.bidNtceOrd || 0) - Number(a.bidNtceOrd || 0))[0];
+      const patch: Record<string, any> = {};
+      const set = (k: string, v: any) => { if (v != null && v !== "" && v !== (r as any)[k]) patch[k] = v; };
+      set("announcement_date", kstToDate(it.announcementDate) || null);
+      set("bid_start_date", kstToDate(it.bidBeginDate) || null);
+      const be = kstToIso(it.bidCloseDate); if (be && new Date(be).getTime() !== new Date((r as any).bid_end_at || 0).getTime()) patch.bid_end_at = be;
+      const op = kstToIso(it.openingDate); if (op && new Date(op).getTime() !== new Date((r as any).opening_at || 0).getTime()) patch.opening_at = op;
+      set("estimated_amount", it.estimatedPrice);
+      if (Object.keys(patch).length) {
+        const { error } = await supabase.from("bid_participations").update(patch as any).eq("id", r.id);
+        if (!error) updated++;
+      }
+    }
+    setSyncing(false);
+    toast.success(updated ? `${updated}건의 일정이 갱신되었습니다.` : "변경된 일정이 없습니다.");
+    load();
+  };
+
   // Browser notification permission
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -427,6 +459,9 @@ export default function Bids() {
               <Button size="sm" variant="outline" onClick={() => openImport("lh")}>
                 <CloudDownload className="mr-1 h-4 w-4" />LH 불러오기
               </Button>
+              <Button size="sm" variant="outline" onClick={syncFromG2B} disabled={syncing}>
+                <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />일정 새로고침
+              </Button>
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
             </div>
           </div>
@@ -437,7 +472,7 @@ export default function Bids() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead>사업명</TableHead>
+                  <TableHead className="w-[220px] min-w-[180px]">사업명</TableHead>
                   <TableHead>발주처</TableHead>
                   <TableHead>공고일</TableHead>
                   <TableHead>PQ마감</TableHead>
@@ -466,7 +501,7 @@ export default function Bids() {
                   const expired = end && end <= Date.now();
                   return (
                     <TableRow key={r.id} className={urgent ? "bg-destructive/5" : ""}>
-                      <TableCell className="whitespace-nowrap font-medium">{r.project_name}</TableCell>
+                      <TableCell className="font-medium w-[220px] min-w-[180px] max-w-[220px]"><div className="line-clamp-3 break-words leading-snug" title={r.project_name}>{r.project_name}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.announcement_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.pq_due_date || "-"}</TableCell>

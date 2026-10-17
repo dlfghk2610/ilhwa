@@ -56,8 +56,18 @@ Deno.serve(async (req) => {
       numOfRows: String(numOfRows),
     });
     if (keyword) params.set("bidNtceNm", keyword);
+    // 공고번호로 단건 재조회 (새로고침용)
+    const bidNo = String((body as any).bidNtceNo || "").trim();
+    if (/^[A-Za-z0-9-]{4,40}$/.test(bidNo)) {
+      params.set("inqryDiv", "2");
+      params.set("bidNtceNo", bidNo);
+      params.delete("inqryBgnDt");
+      params.delete("inqryEndDt");
+      params.delete("bidNtceNm");
+    }
 
-    const res = await fetch(`${API_URL}?${params.toString()}`);
+    const url = params.get("inqryDiv") === "2" ? API_URL.replace("ServcPPSSrch", "Servc") : API_URL;
+    const res = await fetch(`${url}?${params.toString()}`);
     const text = await res.text();
 
     let json: any;
