@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
       params.delete("bidNtceNm");
     }
 
-    const res = await fetch(`${API_URL}?${params.toString()}`);
+    const url = params.get("inqryDiv") === "2" ? API_URL.replace("ServcPPSSrch", "Servc") : API_URL;
+    const res = await fetch(`${url}?${params.toString()}`);
     const text = await res.text();
 
     let json: any;
