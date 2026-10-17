@@ -325,42 +325,68 @@ export default function PersonalHistory() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">등록된 이력이 없습니다</div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {filtered.map(([name, list]) => {
                 const firstHire = list[0]?.hire_date;
                 const totalDays = announcementDate && firstHire ? diffDays(firstHire, announcementDate) : 0;
                 const totalYM = announcementDate && firstHire ? diffYM(firstHire, announcementDate) : "";
-                const isCollapsed = !!collapsed[name];
+                const isCollapsed = !expanded[name];
                 const prof = profileMap.get(name);
                 const age = koreanAge(prof?.birth_date, announcementDate);
                 const primaryCert = prof?.certifications?.find((c) => c.is_primary) || prof?.certifications?.[0];
                 return (
-                  <div key={name} className="border rounded-md p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <button type="button" onClick={() => toggle(name)} className="flex items-start gap-2 text-left flex-1 min-w-0">
-                        {isCollapsed ? <ChevronRight className="h-4 w-4 mt-1 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-1 shrink-0" />}
+                  <div key={name} className={cn("border rounded-md", isCollapsed ? "p-2 space-y-1 hover:shadow-card transition-shadow" : "col-span-full p-3 space-y-2")}>
+                    <div className="flex items-start justify-between gap-1">
+                      <button type="button" onClick={() => toggle(name)} className="flex items-start gap-1.5 text-left flex-1 min-w-0">
+                        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" />}
                         <div className="min-w-0">
-                          <div className="font-semibold text-base">
+                          <div className={cn("font-semibold truncate", isCollapsed ? "text-sm" : "text-base")}>
                             {name}
-                            {list.length > 0 && <span className="text-xs text-muted-foreground font-normal"> ({list.length}곳)</span>}
-                            {prof?.specialty && <span className="ml-2 text-xs text-muted-foreground font-normal">· {prof.specialty}</span>}
+                            {list.length > 0 && <span className="text-[11px] text-muted-foreground font-normal"> ({list.length}곳)</span>}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1 space-x-2">
-                            {prof?.birth_date && <span>생년월일: <span className="font-medium text-foreground">{formatBirth(prof.birth_date)}</span></span>}
-                            {age && <span>만 {age}</span>}
-                            {primaryCert?.name && <span>· 대표자격: <span className="font-medium text-foreground">{primaryCert.name}</span></span>}
-                          </div>
-                          {announcementDate && firstHire && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
-                              {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
-                            </div>
+                          {isCollapsed ? (
+                            <>
+                              {prof?.specialty && <div className="text-[11px] text-muted-foreground truncate">{prof.specialty}</div>}
+                              {primaryCert?.name && <div className="text-[11px] text-muted-foreground truncate">자격: {primaryCert.name}</div>}
+                              {prof?.birth_date && (
+                                <div className="text-[11px] text-muted-foreground truncate">
+                                  {formatBirth(prof.birth_date)}{age ? ` · 만 ${age}` : ""}
+                                </div>
+                              )}
+                              {announcementDate && firstHire && (
+                                <div className="text-[11px] text-muted-foreground truncate">이적 {totalDays.toLocaleString()}일 · {totalYM}</div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                                {prof?.specialty && <span>전문분야: <span className="font-medium text-foreground">{prof.specialty}</span></span>}
+                                {prof?.birth_date && <span>생년월일: <span className="font-medium text-foreground">{formatBirth(prof.birth_date)}</span></span>}
+                                {age && <span>만 {age}</span>}
+                                {primaryCert?.name && <span>· 대표자격: <span className="font-medium text-foreground">{primaryCert.name}</span></span>}
+                              </div>
+                              {announcementDate && firstHire && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  이적일수: <span className="font-medium text-foreground">{totalDays.toLocaleString()}일</span>
+                                  {" · "}이적개월: <span className="font-medium text-foreground">{totalYM}</span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </button>
-                      <div className="flex gap-1 shrink-0">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">수정</span></Button>
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <div className="flex gap-0.5 shrink-0">
+                        {isCollapsed ? (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" title="수정" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" title="삭제" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => openEdit(name, list)}><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">수정</span></Button>
+                            <Button size="sm" variant="ghost" onClick={() => setDeleteTech(name)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </>
+                        )}
                       </div>
                     </div>
                     {!isCollapsed && (
