@@ -5,10 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw } from "lucide-react";
+import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw, Move, ZoomIn, ZoomOut, Check } from "lucide-react";
 import { toast } from "sonner";
 
 const BG_KEY = "dashboard_bg_v1";
+const BG_TF_KEY = "dashboard_bg_tf_v1";
+type BgTransform = { scale: number; x: number; y: number };
+const DEFAULT_TF: BgTransform = { scale: 1, x: 0, y: 0 };
+const loadTf = (): BgTransform => {
+  try {
+    const raw = localStorage.getItem(BG_TF_KEY);
+    if (!raw) return DEFAULT_TF;
+    const p = JSON.parse(raw);
+    return { scale: Number(p.scale) || 1, x: Number(p.x) || 0, y: Number(p.y) || 0 };
+  } catch { return DEFAULT_TF; }
+};
 
 const fmtDT = (iso: string | null) => {
   if (!iso) return "-";
