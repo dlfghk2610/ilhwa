@@ -107,18 +107,7 @@ export default function Index() {
   return (
     <AppLayout title="대시보드">
       <div className="relative space-y-6">
-        {bgUrl && (
-          <>
-            <div
-              className="fixed inset-0 z-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${bgUrl})` }}
-              aria-hidden
-            />
-            <div className="fixed inset-0 z-0 bg-background/30" aria-hidden />
-
-          </>
-        )}
-        <div className="relative z-20 -mt-6 -mr-6 flex justify-end gap-1">
+        <div className="absolute -top-6 -right-6 z-20 flex justify-end gap-1">
           <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
           <Button
             variant="outline"
@@ -143,6 +132,16 @@ export default function Index() {
             </Button>
           )}
         </div>
+        {bgUrl && (
+          <>
+            <div
+              className="fixed inset-0 z-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${bgUrl})` }}
+              aria-hidden
+            />
+            <div className="fixed inset-0 z-0 bg-background/30" aria-hidden />
+          </>
+        )}
 
         <div className="relative z-10 rounded-xl gradient-primary p-6 text-primary-foreground shadow-elevated">
           <div className="flex items-start justify-between gap-4 flex-wrap">
