@@ -176,7 +176,14 @@ export default function Bids() {
       body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
     });
     if (error || data?.error) {
-      toast.error(data?.error || error?.message || "조회 실패");
+      if (data?.code === "KEY_NOT_REGISTERED") {
+        toast.error("LH 인증키가 아직 LH 입찰공고 서비스에 등록되지 않았습니다.", {
+          description: "공공데이터포털에서 '한국토지주택공사 입찰공고정보' 활용신청 후 다시 조회해주세요. (승인 후 반영까지 최대 1~2시간 걸릴 수 있습니다)",
+          duration: 8000,
+        });
+      } else {
+        toast.error(data?.error || error?.message || "조회 실패");
+      }
       setG2bItems([]);
     } else {
       setG2bItems(data.items || []);
