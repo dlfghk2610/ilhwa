@@ -108,7 +108,7 @@ export default function Index() {
               style={{ backgroundImage: `url(${bgUrl})` }}
               aria-hidden
             />
-            <div className="absolute inset-0 z-0 rounded-xl bg-background/55" aria-hidden />
+            <div className="absolute inset-0 z-0 rounded-xl bg-background/30" aria-hidden />
           </>
         )}
         <div className="relative z-10 flex justify-end gap-2">
