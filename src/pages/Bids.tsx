@@ -488,13 +488,13 @@ export default function Bids() {
   return (
     <AppLayout title="입찰참가관리">
       <div className="space-y-4">
-        <Card className="p-4 shadow-card">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
-            <div className="relative flex-1 min-w-[240px] max-w-md">
+        <Card className="p-3 sm:p-4 shadow-card">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="사업명/발주처/상태 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               <Button size="sm" variant="outline" onClick={() => openImport("g2b")}>
                 <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
               </Button>
@@ -506,12 +506,12 @@ export default function Bids() {
               <Button size="sm" variant="outline" onClick={syncFromG2B} disabled={syncing}>
                 <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />일정 새로고침
               </Button>
-              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />등록</Button>
+              <Button size="sm" onClick={openCreate} className="col-span-2 sm:col-span-1"><Plus className="mr-1 h-4 w-4" />등록</Button>
             </div>
           </div>
         </Card>
 
-        <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        <div className="grid grid-cols-2 sm:flex gap-1 rounded-lg bg-muted p-1 w-full sm:w-fit">
           {([["ongoing", "진행중"], ["opened", "개찰완료"]] as const).map(([k, label]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
@@ -522,7 +522,7 @@ export default function Bids() {
 
         <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-xs xl:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-[220px] min-w-[180px]">사업명</TableHead>
@@ -536,7 +536,7 @@ export default function Bids() {
                   <TableHead className="text-right">추정금액</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>알림</TableHead>
-                  <TableHead className="text-right w-[150px]">관리</TableHead>
+                  <TableHead className="text-right w-[120px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -555,7 +555,7 @@ export default function Bids() {
                   return (
                     <TableRow key={r.id} className={urgent ? "bg-destructive/5" : ""}>
                       <TableCell className="font-medium w-[220px] min-w-[180px] max-w-[220px]"><div className="line-clamp-3 break-words leading-snug" title={r.project_name}>{r.project_name}</div></TableCell>
-                      <TableCell className="whitespace-nowrap">{r.client || "-"}</TableCell>
+                      <TableCell className="min-w-[110px] max-w-[160px]"><div className="line-clamp-2 break-words">{r.client || "-"}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{r.announcement_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.pq_due_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.bid_start_date || "-"}</TableCell>
@@ -569,10 +569,10 @@ export default function Bids() {
                           <Bell className="h-3 w-3" /> {r.notify_hours_before}h
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" title={isOpened(r) ? "진행중으로 이동" : "개찰완료로 이동"} onClick={() => moveRow(r)}><ArrowRightLeft className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" title={isOpened(r) ? "진행중으로 이동" : "개찰완료로 이동"} onClick={() => moveRow(r)}><ArrowRightLeft className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -605,7 +605,11 @@ export default function Bids() {
                     >
                       {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm break-words">{r.project_name}</div>
+                        <div className="flex items-start gap-2">
+                          <div className="font-medium text-sm break-words line-clamp-3 flex-1">{r.project_name}</div>
+                          {r.status && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{r.status}</span>}
+                        </div>
+                        {r.client && <div className="text-xs text-muted-foreground mt-0.5 truncate">{r.client}</div>}
                         <div className={"text-xs mt-1 " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "text-muted-foreground")}>
                           입찰마감: {fmtDT(r.bid_end_at)} {r.bid_end_at && <span className="ml-1">({dDisplay(r.bid_end_at)})</span>}
                         </div>
@@ -621,8 +625,8 @@ export default function Bids() {
                         <div><span className="text-muted-foreground">추정금액: </span>{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</div>
                         <div><span className="text-muted-foreground">상태: </span>{r.status || "-"}</div>
                         <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h</div>
-                        <div className="flex gap-2 pt-2">
-                          <Button size="sm" variant="outline" onClick={() => moveRow(r)}><ArrowRightLeft className="h-3 w-3 mr-1" />{isOpened(r) ? "진행중으로" : "개찰완료로"}</Button>
+                        <div className="grid grid-cols-3 gap-2 pt-2">
+                          <Button size="sm" variant="outline" className="px-1" onClick={() => moveRow(r)}><ArrowRightLeft className="h-3 w-3 mr-1" />{isOpened(r) ? "진행중으로" : "개찰완료로"}</Button>
                           <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
                         </div>
