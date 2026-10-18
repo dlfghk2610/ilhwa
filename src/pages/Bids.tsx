@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload, RefreshCw, ArrowRightLeft } from "lucide-react";
 
 // 나라장터 공고 항목
 type G2BItem = {
@@ -48,7 +48,7 @@ const kstToIso = (s: string): string | null => {
 const kstToDate = (s: string): string => (s ? s.slice(0, 10) : "");
 
 const EVAL_TYPES = ["평가", "전략", "사후", "소규모", "기후"];
-const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료"];
+const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료", "개찰완료"];
 
 const clampDate = (v: string) => {
   if (!v) return "";
@@ -430,10 +430,24 @@ export default function Bids() {
     setDeleteId(null);
   };
 
-  const filtered = useMemo(() => rows.filter((r) =>
+  const [tab, setTab] = useState<"ongoing" | "opened">("ongoing");
+  const isOpened = (r: BidRow) => r.status === "개찰완료";
+  const tabCounts = useMemo(() => ({
+    ongoing: rows.filter((r) => !isOpened(r)).length,
+    opened: rows.filter(isOpened).length,
+  }), [rows]);
+  const moveRow = async (r: BidRow) => {
+    const next = isOpened(r) ? "검토중" : "개찰완료";
+    const { error } = await supabase.from("bid_participations").update({ status: next } as any).eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+    toast.success(next === "개찰완료" ? "개찰완료 탭으로 옮겼습니다." : "진행중 탭으로 옮겼습니다.");
+  };
+
+  const filtered = useMemo(() => rows.filter((r) => (tab === "opened" ? isOpened(r) : !isOpened(r))).filter((r) =>
     !search ||
     [r.project_name, r.client, r.status].some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()))
-  ), [rows, search]);
+  ), [rows, search, tab]);
 
 
   const toggleArr = (key: "evaluation_types" | "service_types", v: string) => {
@@ -467,6 +481,15 @@ export default function Bids() {
           </div>
         </Card>
 
+        <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+          {([["ongoing", "진행중"], ["opened", "개찰완료"]] as const).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setTab(k)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              {label} <span className="ml-1 text-xs text-muted-foreground">{tabCounts[k]}</span>
+            </button>
+          ))}
+        </div>
+
         <Card className="shadow-card overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
             <Table>
@@ -483,7 +506,7 @@ export default function Bids() {
                   <TableHead className="text-right">추정금액</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>알림</TableHead>
-                  <TableHead className="text-right w-[120px]">관리</TableHead>
+                  <TableHead className="text-right w-[150px]">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -517,6 +540,7 @@ export default function Bids() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
+                        <Button size="icon" variant="ghost" title={isOpened(r) ? "진행중으로 이동" : "개찰완료로 이동"} onClick={() => moveRow(r)}><ArrowRightLeft className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </TableCell>
@@ -568,6 +592,7 @@ export default function Bids() {
                         <div><span className="text-muted-foreground">상태: </span>{r.status || "-"}</div>
                         <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h</div>
                         <div className="flex gap-2 pt-2">
+                          <Button size="sm" variant="outline" onClick={() => moveRow(r)}><ArrowRightLeft className="h-3 w-3 mr-1" />{isOpened(r) ? "진행중으로" : "개찰완료로"}</Button>
                           <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
                           <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
                         </div>
