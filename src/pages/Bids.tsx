@@ -169,10 +169,11 @@ export default function Bids() {
     setG2bOpen(true);
   };
 
-  const g2bSearch = async () => {
+  const g2bSearch = async (srcOverride?: "g2b" | "lh") => {
+    const src = srcOverride || g2bSource;
     setG2bLoading(true);
     setG2bSelected(new Set());
-    const { data, error } = await supabase.functions.invoke(g2bSource === "lh" ? "lh-bids" : "g2b-bids", {
+    const { data, error } = await supabase.functions.invoke(src === "lh" ? "lh-bids" : "g2b-bids", {
       body: { keyword: g2bKeyword, beginDate: g2bBegin, endDate: g2bEnd, numOfRows: 100 },
     });
     if (error || data?.error) {
@@ -192,6 +193,33 @@ export default function Bids() {
     }
     setG2bLoading(false);
   };
+
+  // LH 활용신청 승인 여부 확인 (승인 전엔 버튼 비활성화, 승인되면 1회 자동 실행)
+  const [lhReady, setLhReady] = useState<boolean | null>(null);
+  useEffect(() => {
+    let stop = false;
+    const check = async () => {
+      const { data, error } = await supabase.functions.invoke("lh-bids", { body: { numOfRows: 1 } });
+      if (stop) return;
+      const ready = !error && !data?.error;
+      setLhReady(ready);
+      if (ready && !localStorage.getItem("lh_auto_opened_v1")) {
+        localStorage.setItem("lh_auto_opened_v1", "1");
+        toast.success("LH 활용신청이 승인되어 LH 공고를 자동으로 불러옵니다.");
+        openImport("lh");
+        g2bSearch("lh");
+      }
+      return ready;
+    };
+    let timer: number | undefined;
+    check().then((ready) => {
+      if (!ready && !stop) timer = window.setInterval(async () => {
+        if (await check()) window.clearInterval(timer);
+      }, 5 * 60 * 1000);
+    });
+    return () => { stop = true; if (timer) window.clearInterval(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const g2bToggle = (k: string) => {
     setG2bSelected((prev) => {
@@ -470,8 +498,10 @@ export default function Bids() {
               <Button size="sm" variant="outline" onClick={() => openImport("g2b")}>
                 <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
               </Button>
-              <Button size="sm" variant="outline" onClick={() => openImport("lh")}>
-                <CloudDownload className="mr-1 h-4 w-4" />LH 불러오기
+              <Button size="sm" variant="outline" onClick={() => openImport("lh")} disabled={!lhReady}
+                title={lhReady === false ? "공공데이터포털 LH 활용신청 승인 대기중 (승인되면 자동으로 열립니다)" : undefined}>
+                {lhReady === null ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-1 h-4 w-4" />}
+                {lhReady === false ? "LH 승인대기" : "LH 불러오기"}
               </Button>
               <Button size="sm" variant="outline" onClick={syncFromG2B} disabled={syncing}>
                 <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />일정 새로고침
@@ -793,7 +823,7 @@ export default function Bids() {
                 <Label className="text-xs">공고일 종료</Label>
                 <Input type="date" value={g2bEnd} onChange={(e) => setG2bEnd(e.target.value)} className="w-[150px]" />
               </div>
-              <Button onClick={g2bSearch} disabled={g2bLoading}>
+              <Button onClick={() => g2bSearch()} disabled={g2bLoading}>
                 {g2bLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
                 조회
               </Button>
