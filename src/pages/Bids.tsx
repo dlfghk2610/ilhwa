@@ -823,7 +823,7 @@ export default function Bids() {
                 <Label className="text-xs">공고일 종료</Label>
                 <Input type="date" value={g2bEnd} onChange={(e) => setG2bEnd(e.target.value)} className="w-[150px]" />
               </div>
-              <Button onClick={g2bSearch} disabled={g2bLoading}>
+              <Button onClick={() => g2bSearch()} disabled={g2bLoading}>
                 {g2bLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
                 조회
               </Button>
