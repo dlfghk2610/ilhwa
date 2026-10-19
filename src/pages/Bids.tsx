@@ -238,6 +238,7 @@ export default function Bids() {
       client: it.client || null,
       announcement_date: kstToDate(it.announcementDate) || null,
       bid_start_date: kstToDate(it.bidBeginDate) || null,
+      pq_due_date: kstToDate((it as any).pqDueDate) || null,
       bid_end_at: kstToIso(it.bidCloseDate),
       opening_at: kstToIso(it.openingDate),
       estimated_amount: it.estimatedPrice,
@@ -315,6 +316,7 @@ export default function Bids() {
       const set = (k: string, v: any) => { if (v != null && v !== "" && v !== (r as any)[k]) patch[k] = v; };
       set("announcement_date", kstToDate(it.announcementDate) || null);
       set("bid_start_date", kstToDate(it.bidBeginDate) || null);
+      set("pq_due_date", kstToDate((it as any).pqDueDate) || null);
       const be = kstToIso(it.bidCloseDate); if (be && new Date(be).getTime() !== new Date((r as any).bid_end_at || 0).getTime()) patch.bid_end_at = be;
       const op = kstToIso(it.openingDate); if (op && new Date(op).getTime() !== new Date((r as any).opening_at || 0).getTime()) patch.opening_at = op;
       set("estimated_amount", it.estimatedPrice);
