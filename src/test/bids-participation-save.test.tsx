@@ -47,7 +47,7 @@ describe("입찰 참여 구분 저장", () => {
     fireEvent.click(within(row).getByTitle("개찰완료로 이동"));
     await waitFor(() => expect(db.update).toHaveBeenCalledExactlyOnceWith({ status: "개찰완료" }, "bid-1"));
     expect(db.records[0].participation_type).toBe("대표참여");
-    fireEvent.click(screen.getByRole("tab", { name: /개찰완료/ }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /개찰완료/ }), { button: 0, ctrlKey: false });
     expect(await screen.findByRole("combobox", { name: "분류 확인 사업 참여 구분" })).toHaveValue("대표참여");
   });
 });
