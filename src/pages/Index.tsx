@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight, CalendarClock, Building2, ImagePlus, RotateCcw, Move, ZoomIn, ZoomOut, Check } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardBackground } from "@/components/DashboardBackground";
+import { BidParticipationBadge } from "@/components/BidParticipation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const BG_KEY = "dashboard_bg_v1";
@@ -30,7 +31,7 @@ const fmtDT = (iso: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null };
+type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null; participation_type: string | null };
 
 const fileToCompressedDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -149,7 +150,7 @@ export default function Index() {
       const in7days = new Date(now.getTime() + 7 * 86400000);
       const { data } = await (supabase as any)
         .from("bid_participations")
-        .select("id, project_name, client, bid_end_at, opening_at")
+        .select("id, project_name, client, bid_end_at, opening_at, participation_type")
         .not("bid_end_at", "is", null)
         .lte("bid_end_at", in7days.toISOString())
         .order("bid_end_at", { ascending: true });
@@ -292,6 +293,7 @@ export default function Index() {
                 {upcomingOpenings.map((b) => (
                   <li key={b.id} className="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 text-sm">
                     <div className="min-w-0">
+                      <div className="mb-1"><BidParticipationBadge value={b.participation_type} /></div>
                       <div className="font-medium break-words">{b.project_name}</div>
                       <div className="text-xs text-muted-foreground truncate">{b.client || "-"}</div>
                     </div>
