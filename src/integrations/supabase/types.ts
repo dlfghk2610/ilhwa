@@ -35,6 +35,7 @@ export type Database = {
           notify_phone: string | null
           opening_at: string | null
           participants: Json
+          participation_type: string | null
           pq_due_date: string | null
           project_name: string
           service_types: string[]
@@ -62,6 +63,7 @@ export type Database = {
           notify_phone?: string | null
           opening_at?: string | null
           participants?: Json
+          participation_type?: string | null
           pq_due_date?: string | null
           project_name: string
           service_types?: string[]
@@ -89,6 +91,7 @@ export type Database = {
           notify_phone?: string | null
           opening_at?: string | null
           participants?: Json
+          participation_type?: string | null
           pq_due_date?: string | null
           project_name?: string
           service_types?: string[]
