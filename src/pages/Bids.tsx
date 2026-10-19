@@ -643,7 +643,7 @@ export default function Bids() {
         </Card>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-3">
@@ -809,7 +809,7 @@ export default function Bids() {
 
         {/* 나라장터/LH 불러오기 Dialog */}
         <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader><DialogTitle>{g2bSource === "lh" ? "LH(한국토지주택공사) 입찰공고 불러오기" : "나라장터 입찰공고 불러오기"}</DialogTitle></DialogHeader>
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1 flex-1 min-w-[180px]">
@@ -870,7 +870,7 @@ export default function Bids() {
               )}
             </div>
 
-            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+            <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
               <span className="text-xs text-muted-foreground">
                 조회 {g2bTotal}건 중 {g2bItems.length}건 표시 · 선택 {g2bSelected.size}건
               </span>
