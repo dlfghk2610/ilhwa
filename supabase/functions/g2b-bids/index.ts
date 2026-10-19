@@ -99,7 +99,8 @@ Deno.serve(async (req) => {
       client: it.ntceInsttNm ?? it.dminsttNm ?? "",
       demandInstt: it.dminsttNm ?? "",
       announcementDate: it.bidNtceDt ?? "",     // "YYYY-MM-DD HH:mm:ss"
-      bidBeginDate: it.bidBgnDt ?? "",
+      bidBeginDate: it.bidBeginDt ?? it.bidBgnDt ?? "",
+      pqDueDate: it.pqApplDocRcptDt ?? "",
       bidCloseDate: it.bidClseDt ?? "",
       openingDate: it.opengDt ?? "",
       estimatedPrice: it.presmptPrce ? Number(it.presmptPrce) : null,
