@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BidParticipationBadge, BidParticipationSelect } from "@/components/BidParticipation";
+import { matchesParticipation, type ParticipationFilter, type ParticipationType } from "@/lib/bid-participation";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -77,6 +80,7 @@ type BidRow = {
   service_types: string[];
   agreement_approval_date: string | null;
   status: string | null;
+  participation_type: ParticipationType | null;
   notes: string | null;
   notify_hours_before: number;
   notified_at: string | null;
@@ -97,6 +101,7 @@ const emptyForm = (): Omit<BidRow, "id"> => ({
   service_types: [],
   agreement_approval_date: "",
   status: "검토중",
+  participation_type: null,
   notes: "",
   notify_hours_before: 24,
   notified_at: null,
@@ -243,6 +248,7 @@ export default function Bids() {
       opening_at: kstToIso(it.openingDate),
       estimated_amount: it.estimatedPrice,
       status: "검토중",
+      participation_type: null,
       notes: [
         it.bidNtceNo ? `공고번호: ${it.bidNtceNo}-${it.bidNtceOrd}` : "",
         it.noticeType ? `공고종류: ${it.noticeType}` : "",
@@ -402,6 +408,7 @@ export default function Bids() {
       service_types: row.service_types || [],
       agreement_approval_date: row.agreement_approval_date || "",
       status: row.status || "검토중",
+      participation_type: row.participation_type || null,
       notes: row.notes || "",
       notify_hours_before: row.notify_hours_before ?? 24,
       notified_at: row.notified_at,
@@ -430,6 +437,7 @@ export default function Bids() {
       service_types: form.service_types,
       agreement_approval_date: form.agreement_approval_date || null,
       status: form.status || null,
+      participation_type: form.participation_type,
       notes: form.notes || null,
       notify_hours_before: Number(form.notify_hours_before) || 24,
       notify_email: null,
@@ -461,6 +469,16 @@ export default function Bids() {
   };
 
   const [tab, setTab] = useState<"ongoing" | "opened">("ongoing");
+  const [participationTab, setParticipationTab] = useState<ParticipationFilter>("all");
+  const [classifyingId, setClassifyingId] = useState<string | null>(null);
+  const classifyRow = async (r: BidRow, participation_type: ParticipationType | null) => {
+    setClassifyingId(r.id);
+    const { error } = await supabase.from("bid_participations").update({ participation_type }).eq("id", r.id);
+    setClassifyingId(null);
+    if (error) { toast.error(error.message); return; }
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, participation_type } : x));
+    toast.success(`참여 구분을 ${participation_type || "미분류"}로 변경했습니다.`);
+  };
   const isOpened = (r: BidRow) => r.status === "개찰완료";
   const tabCounts = useMemo(() => ({
     ongoing: rows.filter((r) => !isOpened(r)).length,
@@ -475,9 +493,11 @@ export default function Bids() {
   };
 
   const filtered = useMemo(() => rows.filter((r) => (tab === "opened" ? isOpened(r) : !isOpened(r))).filter((r) =>
+    tab === "opened" || matchesParticipation(r.participation_type, participationTab)
+  ).filter((r) =>
     !search ||
     [r.project_name, r.client, r.status].some((v) => String(v ?? "").toLowerCase().includes(search.toLowerCase()))
-  ), [rows, search, tab]);
+  ), [rows, search, tab, participationTab]);
 
 
   const toggleArr = (key: "evaluation_types" | "service_types", v: string) => {
@@ -513,14 +533,22 @@ export default function Bids() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 sm:flex gap-1 rounded-lg bg-muted p-1 w-full sm:w-fit">
+        <Tabs value={tab} onValueChange={v => setTab(v === "opened" ? "opened" : "ongoing")}>
+          <TabsList className="grid w-full grid-cols-2 sm:w-fit">
           {([["ongoing", "진행중"], ["opened", "개찰완료"]] as const).map(([k, label]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+            <TabsTrigger key={k} value={k} className="px-4">
               {label} <span className="ml-1 text-xs text-muted-foreground">{tabCounts[k]}</span>
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
+          </TabsList>
+        </Tabs>
+        {tab === "ongoing" && <Tabs value={participationTab} onValueChange={v => setParticipationTab(v as ParticipationFilter)}>
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:w-fit sm:grid-cols-4">
+            {([['all', '전체'], ['대표참여', '대표참여'], ['도급참여', '도급참여'], ['unclassified', '미분류']] as const).map(([key, label]) =>
+              <TabsTrigger key={key} value={key} className="min-h-9 gap-2 px-3">{label}<span className="text-xs tabular-nums">{rows.filter(r => !isOpened(r) && matchesParticipation(r.participation_type, key)).length}</span></TabsTrigger>
+            )}
+          </TabsList>
+        </Tabs>}
 
         <Card className="shadow-card overflow-hidden hidden xl:block">
           <div className="overflow-x-auto">
@@ -556,7 +584,7 @@ export default function Bids() {
                   const expired = end && end <= Date.now();
                   return (
                     <TableRow key={r.id} className={urgent ? "bg-destructive/5" : ""}>
-                      <TableCell className="font-medium w-[220px] min-w-[180px] max-w-[220px]"><div className="line-clamp-3 break-words leading-snug" title={r.project_name}>{r.project_name}</div></TableCell>
+                      <TableCell className="font-medium w-[220px] min-w-[180px] max-w-[220px]"><div className="mb-1.5"><BidParticipationBadge value={r.participation_type} /></div><div className="line-clamp-3 break-words leading-snug" title={r.project_name}>{r.project_name}</div></TableCell>
                       <TableCell className="min-w-[110px] max-w-[160px]"><div className="line-clamp-2 break-words">{r.client || "-"}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{r.announcement_date || "-"}</TableCell>
                       <TableCell className="whitespace-nowrap">{r.pq_due_date || "-"}</TableCell>
@@ -572,6 +600,7 @@ export default function Bids() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
+                        <div className="mb-1 w-28 ml-auto"><BidParticipationSelect value={r.participation_type} label={`${r.project_name} 참여 구분`} disabled={classifyingId === r.id} onChange={v => classifyRow(r, v)} /></div>
                         <Button size="icon" variant="ghost" className="h-8 w-8" title={isOpened(r) ? "진행중으로 이동" : "개찰완료로 이동"} onClick={() => moveRow(r)}><ArrowRightLeft className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -607,6 +636,7 @@ export default function Bids() {
                     >
                       {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
                       <div className="flex-1 min-w-0">
+                        <div className="mb-1.5"><BidParticipationBadge value={r.participation_type} /></div>
                         <div className="flex items-start gap-2">
                           <div className="font-medium text-sm break-words line-clamp-3 flex-1">{r.project_name}</div>
                           {r.status && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{r.status}</span>}
@@ -619,6 +649,7 @@ export default function Bids() {
                     </button>
                     {isOpen && (
                       <div className="px-3 pb-3 pl-9 space-y-1 text-xs">
+                        <div className="pb-2"><BidParticipationSelect value={r.participation_type} label={`${r.project_name} 참여 구분`} disabled={classifyingId === r.id} onChange={v => classifyRow(r, v)} /></div>
                         <div><span className="text-muted-foreground">발주처: </span>{r.client || "-"}</div>
                         <div><span className="text-muted-foreground">공고일: </span>{r.announcement_date || "-"}</div>
                         <div><span className="text-muted-foreground">PQ마감: </span>{r.pq_due_date || "-"}</div>
@@ -650,6 +681,10 @@ export default function Bids() {
                 <div className="space-y-1.5 col-span-2">
                   <Label>사업명<span className="text-destructive">*</span></Label>
                   <Input value={form.project_name} onChange={(e) => setForm({ ...form, project_name: e.target.value })} />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>참여 구분</Label>
+                  <BidParticipationSelect value={form.participation_type} label="참여 구분" onChange={v => setForm({ ...form, participation_type: v })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>발주처</Label>
