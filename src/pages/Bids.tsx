@@ -491,12 +491,12 @@ export default function Bids() {
     <AppLayout title="입찰참가관리">
       <div className="space-y-4">
         <Card className="p-3 sm:p-4 shadow-card">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:max-w-md">
+          <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+            <div className="relative w-full 2xl:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="사업명/발주처/상태 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap 2xl:justify-end">
               <Button size="sm" variant="outline" onClick={() => openImport("g2b")}>
                 <CloudDownload className="mr-1 h-4 w-4" />나라장터 불러오기
               </Button>
@@ -522,7 +522,7 @@ export default function Bids() {
           ))}
         </div>
 
-        <Card className="shadow-card overflow-hidden hidden md:block">
+        <Card className="shadow-card overflow-hidden hidden xl:block">
           <div className="overflow-x-auto">
             <Table className="text-xs xl:text-sm">
               <TableHeader>
@@ -586,20 +586,20 @@ export default function Bids() {
         </Card>
 
         {/* Mobile card list */}
-        <Card className="shadow-card overflow-hidden md:hidden">
+        <Card className="shadow-card overflow-hidden xl:hidden">
           {loading ? (
             <div className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin inline text-primary" /></div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">데이터가 없습니다.</div>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y md:divide-y-0 md:grid md:grid-cols-2 md:gap-px md:bg-border">
               {filtered.map((r) => {
                 const end = r.bid_end_at ? new Date(r.bid_end_at).getTime() : 0;
                 const urgent = end && end - Date.now() < r.notify_hours_before * 3600000 && end > Date.now();
                 const expired = end && end <= Date.now();
                 const isOpen = expanded.has(r.id);
                 return (
-                  <li key={r.id} className={urgent ? "bg-destructive/5" : ""}>
+                  <li key={r.id} className={"bg-card " + (urgent ? "bg-destructive/5" : "")}>
                     <button
                       type="button"
                       onClick={() => toggleExpand(r.id)}
@@ -643,7 +643,7 @@ export default function Bids() {
         </Card>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader><DialogTitle>{editing ? "수정" : "신규 등록"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-3">
@@ -809,7 +809,7 @@ export default function Bids() {
 
         {/* 나라장터/LH 불러오기 Dialog */}
         <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader><DialogTitle>{g2bSource === "lh" ? "LH(한국토지주택공사) 입찰공고 불러오기" : "나라장터 입찰공고 불러오기"}</DialogTitle></DialogHeader>
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1 flex-1 min-w-[180px]">
@@ -870,7 +870,7 @@ export default function Bids() {
               )}
             </div>
 
-            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+            <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
               <span className="text-xs text-muted-foreground">
                 조회 {g2bTotal}건 중 {g2bItems.length}건 표시 · 선택 {g2bSelected.size}건
               </span>
