@@ -248,6 +248,7 @@ export default function Bids() {
       opening_at: kstToIso(it.openingDate),
       estimated_amount: it.estimatedPrice,
       status: "검토중",
+      participation_type: null,
       notes: [
         it.bidNtceNo ? `공고번호: ${it.bidNtceNo}-${it.bidNtceOrd}` : "",
         it.noticeType ? `공고종류: ${it.noticeType}` : "",
