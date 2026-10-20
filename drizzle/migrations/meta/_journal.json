@@ -15,6 +15,13 @@
       "when": 1792382992620,
       "tag": "0001_add_bid_participation_type",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792497751534,
+      "tag": "0002_add_dashboard_background_per_user",
+      "breakpoints": true
     }
   ]
 }

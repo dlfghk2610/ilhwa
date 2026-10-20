@@ -719,6 +719,8 @@ export type Database = {
           approved: boolean
           company: string | null
           created_at: string
+          dashboard_bg_path: string | null
+          dashboard_bg_tf: Json
           display_name: string | null
           id: string
           position: string | null
@@ -731,6 +733,8 @@ export type Database = {
           approved?: boolean
           company?: string | null
           created_at?: string
+          dashboard_bg_path?: string | null
+          dashboard_bg_tf?: Json
           display_name?: string | null
           id: string
           position?: string | null
@@ -743,6 +747,8 @@ export type Database = {
           approved?: boolean
           company?: string | null
           created_at?: string
+          dashboard_bg_path?: string | null
+          dashboard_bg_tf?: Json
           display_name?: string | null
           id?: string
           position?: string | null
