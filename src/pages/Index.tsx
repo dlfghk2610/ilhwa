@@ -202,20 +202,37 @@ export default function Index() {
   const handleBgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || !user) return;
+    setBgBusy(true);
     try {
       const dataUrl = await fileToCompressedDataUrl(file);
-      localStorage.setItem(BG_KEY, dataUrl);
+      const path = await uploadAccountBg(user.id, dataUrl, bgPath);
       setBgUrl(dataUrl);
-      toast.success("대시보드 배경 이미지를 설정했습니다.");
+      setBgPath(path);
+      setBgTfs({});
+      toast.success("대시보드 배경 이미지를 설정했습니다. 이 계정으로 접속하는 PC·모바일에 모두 적용됩니다.");
     } catch {
       toast.error("이미지를 저장하지 못했습니다. 다른 이미지를 시도해 주세요.");
+    } finally {
+      setBgBusy(false);
     }
   };
 
-  const clearBg = () => {
-    try { localStorage.removeItem(BG_KEY); } catch { /* ignore */ }
-    setBgUrl(null);
+  const clearBg = async () => {
+    if (!user) return;
+    if (tfSaveTimer.current) window.clearTimeout(tfSaveTimer.current);
+    setBgBusy(true);
+    try {
+      await clearAccountBg(user.id, bgPath);
+      setBgUrl(null);
+      setBgPath(null);
+      setBgTfs({});
+      setAdjusting(false);
+    } catch {
+      toast.error("배경 이미지를 삭제하지 못했습니다.");
+    } finally {
+      setBgBusy(false);
+    }
   };
 
   return (
@@ -227,9 +244,12 @@ export default function Index() {
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-4">
-          <h2 className="text-sm font-semibold">대시보드 배경 설정</h2>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => bgInputRef.current?.click()}>
-            <ImagePlus className="h-4 w-4" />배경 이미지 {bgUrl ? "변경" : "설정"}
+          <div>
+            <h2 className="text-sm font-semibold">대시보드 배경 설정</h2>
+            <p className="mt-1 text-xs text-muted-foreground">이 계정에만 적용되며 PC·모바일에서 같은 배경이 보입니다. 위치·크기는 {device === "mobile" ? "모바일" : "PC"} 화면용으로 따로 저장됩니다.</p>
+          </div>
+          <Button variant="outline" className="w-full justify-start gap-2" disabled={bgBusy} onClick={() => bgInputRef.current?.click()}>
+            <ImagePlus className="h-4 w-4" />{bgBusy ? "저장 중…" : `배경 이미지 ${bgUrl ? "변경" : "설정"}`}
           </Button>
           {bgUrl && <>
             <div className="flex items-center justify-between">
@@ -244,7 +264,7 @@ export default function Index() {
               {adjusting ? <Check className="h-4 w-4" /> : <Move className="h-4 w-4" />}{adjusting ? "배경 조정 완료" : "배경 위치 이동"}
             </Button>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => saveTf(DEFAULT_TF)}><RotateCcw className="h-4 w-4" />위치·크기 초기화</Button>
-            <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { clearBg(); saveTf(DEFAULT_TF); setAdjusting(false); }}><RotateCcw className="h-4 w-4" />배경 이미지 삭제</Button>
+            <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" disabled={bgBusy} onClick={clearBg}><RotateCcw className="h-4 w-4" />배경 이미지 삭제</Button>
           </>}
         </PopoverContent>
       </Popover>
