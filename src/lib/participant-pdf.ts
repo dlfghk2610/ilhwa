@@ -43,7 +43,9 @@ function datesIn(items: PdfTextItem[]): { iso: string; x: number }[] {
   for (const m of joined.matchAll(DATE_RE)) {
     const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]);
     if (y < 1900 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) continue;
-    out.push({ iso: `${m[1]}-${pad(m[2])}-${pad(m[3])}`, x: xs[m.index ?? 0] ?? 0 });
+    const a = m.index ?? 0;
+    const b = a + m[0].trimEnd().length - 1;
+    out.push({ iso: `${m[1]}-${pad(m[2])}-${pad(m[3])}`, x: ((xs[a] ?? 0) + (xs[b] ?? xs[a] ?? 0)) / 2 });
   }
   return out;
 }
@@ -150,7 +152,7 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
       }
       name = cleanName((byCol.name || []).join(""));
       role = (byCol.role || []).join(" ").replace(/\s+/g, " ").trim();
-      if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x + 20, cols!) !== "birth");
+      if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x, cols!) !== "birth");
       const known1 = findKnownName(text, known);
       if (known1 && (!name || !known.includes(name))) name = known1;
       if (!name) continue;
@@ -158,7 +160,7 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
       let end = "";
       if (cols.start !== undefined || cols.end !== undefined) {
         for (const d of dates) {
-          const c = nearestCol(d.x + 20, cols);
+          const c = nearestCol(d.x, cols);
           if (c === "start" && !start) start = d.iso;
           else if (c === "end" && !end) end = d.iso;
         }
