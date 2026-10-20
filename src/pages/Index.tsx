@@ -11,18 +11,11 @@ import { DashboardBackground } from "@/components/DashboardBackground";
 import { BidParticipationBadge } from "@/components/BidParticipation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const BG_KEY = "dashboard_bg_v1";
-const BG_TF_KEY = "dashboard_bg_tf_v1";
-type BgTransform = { scale: number; x: number; y: number };
-const DEFAULT_TF: BgTransform = { scale: 1, x: 0, y: 0 };
-const loadTf = (): BgTransform => {
-  try {
-    const raw = localStorage.getItem(BG_TF_KEY);
-    if (!raw) return DEFAULT_TF;
-    const p = JSON.parse(raw);
-    return { scale: Number(p.scale) || 1, x: Number(p.x) || 0, y: Number(p.y) || 0 };
-  } catch { return DEFAULT_TF; }
-};
+import {
+  DEFAULT_TF, LEGACY_BG_KEYS, cachedAccountBg, clearAccountBg, deviceForWidth, loadAccountBg,
+  saveAccountTransforms, transformFor, uploadAccountBg,
+  type BgDevice, type BgTransform, type BgTransforms,
+} from "@/lib/dashboard-bg";
 
 const fmtDT = (iso: string | null) => {
   if (!iso) return "-";
@@ -93,18 +86,50 @@ export default function Index() {
   const { user } = useAuth();
   const [companyName, setCompanyName] = useState<string>("");
   const [upcomingOpenings, setUpcomingOpenings] = useState<UpcomingBid[]>([]);
-  const [bgUrl, setBgUrl] = useState<string | null>(() => {
-    try { return localStorage.getItem(BG_KEY); } catch { return null; }
-  });
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+  const [bgPath, setBgPath] = useState<string | null>(null);
+  const [bgTfs, setBgTfs] = useState<BgTransforms>({});
+  const [device, setDevice] = useState<BgDevice>(() => deviceForWidth(window.innerWidth));
+  const [bgBusy, setBgBusy] = useState(false);
   const bgInputRef = useRef<HTMLInputElement>(null);
-  const [bgTf, setBgTf] = useState<BgTransform>(loadTf);
+  const bgTf = transformFor(bgTfs, device);
   const [adjusting, setAdjusting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const tfSaveTimer = useRef<number | null>(null);
+
+  // 예전에 계정 구분 없이 기기에 저장되던 배경은 지운다
+  useEffect(() => {
+    try { LEGACY_BG_KEYS.forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setDevice(deviceForWidth(window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // 로그인한 계정의 배경을 불러온다 (PC·모바일 어디서 접속해도 같은 배경)
+  useEffect(() => {
+    setBgUrl(null); setBgPath(null); setBgTfs({});
+    if (!user) return;
+    const cached = cachedAccountBg(user.id);
+    if (cached) { setBgUrl(cached.dataUrl); setBgPath(cached.path); }
+    let alive = true;
+    loadAccountBg(user.id)
+      .then((r) => { if (!alive) return; setBgUrl(r.dataUrl); setBgPath(r.path); setBgTfs(r.transforms); })
+      .catch(() => { /* 네트워크 오류 시 캐시된 배경 유지 */ });
+    return () => { alive = false; };
+  }, [user?.id]);
 
   const saveTf = (tf: BgTransform) => {
-    setBgTf(tf);
-    try { localStorage.setItem(BG_TF_KEY, JSON.stringify(tf)); } catch { /* ignore */ }
+    const next = { ...bgTfs, [device]: tf };
+    setBgTfs(next);
+    if (!user) return;
+    if (tfSaveTimer.current) window.clearTimeout(tfSaveTimer.current);
+    tfSaveTimer.current = window.setTimeout(() => {
+      saveAccountTransforms(user.id, next).catch(() => toast.error("배경 위치를 저장하지 못했습니다."));
+    }, 600);
   };
   const zoomBy = (delta: number) =>
     saveTf({ ...bgTf, scale: Math.min(5, Math.max(1, Math.round((bgTf.scale + delta) * 100) / 100)) });
@@ -177,20 +202,37 @@ export default function Index() {
   const handleBgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || !user) return;
+    setBgBusy(true);
     try {
       const dataUrl = await fileToCompressedDataUrl(file);
-      localStorage.setItem(BG_KEY, dataUrl);
+      const path = await uploadAccountBg(user.id, dataUrl, bgPath);
       setBgUrl(dataUrl);
-      toast.success("대시보드 배경 이미지를 설정했습니다.");
+      setBgPath(path);
+      setBgTfs({});
+      toast.success("대시보드 배경 이미지를 설정했습니다. 이 계정으로 접속하는 PC·모바일에 모두 적용됩니다.");
     } catch {
       toast.error("이미지를 저장하지 못했습니다. 다른 이미지를 시도해 주세요.");
+    } finally {
+      setBgBusy(false);
     }
   };
 
-  const clearBg = () => {
-    try { localStorage.removeItem(BG_KEY); } catch { /* ignore */ }
-    setBgUrl(null);
+  const clearBg = async () => {
+    if (!user) return;
+    if (tfSaveTimer.current) window.clearTimeout(tfSaveTimer.current);
+    setBgBusy(true);
+    try {
+      await clearAccountBg(user.id, bgPath);
+      setBgUrl(null);
+      setBgPath(null);
+      setBgTfs({});
+      setAdjusting(false);
+    } catch {
+      toast.error("배경 이미지를 삭제하지 못했습니다.");
+    } finally {
+      setBgBusy(false);
+    }
   };
 
   return (
@@ -202,9 +244,12 @@ export default function Index() {
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-4">
-          <h2 className="text-sm font-semibold">대시보드 배경 설정</h2>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => bgInputRef.current?.click()}>
-            <ImagePlus className="h-4 w-4" />배경 이미지 {bgUrl ? "변경" : "설정"}
+          <div>
+            <h2 className="text-sm font-semibold">대시보드 배경 설정</h2>
+            <p className="mt-1 text-xs text-muted-foreground">이 계정에만 적용되며 PC·모바일에서 같은 배경이 보입니다. 위치·크기는 {device === "mobile" ? "모바일" : "PC"} 화면용으로 따로 저장됩니다.</p>
+          </div>
+          <Button variant="outline" className="w-full justify-start gap-2" disabled={bgBusy} onClick={() => bgInputRef.current?.click()}>
+            <ImagePlus className="h-4 w-4" />{bgBusy ? "저장 중…" : `배경 이미지 ${bgUrl ? "변경" : "설정"}`}
           </Button>
           {bgUrl && <>
             <div className="flex items-center justify-between">
@@ -219,7 +264,7 @@ export default function Index() {
               {adjusting ? <Check className="h-4 w-4" /> : <Move className="h-4 w-4" />}{adjusting ? "배경 조정 완료" : "배경 위치 이동"}
             </Button>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => saveTf(DEFAULT_TF)}><RotateCcw className="h-4 w-4" />위치·크기 초기화</Button>
-            <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { clearBg(); saveTf(DEFAULT_TF); setAdjusting(false); }}><RotateCcw className="h-4 w-4" />배경 이미지 삭제</Button>
+            <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" disabled={bgBusy} onClick={clearBg}><RotateCcw className="h-4 w-4" />배경 이미지 삭제</Button>
           </>}
         </PopoverContent>
       </Popover>
