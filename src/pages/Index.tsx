@@ -11,18 +11,11 @@ import { DashboardBackground } from "@/components/DashboardBackground";
 import { BidParticipationBadge } from "@/components/BidParticipation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const BG_KEY = "dashboard_bg_v1";
-const BG_TF_KEY = "dashboard_bg_tf_v1";
-type BgTransform = { scale: number; x: number; y: number };
-const DEFAULT_TF: BgTransform = { scale: 1, x: 0, y: 0 };
-const loadTf = (): BgTransform => {
-  try {
-    const raw = localStorage.getItem(BG_TF_KEY);
-    if (!raw) return DEFAULT_TF;
-    const p = JSON.parse(raw);
-    return { scale: Number(p.scale) || 1, x: Number(p.x) || 0, y: Number(p.y) || 0 };
-  } catch { return DEFAULT_TF; }
-};
+import {
+  DEFAULT_TF, LEGACY_BG_KEYS, cachedAccountBg, clearAccountBg, deviceForWidth, loadAccountBg,
+  saveAccountTransforms, transformFor, uploadAccountBg,
+  type BgDevice, type BgTransform, type BgTransforms,
+} from "@/lib/dashboard-bg";
 
 const fmtDT = (iso: string | null) => {
   if (!iso) return "-";
