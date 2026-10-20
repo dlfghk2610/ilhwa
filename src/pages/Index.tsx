@@ -86,18 +86,50 @@ export default function Index() {
   const { user } = useAuth();
   const [companyName, setCompanyName] = useState<string>("");
   const [upcomingOpenings, setUpcomingOpenings] = useState<UpcomingBid[]>([]);
-  const [bgUrl, setBgUrl] = useState<string | null>(() => {
-    try { return localStorage.getItem(BG_KEY); } catch { return null; }
-  });
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+  const [bgPath, setBgPath] = useState<string | null>(null);
+  const [bgTfs, setBgTfs] = useState<BgTransforms>({});
+  const [device, setDevice] = useState<BgDevice>(() => deviceForWidth(window.innerWidth));
+  const [bgBusy, setBgBusy] = useState(false);
   const bgInputRef = useRef<HTMLInputElement>(null);
-  const [bgTf, setBgTf] = useState<BgTransform>(loadTf);
+  const bgTf = transformFor(bgTfs, device);
   const [adjusting, setAdjusting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const tfSaveTimer = useRef<number | null>(null);
+
+  // 예전에 계정 구분 없이 기기에 저장되던 배경은 지운다
+  useEffect(() => {
+    try { LEGACY_BG_KEYS.forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setDevice(deviceForWidth(window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // 로그인한 계정의 배경을 불러온다 (PC·모바일 어디서 접속해도 같은 배경)
+  useEffect(() => {
+    setBgUrl(null); setBgPath(null); setBgTfs({});
+    if (!user) return;
+    const cached = cachedAccountBg(user.id);
+    if (cached) { setBgUrl(cached.dataUrl); setBgPath(cached.path); }
+    let alive = true;
+    loadAccountBg(user.id)
+      .then((r) => { if (!alive) return; setBgUrl(r.dataUrl); setBgPath(r.path); setBgTfs(r.transforms); })
+      .catch(() => { /* 네트워크 오류 시 캐시된 배경 유지 */ });
+    return () => { alive = false; };
+  }, [user?.id]);
 
   const saveTf = (tf: BgTransform) => {
-    setBgTf(tf);
-    try { localStorage.setItem(BG_TF_KEY, JSON.stringify(tf)); } catch { /* ignore */ }
+    const next = { ...bgTfs, [device]: tf };
+    setBgTfs(next);
+    if (!user) return;
+    if (tfSaveTimer.current) window.clearTimeout(tfSaveTimer.current);
+    tfSaveTimer.current = window.setTimeout(() => {
+      saveAccountTransforms(user.id, next).catch(() => toast.error("배경 위치를 저장하지 못했습니다."));
+    }, 600);
   };
   const zoomBy = (delta: number) =>
     saveTf({ ...bgTf, scale: Math.min(5, Math.max(1, Math.round((bgTf.scale + delta) * 100) / 100)) });
