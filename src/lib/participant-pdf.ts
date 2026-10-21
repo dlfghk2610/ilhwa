@@ -133,11 +133,6 @@ function nearestCol(x: number, cols: Partial<Record<Col, number>>): Col | null {
   return best;
 }
 
-const cleanName = (s: string) => {
-  const t = s.replace(/\s+/g, "").replace(/\(.*?\)/g, "");
-  const m = t.match(/^[가-힣]{2,5}/);
-  return m && !NOT_NAMES.has(m[0]) ? m[0] : "";
-};
 
 function findKnownName(text: string, known: string[]): string {
   const t = text.replace(/\s+/g, "");
@@ -187,11 +182,19 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
         if (!c) continue;
         (byCol[c] ||= []).push(it.str);
       }
-      name = cleanName((byCol.name || []).join(""));
+      const nameCell = (byCol.name || []).join(" ");
       role = (byCol.role || []).join(" ").replace(/\s+/g, " ").trim();
       if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x, cols!) !== "birth");
-      const known1 = findKnownName(text, known);
-      if (known1 && (!name || !known.includes(name))) name = known1;
+      // 1) 성명 칸에 등록된 기술자 이름 → 그대로 인정
+      const knownInCell = findKnownName(nameCell, known);
+      if (knownInCell) name = knownInCell;
+      else {
+        // 2) 성명 칸이 사람 이름 모양이고, 같은 줄에 참여 날짜가 있어야 인정 (머리글·합계·안내문 제외)
+        const guess = pickName(nameCell);
+        if (guess && dates.length) name = guess;
+        // 3) 칸이 어긋난 경우: 같은 줄에 등록된 기술자 이름과 날짜가 함께 있으면 인정
+        else if (dates.length) name = findKnownName(text, known);
+      }
       if (!name) continue;
       let start = "";
       let end = "";
