@@ -307,7 +307,8 @@ export function dropNonNames<T extends { name: string }>(list: T[], knownNames: 
   const known = new Set(knownNames.map((n) => n.replace(/\s+/g, "")));
   const kept = list.filter((p) => {
     const n = (p.name || "").replace(/\s+/g, "");
-    return !n || known.has(n) || isLikelyName(n);
+    // 예전 방식은 한글 2~5글자만 넣었으므로, 한글로만 된 것만 다시 확인한다 (영문 이름 등 직접 입력은 그대로)
+    return !n || !/^[가-힣]+$/.test(n) || known.has(n) || isLikelyName(n);
   });
   return { list: kept, removed: list.length - kept.length };
 }
