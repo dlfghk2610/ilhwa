@@ -703,6 +703,44 @@ export default function Overlaps() {
     const path = await uploadPdfRaw(file, String(field));
     if (path) setForm((f) => ({ ...f, [field]: path }));
   };
+
+  // 참여자 명단 PDF → 참여중인 인력 자동반영
+  const applyParticipantPdf = async (bytes: ArrayBuffer) => {
+    const lines = await extractPdfLines(bytes);
+    if (!lines.length) { toast.error("PDF에서 글자를 읽을 수 없습니다. 스캔 이미지 PDF는 자동반영이 안 됩니다."); return; }
+    const parsed = parseParticipantLines(lines, technicians.map((t) => t.name));
+    if (!parsed.length) { toast.error("명단에서 인력을 찾지 못했습니다. 표에 '성명' 칸이 있는지 확인해 주세요."); return; }
+    const result = mergeParticipants(form.participants || [], parsed);
+    setForm((f) => ({ ...f, participants: mergeParticipants(f.participants || [], parsed).list }));
+    toast.success(`명단에서 ${parsed.length}명 인식 · ${result.added}명 추가, ${result.updated}명 갱신`);
+  };
+  const reflectParticipantsFromPdf = async () => {
+    const path = form.participant_list_pdf_path;
+    if (!path) { document.getElementById("pdf-participant-auto")?.click(); return; }
+    setParticipantPdfBusy(true);
+    try {
+      const { data, error } = await supabase.storage.from("overlap-documents").download(path);
+      if (error || !data) throw error || new Error("다운로드 실패");
+      await applyParticipantPdf(await data.arrayBuffer());
+    } catch (err: any) {
+      toast.error("명단 PDF를 읽지 못했습니다: " + (err?.message || ""));
+    } finally {
+      setParticipantPdfBusy(false);
+    }
+  };
+  const uploadAndReflectParticipantPdf = async (file: File) => {
+    const path = await uploadPdfRaw(file, "participant_list_pdf_path");
+    if (!path) return;
+    setForm((f) => ({ ...f, participant_list_pdf_path: path }));
+    setParticipantPdfBusy(true);
+    try {
+      await applyParticipantPdf(await file.arrayBuffer());
+    } catch (err: any) {
+      toast.error("명단 PDF를 읽지 못했습니다: " + (err?.message || ""));
+    } finally {
+      setParticipantPdfBusy(false);
+    }
+  };
   const uploadAmendmentPdf = async (idx: number, file: File) => {
     const path = await uploadPdfRaw(file, `amendment-${idx}`);
     if (!path) return;
@@ -1645,6 +1683,31 @@ export default function Overlaps() {
                         <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setForm((s) => ({ ...s, [f.key]: null }))}>
                           <X className="h-3.5 w-3.5" />
                         </Button>
+                      </>
+                    )}
+                    {f.key === "participant_list_pdf_path" && (
+                      <>
+                        <input
+                          id="pdf-participant-auto"
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadAndReflectParticipantPdf(file); e.target.value = ""; }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={reflectParticipantsFromPdf}
+                          disabled={participantPdfBusy || uploadingField === f.key}
+                          title="명단 PDF에서 성명·역할·참여시작일·참여제외일을 읽어 '참여중인 인력'에 반영합니다"
+                        >
+                          {participantPdfBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <UserCheck className="h-3.5 w-3.5 mr-1" />}
+                          참여인력 자동반영
+                        </Button>
+                        <div className="basis-full text-[11px] text-muted-foreground sm:pl-[188px]">
+                          글자 선택이 되는 PDF만 읽을 수 있습니다 (스캔 이미지 PDF 불가). 같은 이름은 기간·역할을 갱신하고, 새 인력은 추가합니다.
+                        </div>
                       </>
                     )}
                   </div>
