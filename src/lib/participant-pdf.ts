@@ -283,3 +283,31 @@ export function mergeParticipants<T extends { name: string; role?: string; start
   }
   return { list, added, updated };
 }
+
+/**
+ * 기준일(공고일 또는 오늘) 기준으로 참여중·제외·참여예정 인원을 센다.
+ * 제외: '참여제외' 체크했거나 참여제외일이 기준일 이전(같은 날 포함). 참여예정: 참여시작일이 기준일 이후.
+ */
+export function countParticipants(
+  list: { name?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean }[],
+  refDate: string,
+): { active: number; excluded: number; upcoming: number; total: number } {
+  let active = 0, excluded = 0, upcoming = 0;
+  for (const p of list) {
+    if (!(p.name || "").trim()) continue;
+    if (p.excluded || (p.end_date && p.end_date <= refDate)) excluded += 1;
+    else if (p.start_date && p.start_date > refDate) upcoming += 1;
+    else active += 1;
+  }
+  return { active, excluded, upcoming, total: active + excluded + upcoming };
+}
+
+/** 예전 자동반영 때 잘못 들어간 항목(사람 이름 모양도 아니고 등록된 기술자도 아닌 것)을 걸러낸다. */
+export function dropNonNames<T extends { name: string }>(list: T[], knownNames: string[] = []): { list: T[]; removed: number } {
+  const known = new Set(knownNames.map((n) => n.replace(/\s+/g, "")));
+  const kept = list.filter((p) => {
+    const n = (p.name || "").replace(/\s+/g, "");
+    return !n || known.has(n) || isLikelyName(n);
+  });
+  return { list: kept, removed: list.length - kept.length };
+}
