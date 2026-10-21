@@ -19,10 +19,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, ArrowRightLeft, FileText as FileTextIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, ChevronRight, Upload, FileDown, Download, Printer, ArrowRightLeft, UserCheck, FileText as FileTextIcon } from "lucide-react";
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
+import { extractPdfLines, mergeParticipants, parseParticipantLines } from "@/lib/participant-pdf";
 
 type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean };
 
@@ -169,6 +170,7 @@ export default function Overlaps() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [printSeq, setPrintSeq] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [participantPdfBusy, setParticipantPdfBusy] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const toggleExpand = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
