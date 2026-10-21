@@ -6,3 +6,4 @@
 - Render dashboard backgrounds in a viewport-sized canvas with clamped edge-pixel extension so pan and zoom never expose unfilled space; scope transparent surfaces to the dashboard and leave the sidebar opaque.
 - Pass page-specific header controls through AppLayout's optional headerActions slot so dashboard settings remain scoped to that page.
 - Store dashboard background images per account in private storage referenced from the user's profile (with per-device-type transforms), using localStorage only as a per-user cache, so backgrounds follow the account across devices and never leak between accounts.
+- Parse participant-list PDFs through the shared participant PDF module (header-column detection with registered-technician fallback, Korean cMaps served from public/cmaps) so imports stay consistent and testable.
