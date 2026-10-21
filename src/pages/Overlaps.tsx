@@ -23,7 +23,9 @@ import { Plus, Pencil, Trash2, Search, X, Loader2, CalendarIcon, ChevronDown, Ch
 import { importFromExcel, exportToExcel } from "@/lib/excel";
 import { PDFDocument } from "pdf-lib";
 import { findNameMarks, drawCheckMark } from "@/lib/pdf-name-mark";
-import { extractPdfLines, mergeParticipants, parseParticipantLines } from "@/lib/participant-pdf";
+import { countParticipants, dropNonNames, extractPdfLines, mergeParticipants, parseParticipantLines } from "@/lib/participant-pdf";
+
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 type Participant = { name: string; role?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean };
 
@@ -712,9 +714,16 @@ export default function Overlaps() {
     if (!lines.length) { toast.error("PDF에서 글자를 읽을 수 없습니다. 스캔 이미지 PDF는 자동반영이 안 됩니다."); return; }
     const parsed = parseParticipantLines(lines, technicians.map((t) => t.name));
     if (!parsed.length) { toast.error("명단에서 인력을 찾지 못했습니다. 표에 '성명' 칸이 있는지 확인해 주세요."); return; }
-    const result = mergeParticipants(form.participants || [], parsed);
-    setForm((f) => ({ ...f, participants: mergeParticipants(f.participants || [], parsed).list }));
-    toast.success(`명단에서 ${parsed.length}명 인식 · ${result.added}명 추가, ${result.updated}명 갱신`);
+    const techNames = technicians.map((t) => t.name);
+    const cleaned = dropNonNames(form.participants || [], techNames);
+    const result = mergeParticipants(cleaned.list, parsed);
+    setForm((f) => ({ ...f, participants: mergeParticipants(dropNonNames(f.participants || [], techNames).list, parsed).list }));
+    const c = countParticipants(result.list, announcementDate || todayIso());
+    toast.success(
+      `명단에서 ${parsed.length}명 인식 · ${result.added}명 추가, ${result.updated}명 갱신` +
+      (cleaned.removed ? `, 이름이 아닌 항목 ${cleaned.removed}개 정리` : "") +
+      ` · 참여중 ${c.active}명 / 제외 ${c.excluded}명${c.upcoming ? ` / 참여예정 ${c.upcoming}명` : ""} / 총 ${c.total}명`,
+    );
   };
   const reflectParticipantsFromPdf = async () => {
     const path = form.participant_list_pdf_path;
@@ -1589,6 +1598,20 @@ export default function Overlaps() {
                   <Button type="button" size="sm" variant="outline" onClick={addParticipant}><Plus className="h-4 w-4 mr-1" />추가</Button>
                 </div>
               </div>
+              {(() => {
+                const ref = announcementDate || todayIso();
+                const c = countParticipants(form.participants || [], ref);
+                if (!c.total) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="rounded-full bg-primary/15 text-primary px-2 py-0.5 font-semibold">참여중 {c.active}명</span>
+                    <span className="rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-semibold">제외 {c.excluded}명</span>
+                    {c.upcoming > 0 && <span className="rounded-full bg-accent text-accent-foreground px-2 py-0.5 font-semibold">참여예정 {c.upcoming}명</span>}
+                    <span className="rounded-full border px-2 py-0.5 font-semibold">총 {c.total}명</span>
+                    <span className="text-[11px] text-muted-foreground">({announcementDate ? "공고일" : "오늘"} {toDisplayDate(ref)} 기준)</span>
+                  </div>
+                );
+              })()}
               <div className="text-[11px] text-muted-foreground">엑셀 컬럼: 성명(필수), 역할/참여시작일/참여제외일(선택, YYYY.MM.DD 또는 YYYY-MM-DD) · 공고일이 [참여시작일 ≤ 공고일 ≤ 참여제외일] 범위에 드는 인원만 중복도 계산에 포함됩니다.</div>
               {(form.participants || []).length === 0 ? (
                 <div className="text-xs text-muted-foreground">참여 인력이 없습니다.</div>

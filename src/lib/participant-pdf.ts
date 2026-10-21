@@ -20,9 +20,46 @@ const HEADER_WORDS: Record<Col, string[]> = {
 };
 
 const NOT_NAMES = new Set([
-  "성명", "이름", "합계", "소계", "비고", "책임", "참여", "현재", "준공", "준공시", "계속", "기술자", "분야", "담당",
+  "성명", "이름", "합계", "소계", "총계", "비고", "책임", "참여", "현재", "준공", "준공시", "계속", "기술자", "분야", "담당",
   "사업책임", "분야책임", "참여기술자", "명단", "참여자", "기간", "역할", "직위", "직책", "등급", "특급", "고급", "중급", "초급",
+  "도로", "구조", "토목", "건축", "기계", "전기", "소방", "조경", "통신", "품질", "측량", "지질", "교통", "환경", "안전",
+  "수자원", "상하수도", "상수도", "하수도", "도시계획", "단지", "철도", "교량", "터널", "항만", "감리", "설계", "시공",
+  "사업", "관리", "총괄", "보조", "상주", "비상주", "기술사", "기사", "산업기사", "책임자", "담당자", "대표", "대표이사",
+  "회사", "주식회사", "인원", "총원", "순번", "번호", "서명", "날인", "확인", "위와", "이상", "별첨", "첨부", "기술",
+  "예정", "공란", "없음", "해당없음", "소속", "직급", "자격", "자격증", "면허", "경력", "학력", "연락처", "전화", "주소",
+  "발주처", "용역명", "사업명", "계약", "착수", "변경", "당초", "신규", "교체", "철수", "투입", "제외", "업무",
+  "부장", "차장", "과장", "대리", "사원", "이사", "상무", "전무", "사장", "부사장", "실장", "팀장", "소장", "단장", "본부장",
+  "수석", "책임연구원", "선임", "주임", "전문", "일반", "건설", "기술인", "엔지니어", "계속중", "진행중", "참여중",
 ]);
+// 이름 안에 이런 낱말이 들어 있으면 이름이 아니다 (예: 도로분야, 참여기술자명단)
+const NOT_NAME_PARTS = ["분야", "책임", "기술", "명단", "합계", "소계", "담당", "참여", "기간", "업무", "회사", "사업", "용역", "계약"];
+
+// 흔한 한국 성씨 (복성은 첫 글자로 포함)
+const SURNAMES = new Set(
+  ("김이박최정강조윤장임한오서신권황안송류유전홍고문양손배백허남심노하곽성차주우구민나진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가견계단담당대동두려로뢰림매묵미범빈삼상순승시아애야엽영옹요운웅음저점종좌증초태판팽평포피필학해형호화환후흥독근" +
+    "개빙즙").split(""),
+);
+
+/** 2~4글자 한글이면서 성씨로 시작하고, 표 머리글·분야·직급 같은 낱말이 아니면 사람 이름으로 본다. */
+export function isLikelyName(s: string): boolean {
+  const t = (s || "").replace(/\s+/g, "");
+  if (!/^[가-힣]{2,4}$/.test(t)) return false;
+  if (!SURNAMES.has(t[0])) return false;
+  if (NOT_NAMES.has(t)) return false;
+  if (NOT_NAME_PARTS.some((w) => t.includes(w))) return false;
+  return true;
+}
+
+/** 성명 칸의 글자에서 이름을 고른다. 칸에 다른 문장이 섞여 있으면 이름으로 보지 않는다. */
+function pickName(cell: string): string {
+  const s = cell.replace(/\(.*?\)|\[.*?\]/g, " ").replace(/[^가-힣\s]/g, " ").trim();
+  if (!s) return "";
+  const joined = s.replace(/\s+/g, "");
+  if (isLikelyName(joined)) return joined; // "김 철 수"처럼 띄어 쓴 경우
+  const tokens = s.split(/\s+/).filter(Boolean);
+  if (tokens.length <= 2 && isLikelyName(tokens[0])) return tokens[0]; // "홍길동 특급"
+  return "";
+}
 
 const DATE_RE = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
 
@@ -96,11 +133,6 @@ function nearestCol(x: number, cols: Partial<Record<Col, number>>): Col | null {
   return best;
 }
 
-const cleanName = (s: string) => {
-  const t = s.replace(/\s+/g, "").replace(/\(.*?\)/g, "");
-  const m = t.match(/^[가-힣]{2,5}/);
-  return m && !NOT_NAMES.has(m[0]) ? m[0] : "";
-};
 
 function findKnownName(text: string, known: string[]): string {
   const t = text.replace(/\s+/g, "");
@@ -150,11 +182,19 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
         if (!c) continue;
         (byCol[c] ||= []).push(it.str);
       }
-      name = cleanName((byCol.name || []).join(""));
+      const nameCell = (byCol.name || []).join(" ");
       role = (byCol.role || []).join(" ").replace(/\s+/g, " ").trim();
       if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x, cols!) !== "birth");
-      const known1 = findKnownName(text, known);
-      if (known1 && (!name || !known.includes(name))) name = known1;
+      // 1) 성명 칸에 등록된 기술자 이름 → 그대로 인정
+      const knownInCell = findKnownName(nameCell, known);
+      if (knownInCell) name = knownInCell;
+      else {
+        // 2) 성명 칸이 사람 이름 모양이고, 같은 줄에 참여 날짜가 있어야 인정 (머리글·합계·안내문 제외)
+        const guess = pickName(nameCell);
+        if (guess && dates.length) name = guess;
+        // 3) 칸이 어긋난 경우: 같은 줄에 등록된 기술자 이름과 날짜가 함께 있으면 인정
+        else if (dates.length) name = findKnownName(text, known);
+      }
       if (!name) continue;
       let start = "";
       let end = "";
@@ -242,4 +282,33 @@ export function mergeParticipants<T extends { name: string; role?: string; start
     }
   }
   return { list, added, updated };
+}
+
+/**
+ * 기준일(공고일 또는 오늘) 기준으로 참여중·제외·참여예정 인원을 센다.
+ * 제외: '참여제외' 체크했거나 참여제외일이 기준일 이전(같은 날 포함). 참여예정: 참여시작일이 기준일 이후.
+ */
+export function countParticipants(
+  list: { name?: string; start_date?: string | null; end_date?: string | null; excluded?: boolean }[],
+  refDate: string,
+): { active: number; excluded: number; upcoming: number; total: number } {
+  let active = 0, excluded = 0, upcoming = 0;
+  for (const p of list) {
+    if (!(p.name || "").trim()) continue;
+    if (p.excluded || (p.end_date && p.end_date <= refDate)) excluded += 1;
+    else if (p.start_date && p.start_date > refDate) upcoming += 1;
+    else active += 1;
+  }
+  return { active, excluded, upcoming, total: active + excluded + upcoming };
+}
+
+/** 예전 자동반영 때 잘못 들어간 항목(사람 이름 모양도 아니고 등록된 기술자도 아닌 것)을 걸러낸다. */
+export function dropNonNames<T extends { name: string }>(list: T[], knownNames: string[] = []): { list: T[]; removed: number } {
+  const known = new Set(knownNames.map((n) => n.replace(/\s+/g, "")));
+  const kept = list.filter((p) => {
+    const n = (p.name || "").replace(/\s+/g, "");
+    // 예전 방식은 한글 2~5글자만 넣었으므로, 한글로만 된 것만 다시 확인한다 (영문 이름 등 직접 입력은 그대로)
+    return !n || !/^[가-힣]+$/.test(n) || known.has(n) || isLikelyName(n);
+  });
+  return { list: kept, removed: list.length - kept.length };
 }
