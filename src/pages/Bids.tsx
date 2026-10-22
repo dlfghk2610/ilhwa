@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BidParticipationBadge, BidParticipationSelect } from "@/components/BidParticipation";
 import { matchesParticipation, type ParticipationFilter, type ParticipationType } from "@/lib/bid-participation";
-import { autoOpenTargets, isPastOpening, loadKeepOngoing, setKeepOngoing } from "@/lib/bid-opening";
+import { autoOpenTargets, isOpenedBid, loadKeepOngoing, setKeepOngoing } from "@/lib/bid-opening";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -490,12 +490,12 @@ export default function Bids() {
     const { error } = await supabase.from("bid_participations").update({ status: next } as any).eq("id", r.id);
     if (error) { toast.error(error.message); return; }
     // 개찰 1시간이 지난 사업을 직접 진행중으로 되돌리면 다시 자동으로 옮기지 않는다
-    setKeepOngoing(user?.id, r.id, next !== "개찰완료" && isPastOpening(r.opening_at));
+    setKeepOngoing(user?.id, r.id, next !== "개찰완료" && isOpenedBid(r));
     setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
     toast.success(next === "개찰완료" ? "개찰완료 탭으로 옮겼습니다." : "진행중 탭으로 옮겼습니다.");
   };
 
-  // 개찰일시로부터 1시간이 지난 사업은 자동으로 개찰완료로 옮긴다 (1분마다 확인)
+  // 입찰참가시작일이 있고 개찰일시로부터 1시간이 지난 사업은 자동으로 개찰완료로 옮긴다 (1분마다 확인)
   const autoMovingRef = useRef(false);
   useEffect(() => {
     const run = async () => {

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { DashboardBackground } from "@/components/DashboardBackground";
 import { BidParticipationBadge } from "@/components/BidParticipation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { isPastOpening } from "@/lib/bid-opening";
+import { isOpenedBid } from "@/lib/bid-opening";
 
 import {
   DEFAULT_TF, LEGACY_BG_KEYS, cachedAccountBg, clearAccountBg, deviceForWidth, loadAccountBg,
@@ -25,7 +25,7 @@ const fmtDT = (iso: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null; participation_type: string | null };
+type UpcomingBid = { id: string; project_name: string; client: string | null; bid_end_at: string | null; opening_at: string | null; bid_start_date: string | null; participation_type: string | null };
 
 const fileToCompressedDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -182,7 +182,7 @@ export default function Index() {
       const in7days = new Date(Date.now() + 7 * 86400000);
       const { data } = await (supabase as any)
         .from("bid_participations")
-        .select("id, project_name, client, bid_end_at, opening_at, participation_type")
+        .select("id, project_name, client, bid_end_at, opening_at, bid_start_date, participation_type")
         .not("bid_end_at", "is", null)
         .lte("bid_end_at", in7days.toISOString())
         .order("bid_end_at", { ascending: true });
@@ -193,8 +193,8 @@ export default function Index() {
   useEffect(() => {
     const now = new Date(nowTick);
     setUpcomingOpenings(allUpcoming.filter((b) => {
-      // 개찰일시로부터 1시간이 지나면 숨김
-      if (isPastOpening(b.opening_at, now)) return false;
+      // 입찰참가시작일이 있고 개찰일시로부터 1시간이 지나면 숨김 (시작일이 없으면 PQ 단계로 보고 계속 표시)
+      if (isOpenedBid(b, now)) return false;
       const ref = b.opening_at || b.bid_end_at;
       if (!ref) return false;
       const refDate = new Date(ref);
