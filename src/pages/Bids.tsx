@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BidParticipationBadge, BidParticipationSelect } from "@/components/BidParticipation";
 import { matchesParticipation, type ParticipationFilter, type ParticipationType } from "@/lib/bid-participation";
+import { autoOpenTargets, isPastOpening, loadKeepOngoing, setKeepOngoing } from "@/lib/bid-opening";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -488,9 +489,31 @@ export default function Bids() {
     const next = isOpened(r) ? "검토중" : "개찰완료";
     const { error } = await supabase.from("bid_participations").update({ status: next } as any).eq("id", r.id);
     if (error) { toast.error(error.message); return; }
+    // 개찰 1시간이 지난 사업을 직접 진행중으로 되돌리면 다시 자동으로 옮기지 않는다
+    setKeepOngoing(user?.id, r.id, next !== "개찰완료" && isPastOpening(r.opening_at));
     setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
     toast.success(next === "개찰완료" ? "개찰완료 탭으로 옮겼습니다." : "진행중 탭으로 옮겼습니다.");
   };
+
+  // 개찰일시로부터 1시간이 지난 사업은 자동으로 개찰완료로 옮긴다 (1분마다 확인)
+  const autoMovingRef = useRef(false);
+  useEffect(() => {
+    const run = async () => {
+      if (autoMovingRef.current) return;
+      const ids = autoOpenTargets(rows, new Date(), loadKeepOngoing(user?.id));
+      if (!ids.length) return;
+      autoMovingRef.current = true;
+      const { error } = await supabase.from("bid_participations").update({ status: "개찰완료" } as any).in("id", ids);
+      autoMovingRef.current = false;
+      if (error) return;
+      const set = new Set(ids);
+      setRows((prev) => prev.map((x) => (set.has(x.id) ? { ...x, status: "개찰완료" } : x)));
+      toast.info(`개찰 후 1시간이 지난 ${ids.length}건을 개찰완료 탭으로 옮겼습니다.`);
+    };
+    run();
+    const t = window.setInterval(run, 60_000);
+    return () => window.clearInterval(t);
+  }, [rows, user?.id]);
 
   const filtered = useMemo(() => rows.filter((r) => (tab === "opened" ? isOpened(r) : !isOpened(r))).filter((r) =>
     tab === "opened" || matchesParticipation(r.participation_type, participationTab)
