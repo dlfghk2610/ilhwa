@@ -80,7 +80,7 @@ const mapItem = (it: string) => ({
   bidNtceOrd: getTag(it, ["bidDegree"]),
   projectName: getTag(it, ["bidnmKor"]),
   client: "한국토지주택공사",
-  demandInstt: getTag(it, ["zoneHqCd"]),
+  demandInstt: getTag(it, ["zoneHqCd"]).replace(/\s+/g, ""),
   announcementDate: normDate(getTag(it, ["tndrbidRegDt"])),
   bidBeginDate: normDate(getTag(it, ["tndrdocAcptBgninDtm"])),
   bidCloseDate: normDate(getTag(it, ["tndrdocAcptEndDtm"])),
@@ -91,7 +91,7 @@ const mapItem = (it: string) => ({
   noticeType: getTag(it, ["cstrtnJobGbNm"]),
   contractMethod: getTag(it, ["tndrCtrctMedCd"]),
   bidMethod: getTag(it, ["sunjungNm"]),
-  region: getTag(it, ["zoneHqCd"]),
+  region: getTag(it, ["zoneHqCd"]).replace(/\s+/g, ""),
   status: getTag(it, ["bidProgrsStatus"]),
 });
 

@@ -251,6 +251,7 @@ export default function Bids() {
       status: "검토중",
       participation_type: null,
       notes: [
+        g2bSource === "lh" ? "출처: LH" : "",
         it.bidNtceNo ? `공고번호: ${it.bidNtceNo}-${it.bidNtceOrd}` : "",
         it.noticeType ? `공고종류: ${it.noticeType}` : "",
         it.contractMethod ? `계약방법: ${it.contractMethod}` : "",
@@ -304,17 +305,20 @@ export default function Bids() {
 
   useEffect(() => { load(); }, []);
 
-  // 나라장터에서 불러온 사업: 공고번호로 재조회해 입찰·개찰 일정 갱신
+  // 나라장터/LH에서 불러온 사업: 공고번호로 재조회해 입찰·개찰 일정 갱신
   const [syncing, setSyncing] = useState(false);
   const syncFromG2B = async () => {
     const targets = rows
       .map((r) => ({ r, m: (r.notes || "").match(/공고번호:\s*([A-Za-z0-9]+)(?:-(\d+))?/) }))
       .filter((x) => x.m);
-    if (targets.length === 0) { toast.info("나라장터에서 불러온 사업이 없습니다."); return; }
+    if (targets.length === 0) { toast.info("나라장터·LH에서 불러온 사업이 없습니다."); return; }
     setSyncing(true);
     let updated = 0;
     for (const { r, m } of targets) {
-      const { data } = await supabase.functions.invoke("g2b-bids", { body: { bidNtceNo: m![1], numOfRows: 50 } });
+      const isLh = /출처:\s*LH/.test(r.notes || "") || (r.client === "한국토지주택공사" && /^\d{7}$/.test(m![1]));
+      const { data } = isLh
+        ? await supabase.functions.invoke("lh-bids", { body: { bidNum: m![1] } })
+        : await supabase.functions.invoke("g2b-bids", { body: { bidNtceNo: m![1], numOfRows: 50 } });
       const list: G2BItem[] = data?.items || [];
       if (!list.length) continue;
       // 가장 최신 차수(정정공고 포함) 사용
