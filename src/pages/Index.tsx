@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { DashboardBackground } from "@/components/DashboardBackground";
 import { BidParticipationBadge } from "@/components/BidParticipation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { isPastOpening } from "@/lib/bid-opening";
 
 import {
   DEFAULT_TF, LEGACY_BG_KEYS, cachedAccountBg, clearAccountBg, deviceForWidth, loadAccountBg,
@@ -169,27 +170,39 @@ export default function Index() {
   }, [bgUrl]);
 
 
+  const [allUpcoming, setAllUpcoming] = useState<UpcomingBid[]>([]);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const now = new Date();
-      const in7days = new Date(now.getTime() + 7 * 86400000);
+      const in7days = new Date(Date.now() + 7 * 86400000);
       const { data } = await (supabase as any)
         .from("bid_participations")
         .select("id, project_name, client, bid_end_at, opening_at, participation_type")
         .not("bid_end_at", "is", null)
         .lte("bid_end_at", in7days.toISOString())
         .order("bid_end_at", { ascending: true });
-      const filtered = ((data || []) as UpcomingBid[]).filter((b) => {
-        const ref = b.opening_at || b.bid_end_at;
-        if (!ref) return false;
-        const refDate = new Date(ref);
-        // 개찰일(없으면 입찰마감일)의 다음달 1일부터는 숨김
-        const cutoff = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
-        return now < cutoff;
-      });
-      setUpcomingOpenings(filtered);
+      setAllUpcoming((data || []) as UpcomingBid[]);
     })();
   }, []);
+
+  useEffect(() => {
+    const now = new Date(nowTick);
+    setUpcomingOpenings(allUpcoming.filter((b) => {
+      // 개찰일시로부터 1시간이 지나면 숨김
+      if (isPastOpening(b.opening_at, now)) return false;
+      const ref = b.opening_at || b.bid_end_at;
+      if (!ref) return false;
+      const refDate = new Date(ref);
+      // 개찰일(없으면 입찰마감일)의 다음달 1일부터는 숨김
+      const cutoff = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1);
+      return now < cutoff;
+    }));
+  }, [allUpcoming, nowTick]);
 
   useEffect(() => {
     if (!user) return;
