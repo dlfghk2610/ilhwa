@@ -1,16 +1,23 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-// 한국토지주택공사(LH) 입찰공고정보 - 입찰공고일자 기준 목록 조회 (XML)
-const API_URL =
-  "http://openapi.ebid.lh.or.kr/ebid.com.openapi.service.OpenBidInfoList.dev";
+// 한국토지주택공사(LH) 입찰공고정보_GW - 입찰공고일자 기준 목록 조회 (XML, EUC-KR)
+const API_URL = "https://apis.data.go.kr/B552555/OpenBidInfoList/getOpenBidInfo";
+const MAX_PAGES = 10;
+const PAGE_SIZE = 100;
 
 type FetchBody = {
   keyword?: string;
   beginDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
-  pageNo?: number;
+  bidNum?: string;    // 공고번호로 재조회
   numOfRows?: number;
 };
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 const toApiDt = (d: string) => d.replaceAll("-", "");
 
@@ -27,7 +34,10 @@ const decodeXml = (s: string) =>
 const getTag = (xml: string, names: string[]): string => {
   for (const name of names) {
     const m = xml.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`));
-    if (m) return decodeXml(m[1]).trim();
+    if (m) {
+      const v = decodeXml(m[1]).trim();
+      if (v) return v;
+    }
   }
   return "";
 };
@@ -37,15 +47,53 @@ const num = (s: string): number | null => {
   return s && !Number.isNaN(n) ? n : null;
 };
 
-// "2020/01/10 11:00", "2020-01-10", "20200110" 등 → "YYYY-MM-DD HH:mm:ss" / "YYYY-MM-DD"
-const normDate = (s: string, withTime: boolean) => {
+// "2026/10/01 15:00", "20261001" → "YYYY-MM-DD HH:mm:ss"
+const normDate = (s: string) => {
   if (!s) return "";
   const m = s.replace(/[./]/g, "-").match(/(\d{4})-?(\d{2})-?(\d{2})(?:[ T]?(\d{2}):?(\d{2}))?/);
-  if (!m) return s;
-  const date = `${m[1]}-${m[2]}-${m[3]}`;
-  if (!withTime) return date;
-  return `${date} ${m[4] ?? "00"}:${m[5] ?? "00"}:00`;
+  if (!m) return "";
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4] ?? "00"}:${m[5] ?? "00"}:00`;
 };
+
+// 응답 XML 선언의 인코딩(EUC-KR/UTF-8)에 맞춰 디코딩
+const decodeBody = (buf: ArrayBuffer) => {
+  const head = new TextDecoder("ascii").decode(buf.slice(0, 120));
+  const enc = head.match(/encoding="([^"]+)"/i)?.[1]?.toLowerCase() || "utf-8";
+  try {
+    return new TextDecoder(enc).decode(buf);
+  } catch {
+    return new TextDecoder("utf-8").decode(buf);
+  }
+};
+
+const fetchPage = async (key: string, params: Record<string, string>) => {
+  const res = await fetch(`${API_URL}?${new URLSearchParams({ serviceKey: key, ...params })}`);
+  return decodeBody(await res.arrayBuffer());
+};
+
+const isKeyError = (t: string) =>
+  /SERVICE_?KEY_?IS_?NOT_?REGISTERED|SERVICE KEY IS NOT REGISTERED|<returnReasonCode>30</.test(t);
+const isOk = (t: string) => t.includes("<resultCode>00</resultCode>");
+
+const mapItem = (it: string) => ({
+  bidNtceNo: getTag(it, ["bidNum"]),
+  bidNtceOrd: getTag(it, ["bidDegree"]),
+  projectName: getTag(it, ["bidnmKor"]),
+  client: "한국토지주택공사",
+  demandInstt: getTag(it, ["zoneHqCd"]).replace(/\s+/g, ""),
+  announcementDate: normDate(getTag(it, ["tndrbidRegDt"])),
+  bidBeginDate: normDate(getTag(it, ["tndrdocAcptBgninDtm"])),
+  bidCloseDate: normDate(getTag(it, ["tndrdocAcptEndDtm"])),
+  openingDate: normDate(getTag(it, ["openDtm"])),
+  estimatedPrice: num(getTag(it, ["presmtPrc"])),
+  budgetAmount: num(getTag(it, ["fdmtlAmt", "designPrc"])),
+  noticeUrl: "",
+  noticeType: getTag(it, ["cstrtnJobGbNm"]),
+  contractMethod: getTag(it, ["tndrCtrctMedCd"]),
+  bidMethod: getTag(it, ["sunjungNm"]),
+  region: getTag(it, ["zoneHqCd"]).replace(/\s+/g, ""),
+  status: getTag(it, ["bidProgrsStatus"]),
+});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -54,109 +102,72 @@ Deno.serve(async (req) => {
     const serviceKeys = [Deno.env.get("LH_API_KEY"), Deno.env.get("G2B_API_KEY")].filter(
       (k, i, a): k is string => !!k && a.indexOf(k) === i,
     );
-    if (serviceKeys.length === 0) {
-      return new Response(JSON.stringify({ error: "LH API 인증키가 설정되지 않았습니다." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (serviceKeys.length === 0) return json({ error: "LH API 인증키가 설정되지 않았습니다." }, 500);
 
     const body: FetchBody = await req.json().catch(() => ({}));
     const keyword = (body.keyword || "").trim();
-    const pageNo = Math.max(1, Number(body.pageNo) || 1);
-    const numOfRows = Math.min(100, Math.max(1, Number(body.numOfRows) || 50));
+    const bidNum = (body.bidNum || "").replace(/[^0-9]/g, "");
 
-    const today = new Date();
-    const fmt = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const today = new Date(Date.now() + 9 * 3600000); // KST
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
     const endDate = body.endDate || fmt(today);
-    const beginDate = body.beginDate || fmt(new Date(today.getTime() - 30 * 86400000));
-
+    const beginDate = body.beginDate ||
+      fmt(new Date(today.getTime() - (bidNum ? 365 : 30) * 86400000));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(beginDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-      return new Response(JSON.stringify({ error: "날짜 형식이 올바르지 않습니다." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "날짜 형식이 올바르지 않습니다." }, 400);
     }
 
-    let text = "";
-    let lastErr = "";
-    let ok = false;
-    for (const key of serviceKeys) {
-      const params = new URLSearchParams({
-        serviceKey: key,
-        numOfRows: String(numOfRows),
-        pageNo: String(pageNo),
-        tndrbidRegDtStart: toApiDt(beginDate),
-        tndrbidRegDtEnd: toApiDt(endDate),
-      });
-      const res = await fetch(`${API_URL}?${params.toString()}`);
-      text = await res.text();
-      if (text.includes("SERVICE KEY IS NOT REGISTERED")) {
-        lastErr = "SERVICE KEY IS NOT REGISTERED";
-        continue; // 다음 인증키로 재시도
-      }
-      ok = true;
+    const base: Record<string, string> = {
+      tndrbidRegDtStart: toApiDt(beginDate),
+      tndrbidRegDtEnd: toApiDt(endDate),
+    };
+    if (bidNum) base.bidNum = bidNum;
+    const quick = Number(body.numOfRows) === 1; // 연결 확인용
+
+    // 사용할 인증키 결정 (첫 페이지)
+    let key = "";
+    let first = "";
+    let keyRejected = false;
+    for (const k of serviceKeys) {
+      first = await fetchPage(k, { ...base, pageNo: "1", numOfRows: quick ? "1" : String(PAGE_SIZE) });
+      if (isKeyError(first)) { keyRejected = true; continue; }
+      key = k;
       break;
     }
 
-    if (!ok || (text.includes("<resultCode>") && !text.includes("<resultCode>00</resultCode>"))) {
-      const msg = getTag(text, ["resultMsg", "returnReasonCode", "errMsg"]) || lastErr || "알 수 없는 오류";
-      const hint = lastErr
-        ? " 공공데이터포털에서 '한국토지주택공사 입찰공고정보' 서비스 활용신청이 필요합니다."
-        : "";
-      // 200으로 응답해 화면이 오류로 멈추지 않고 안내 메시지만 표시되도록 함
-      return new Response(JSON.stringify({
-        error: `LH API 오류: ${msg}.${hint}`,
-        code: lastErr ? "KEY_NOT_REGISTERED" : "LH_API_ERROR",
+    if (!key || !isOk(first)) {
+      const msg = getTag(first, ["resultMsg", "errMsg", "returnAuthMsg"]) || "알 수 없는 오류";
+      return json({
+        error: keyRejected && !key
+          ? "LH API 오류: 인증키가 LH 입찰공고 서비스에 등록되지 않았습니다. 공공데이터포털에서 '한국토지주택공사 입찰공고정보_GW' 활용신청이 필요합니다."
+          : `LH API 오류: ${msg}`,
+        code: keyRejected && !key ? "KEY_NOT_REGISTERED" : "LH_API_ERROR",
         items: [],
         totalCount: 0,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const totalCount = Number(getTag(text, ["totalCount"])) || 0;
-    const itemBlocks = text.match(/<item>[\s\S]*?<\/item>/g) || [];
-
-    let mapped = itemBlocks.map((it) => ({
-      bidNtceNo: getTag(it, ["bidNum", "bidNtceNo", "tndrbidNum"]),
-      bidNtceOrd: getTag(it, ["bidDegree", "bidNtceOrd"]),
-      projectName: getTag(it, ["bidnmKor", "bidNtceNm", "bidNm"]),
-      client: "한국토지주택공사",
-      demandInstt: getTag(it, ["areaNm", "dminsttNm", "rgnNm"]),
-      announcementDate: normDate(getTag(it, ["tndrbidRegDt", "bidNtceDt", "regDt"]), true),
-      bidBeginDate: normDate(getTag(it, ["bidBgnDt", "tndrbidBgnDt", "bidStartDtm"]), true),
-      bidCloseDate: normDate(getTag(it, ["bidClseDt", "tndrbidClseDt", "bidEndDtm", "tndrbidDdlnDt"]), true),
-      openingDate: normDate(getTag(it, ["openDtm", "opengDt", "openDt"]), true),
-      estimatedPrice: num(getTag(it, ["expectPrc", "presmptPrce", "prearngerPrc", "designPrc"])),
-      budgetAmount: num(getTag(it, ["fdmtlAmt", "asignBdgtAmt"])),
-      noticeUrl: getTag(it, ["bidNtceDtlUrl", "bidNtceUrl", "detailUrl"]),
-      noticeType: getTag(it, ["cstrtnJobGbNm", "ntceKindNm", "jobGbNm"]),
-      contractMethod: getTag(it, ["cntrctCnclsMthdNm", "cntrctMthdNm"]),
-      bidMethod: getTag(it, ["bidMthdNm", "tndrbidMthdNm"]),
-      region: getTag(it, ["areaNm", "prtcptLmtRgnNm"]),
-    }));
-
-    if (keyword) {
-      const kw = keyword.toLowerCase();
-      mapped = mapped.filter((it) => it.projectName.toLowerCase().includes(kw));
+    const totalCount = Number(getTag(first, ["totalCount"])) || 0;
+    const pages = [first];
+    if (!quick) {
+      const lastPage = Math.min(MAX_PAGES, Math.ceil(totalCount / PAGE_SIZE));
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, lastPage - 1) }, (_, i) =>
+          fetchPage(key, { ...base, pageNo: String(i + 2), numOfRows: String(PAGE_SIZE) })),
+      );
+      pages.push(...rest.filter(isOk));
     }
 
-    return new Response(
-      JSON.stringify({
-        totalCount: totalCount || mapped.length,
-        pageNo,
-        numOfRows,
-        items: mapped,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    let items = pages.flatMap((t) => (t.match(/<item>[\s\S]*?<\/item>/g) || []).map(mapItem));
+    if (keyword) {
+      const kw = keyword.toLowerCase();
+      items = items.filter((it) => it.projectName.toLowerCase().includes(kw));
+    }
+    // 최근 공고 먼저
+    items.sort((a, b) => b.announcementDate.localeCompare(a.announcementDate));
+
+    return json({ totalCount: keyword ? items.length : totalCount, items });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: String((e as Error)?.message || e) }, 500);
   }
 });
