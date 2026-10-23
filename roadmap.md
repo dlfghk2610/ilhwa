@@ -3,4 +3,4 @@
 - [x] Verify classification persistence, filters, and status-move preservation with tests.
 - [ ] Verify signed-in desktop/mobile presentation — blocked: requesting user has no matching account for managed preview sign-in.
 - [x] Increase dashboard transparency and keep the sidebar opaque.
-- [x] Extend image edge colors into exposed background space and verify movement and zoom.
+- [x] Extend image edge colors into exposed background space and verify movement and zoom.- [x] Admin can create test/temporary accounts with expiry; expired accounts blocked and auto-removed.
