@@ -179,7 +179,7 @@ export default function AdminUsers() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span>{name}</span>
                           {r.is_admin && <Badge variant="outline" className="border-primary/40 text-primary">관리자</Badge>}
-                          {r.temp && <Badge variant="outline" className="border-accent/50 text-accent-foreground bg-accent/20">임시</Badge>}
+                          {r.temp && <Badge variant="secondary">임시</Badge>}
                         </div>
                         {r.temp && (
                           <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
