@@ -142,8 +142,8 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg gradient-primary text-primary-foreground font-bold text-lg">PQ</div>
-          <CardTitle className="text-2xl">엔지니어링 PQ Manager</CardTitle>
-          <CardDescription>사업수행능력평가 통합 관리 시스템</CardDescription>
+          <CardTitle className="text-2xl">PQ 관리</CardTitle>
+          <CardDescription>사업수행능력평가 관리 시스템</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">
@@ -169,7 +169,7 @@ export default function Auth() {
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}로그인
                 </Button>
                 <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                  <span>아이디(이메일)를 잊으셨나요? 가입 시 사용한 이메일을 확인해주세요.</span>
+                  <span>아이디(이메일)를 잊으셨나요?{"\n"}가입 시 사용한 이메일을 확인해주세요.</span>
                   <button type="button" className="text-primary hover:underline font-medium" onClick={() => { setForgotEmail(email); setForgotOpen(true); }}>
                     비밀번호 찾기
                   </button>
