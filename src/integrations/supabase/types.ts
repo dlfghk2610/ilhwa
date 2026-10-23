@@ -1020,6 +1020,41 @@ export type Database = {
         }
         Relationships: []
       }
+      temp_accounts: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          label: string | null
+          login_email: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          label?: string | null
+          login_email: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          label?: string | null
+          login_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "temp_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
