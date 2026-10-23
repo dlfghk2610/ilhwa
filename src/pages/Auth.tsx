@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { isTempExpired } from "@/lib/temp-accounts";
 
 const schema = z.object({
   email: z.string().trim().email("올바른 이메일을 입력하세요").max(255),
@@ -70,7 +71,17 @@ export default function Auth() {
     // 관리자 승인 여부 확인
     const uid = signInData.user?.id;
     if (uid) {
-      const { data: prof } = await supabase.from("profiles").select("approved").eq("id", uid).maybeSingle();
+      const [{ data: prof }, { data: temp }] = await Promise.all([
+        supabase.from("profiles").select("approved").eq("id", uid).maybeSingle(),
+        supabase.from("temp_accounts").select("expires_at").eq("user_id", uid).maybeSingle(),
+      ]);
+      if (temp && isTempExpired(temp.expires_at)) {
+        await supabase.auth.signOut();
+        setSubmitting(false);
+        toast.error("사용기한이 지난 임시 계정입니다. 관리자에게 문의해주세요.");
+        supabase.functions.invoke("admin-temp-accounts", { body: { action: "cleanup" } });
+        return;
+      }
       if (!prof?.approved) {
         await supabase.auth.signOut();
         setSubmitting(false);
