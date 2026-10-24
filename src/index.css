@@ -57,6 +57,17 @@
     --sidebar-accent-foreground: 210 30% 95%;
     --sidebar-border: 215 30% 20%;
     --sidebar-ring: 200 85% 50%;
+
+    /* 입찰 상태 파스텔 무지개 */
+    --status-1: 0 85% 86%;
+    --status-2: 28 90% 84%;
+    --status-3: 50 90% 80%;
+    --status-4: 130 50% 80%;
+    --status-5: 190 65% 80%;
+    --status-6: 215 75% 84%;
+    --status-7: 240 55% 86%;
+    --status-8: 275 55% 86%;
+    --status-fg: 215 30% 18%;
   }
 
   .dark {
