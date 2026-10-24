@@ -24,6 +24,7 @@ export type Database = {
           client: string | null
           created_at: string
           created_by: string
+          custom_links: string[]
           estimated_amount: number | null
           evaluation_types: string[]
           id: string
@@ -52,6 +53,7 @@ export type Database = {
           client?: string | null
           created_at?: string
           created_by: string
+          custom_links?: string[]
           estimated_amount?: number | null
           evaluation_types?: string[]
           id?: string
@@ -80,6 +82,7 @@ export type Database = {
           client?: string | null
           created_at?: string
           created_by?: string
+          custom_links?: string[]
           estimated_amount?: number | null
           evaluation_types?: string[]
           id?: string
