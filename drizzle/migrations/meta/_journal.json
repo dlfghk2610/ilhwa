@@ -29,6 +29,13 @@
       "when": 1792756526832,
       "tag": "0003_temp_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792817048503,
+      "tag": "0004_bid_custom_links",
+      "breakpoints": true
     }
   ]
 }
