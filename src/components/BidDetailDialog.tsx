@@ -159,4 +159,3 @@ export const BidDetailDialog = ({ row, opened, classifying, fmtDT, dDisplay, onC
   );
 };
 
-export { linkHost };
