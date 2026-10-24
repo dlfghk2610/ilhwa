@@ -8,3 +8,4 @@
 - Store dashboard background images per account in private storage referenced from the user's profile (with per-device-type transforms), using localStorage only as a per-user cache, so backgrounds follow the account across devices and never leak between accounts.
 - Parse participant-list PDFs through the shared participant PDF module (header-column detection with registered-technician fallback, Korean cMaps served from public/cmaps) so imports stay consistent and testable.
 - Create admin test/temporary accounts only through the admin-temp-accounts edge function (service role, admin check) with expiry kept in the admin-only-writable temp_accounts table, so users can never extend their own access.
+- Keep bid notice links parsed from notes and user-added links (bid_participations.custom_links) in the shared bid-links module and show them only as buttons in the bid detail dialog, so imported and manual links behave the same.

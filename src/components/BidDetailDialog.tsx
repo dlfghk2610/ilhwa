@@ -123,7 +123,7 @@ export const BidDetailDialog = ({ row, opened, classifying, fmtDT, dDisplay, onC
             <Item label="공고일">{row.announcement_date}</Item>
             <Item label="PQ마감">{row.pq_due_date}</Item>
             <Item label="입찰시작">{row.bid_start_date}</Item>
-            <Item label="입찰마감">{row.bid_end_at ? <>{fmtDT(row.bid_end_at)} <span className="text-xs text-destructive">({dDisplay(row.bid_end_at)})</span></> : null}</Item>
+            <Item label="입찰마감">{row.bid_end_at ? <>{fmtDT(row.bid_end_at)} <span className="block text-xs text-destructive whitespace-nowrap">{dDisplay(row.bid_end_at)}</span></> : null}</Item>
             <Item label="개찰일시">{row.opening_at ? fmtDT(row.opening_at) : null}</Item>
             <Item label="추정금액">{row.estimated_amount ? `${Number(row.estimated_amount).toLocaleString()}원` : null}</Item>
             <Item label="협정승인일">{row.agreement_approval_date}</Item>
