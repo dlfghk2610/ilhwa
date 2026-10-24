@@ -411,6 +411,7 @@ export default function Bids() {
       status: row.status || "검토중",
       participation_type: row.participation_type || null,
       notes: row.notes || "",
+      custom_links: row.custom_links || [],
       notify_hours_before: row.notify_hours_before ?? 24,
       notified_at: row.notified_at,
     });
@@ -853,6 +854,21 @@ export default function Bids() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* 카드/행을 누르면 뜨는 상세 정보 창 (바깥을 누르면 닫힘) */}
+        <BidDetailDialog
+          row={detailRow}
+          opened={detailRow ? isOpened(detailRow) : false}
+          classifying={!!detailRow && classifyingId === detailRow.id}
+          fmtDT={fmtDT}
+          dDisplay={dDisplay}
+          onClose={() => setDetailId(null)}
+          onEdit={() => { const r = detailRow; setDetailId(null); if (r) openEdit(r); }}
+          onMove={() => { if (detailRow) moveRow(detailRow); }}
+          onDelete={() => { const r = detailRow; setDetailId(null); if (r) setDeleteId(r.id); }}
+          onClassify={(v) => { if (detailRow) classifyRow(detailRow, v); }}
+          onLinksChange={(links) => detailRow ? saveLinks(detailRow, links) : Promise.resolve(false)}
+        />
 
         {/* 나라장터/LH 불러오기 Dialog */}
         <Dialog open={g2bOpen} onOpenChange={setG2bOpen}>
