@@ -23,7 +23,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronDown, ChevronRight, CloudDownload, RefreshCw, ArrowRightLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Bell, X, ChevronRight, CloudDownload, RefreshCw, ArrowRightLeft } from "lucide-react";
+import { BidDetailDialog } from "@/components/BidDetailDialog";
 
 // 나라장터 공고 항목
 type G2BItem = {
@@ -83,6 +84,7 @@ type BidRow = {
   status: string | null;
   participation_type: ParticipationType | null;
   notes: string | null;
+  custom_links: string[];
   notify_hours_before: number;
   notified_at: string | null;
 };
@@ -104,6 +106,7 @@ const emptyForm = (): Omit<BidRow, "id"> => ({
   status: "검토중",
   participation_type: null,
   notes: "",
+  custom_links: [],
   notify_hours_before: 24,
   notified_at: null,
 });
@@ -147,7 +150,6 @@ export default function Bids() {
   const [form, setForm] = useState<Omit<BidRow, "id">>(emptyForm());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<number>(0);
 
   // 나라장터/LH 불러오기
@@ -275,13 +277,6 @@ export default function Bids() {
     setG2bImporting(false);
   };
 
-  const toggleExpand = (id: string) => {
-    setExpanded((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  };
 
   const load = async () => {
     setLoading(true);
@@ -297,6 +292,7 @@ export default function Bids() {
         participants: Array.isArray(r.participants) ? r.participants : [],
         evaluation_types: r.evaluation_types || [],
         service_types: r.service_types || [],
+        custom_links: r.custom_links || [],
       }));
       setRows(normalized);
     }
@@ -484,6 +480,14 @@ export default function Bids() {
     setRows(prev => prev.map(x => x.id === r.id ? { ...x, participation_type } : x));
     toast.success(`참여 구분을 ${participation_type || "미분류"}로 변경했습니다.`);
   };
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detailRow = detailId ? rows.find((r) => r.id === detailId) ?? null : null;
+  const saveLinks = async (r: BidRow, custom_links: string[]) => {
+    const { error } = await supabase.from("bid_participations").update({ custom_links }).eq("id", r.id);
+    if (error) { toast.error("링크를 저장하지 못했습니다."); return false; }
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, custom_links } : x));
+    return true;
+  };
   const isOpened = (r: BidRow) => r.status === "개찰완료";
   const tabCounts = useMemo(() => ({
     ongoing: rows.filter((r) => !isOpened(r)).length,
@@ -610,7 +614,7 @@ export default function Bids() {
                   const urgent = end && end - Date.now() < r.notify_hours_before * 3600000 && end > Date.now();
                   const expired = end && end <= Date.now();
                   return (
-                    <TableRow key={r.id} className={urgent ? "bg-destructive/5" : ""}>
+                    <TableRow key={r.id} className={"cursor-pointer " + (urgent ? "bg-destructive/5" : "")} onClick={() => setDetailId(r.id)} title="눌러서 상세 정보 보기">
                       <TableCell className="font-medium w-[220px] min-w-[180px] max-w-[220px]"><div className="mb-1.5"><BidParticipationBadge value={r.participation_type} /></div><div className="line-clamp-3 break-words leading-snug" title={r.project_name}>{r.project_name}</div></TableCell>
                       <TableCell className="min-w-[110px] max-w-[160px]"><div className="line-clamp-2 break-words">{r.client || "-"}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{r.announcement_date || "-"}</TableCell>
@@ -626,7 +630,7 @@ export default function Bids() {
                           <Bell className="h-3 w-3" /> {r.notify_hours_before}h
                         </div>
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap cursor-default" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-1 w-28 ml-auto"><BidParticipationSelect value={r.participation_type} label={`${r.project_name} 참여 구분`} disabled={classifyingId === r.id} onChange={v => classifyRow(r, v)} /></div>
                         <Button size="icon" variant="ghost" className="h-8 w-8" title={isOpened(r) ? "진행중으로 이동" : "개찰완료로 이동"} onClick={() => moveRow(r)}><ArrowRightLeft className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
@@ -653,15 +657,13 @@ export default function Bids() {
                 const end = r.bid_end_at ? new Date(r.bid_end_at).getTime() : 0;
                 const urgent = end && end - Date.now() < r.notify_hours_before * 3600000 && end > Date.now();
                 const expired = end && end <= Date.now();
-                const isOpen = expanded.has(r.id);
                 return (
                   <li key={r.id} className={"bg-card " + (urgent ? "bg-destructive/5" : "")}>
                     <button
                       type="button"
-                      onClick={() => toggleExpand(r.id)}
-                      className="w-full flex items-start gap-2 px-3 py-3 text-left"
+                      onClick={() => setDetailId(r.id)}
+                      className="w-full flex items-start gap-2 px-3 py-3 text-left hover:bg-muted/40 transition-colors"
                     >
-                      {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
                       <div className="flex-1 min-w-0">
                         <div className="mb-1.5"><BidParticipationBadge value={r.participation_type} /></div>
                         <div className="flex items-start gap-2">
@@ -673,25 +675,8 @@ export default function Bids() {
                           입찰마감: {fmtDT(r.bid_end_at)} {r.bid_end_at && <span className="ml-1">({dDisplay(r.bid_end_at)})</span>}
                         </div>
                       </div>
+                      <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
                     </button>
-                    {isOpen && (
-                      <div className="px-3 pb-3 pl-9 space-y-1 text-xs">
-                        <div className="pb-2"><BidParticipationSelect value={r.participation_type} label={`${r.project_name} 참여 구분`} disabled={classifyingId === r.id} onChange={v => classifyRow(r, v)} /></div>
-                        <div><span className="text-muted-foreground">발주처: </span>{r.client || "-"}</div>
-                        <div><span className="text-muted-foreground">공고일: </span>{r.announcement_date || "-"}</div>
-                        <div><span className="text-muted-foreground">PQ마감: </span>{r.pq_due_date || "-"}</div>
-                        <div><span className="text-muted-foreground">입찰시작: </span>{r.bid_start_date || "-"}</div>
-                        <div><span className="text-muted-foreground">개찰일시: </span>{fmtDT(r.opening_at)}</div>
-                        <div><span className="text-muted-foreground">추정금액: </span>{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</div>
-                        <div><span className="text-muted-foreground">상태: </span>{r.status || "-"}</div>
-                        <div className="flex items-center gap-1"><Bell className="h-3 w-3" />{r.notify_hours_before}h</div>
-                        <div className="grid grid-cols-3 gap-2 pt-2">
-                          <Button size="sm" variant="outline" className="px-1" onClick={() => moveRow(r)}><ArrowRightLeft className="h-3 w-3 mr-1" />{isOpened(r) ? "진행중으로" : "개찰완료로"}</Button>
-                          <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="h-3 w-3 mr-1" />수정</Button>
-                          <Button size="sm" variant="outline" onClick={() => setDeleteId(r.id)}><Trash2 className="h-3 w-3 mr-1 text-destructive" />삭제</Button>
-                        </div>
-                      </div>
-                    )}
                   </li>
                 );
               })}
