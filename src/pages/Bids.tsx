@@ -53,7 +53,7 @@ const kstToIso = (s: string): string | null => {
 const kstToDate = (s: string): string => (s ? s.slice(0, 10) : "");
 
 const EVAL_TYPES = ["평가", "전략", "사후", "소규모", "기후"];
-const STATUS_OPTIONS = ["검토중", "PQ제출", "입찰참여", "낙찰", "탈락", "포기", "완료", "개찰완료"];
+import { STATUS_OPTIONS, BidStatusPicker } from "@/components/BidStatus";
 
 const clampDate = (v: string) => {
   if (!v) return "";
@@ -503,6 +503,13 @@ export default function Bids() {
     setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
     toast.success(next === "개찰완료" ? "개찰완료 탭으로 옮겼습니다." : "진행중 탭으로 옮겼습니다.");
   };
+  const changeStatus = async (r: BidRow, next: string) => {
+    const { error } = await supabase.from("bid_participations").update({ status: next } as any).eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    if (isOpened(r) && next !== "개찰완료") setKeepOngoing(user?.id, r.id, isOpenedBid(r));
+    setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+    toast.success(`상태를 '${next}'(으)로 바꿨습니다.`);
+  };
 
   // 입찰참가시작일이 있고 개찰일시로부터 1시간이 지난 사업은 자동으로 개찰완료로 옮긴다 (1분마다 확인)
   const autoMovingRef = useRef(false);
@@ -625,7 +632,7 @@ export default function Bids() {
                       <TableCell className="whitespace-nowrap">{fmtDT(r.opening_at)}</TableCell>
                       <TableCell className={"whitespace-nowrap " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "")}>{dDisplay(r.bid_end_at)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{r.estimated_amount ? Number(r.estimated_amount).toLocaleString() : "-"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{r.status || "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap cursor-default" onClick={(e) => e.stopPropagation()}><BidStatusPicker value={r.status} label={`${r.project_name} 상태`} onChange={(s) => changeStatus(r, s)} /></TableCell>
                       <TableCell className="whitespace-nowrap text-xs">
                         <div className="flex items-center gap-1">
                           <Bell className="h-3 w-3" /> {r.notify_hours_before}h
@@ -660,16 +667,18 @@ export default function Bids() {
                 const expired = end && end <= Date.now();
                 return (
                   <li key={r.id} className={"bg-card " + (urgent ? "bg-destructive/5" : "")}>
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setDetailId(r.id)}
-                      className="w-full flex items-start gap-2 px-3 py-3 text-left hover:bg-muted/40 transition-colors"
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailId(r.id); } }}
+                      className="w-full flex items-start gap-2 px-3 py-3 text-left hover:bg-muted/40 transition-colors cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="mb-1.5"><BidParticipationBadge value={r.participation_type} /></div>
                         <div className="flex items-start gap-2">
                           <div className="font-medium text-sm break-words line-clamp-3 flex-1">{r.project_name}</div>
-                          {r.status && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{r.status}</span>}
+                          <BidStatusPicker value={r.status} label={`${r.project_name} 상태`} onChange={(s) => changeStatus(r, s)} />
                         </div>
                         {r.client && <div className="text-xs text-muted-foreground mt-0.5 truncate">{r.client}</div>}
                         <div className={"text-xs mt-1 " + (expired ? "text-muted-foreground" : urgent ? "text-destructive font-semibold" : "text-muted-foreground")}>
@@ -677,7 +686,7 @@ export default function Bids() {
                         </div>
                       </div>
                       <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                    </button>
+                    </div>
                   </li>
                 );
               })}
