@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { blankTechDoc, cleanTechDocs, normalizeTechDocs, orderProjectPdfPaths, techDocPathsFor, type TechDoc } from "@/lib/overlap-tech-docs";
 import { AppLayout } from "@/components/AppLayout";
 import { projectFileName } from "@/lib/filename";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +84,7 @@ type OverlapRow = {
   // new array fields
   amendments: Amendment[];
   suspensions: Suspension[];
+  technician_documents: TechDoc[];
 };
 
 type Unit = "won" | "k" | "m";
@@ -151,7 +153,7 @@ const emptyForm = (): Omit<OverlapRow, "id"> => ({
   original_contract_pdf_path: null, contract_change_pdf_path: null,
   end_date_change_pdf_path: null, suspension_pdf_path: null,
   agreement_pdf_path: null, participant_list_pdf_path: null,
-  amendments: [], suspensions: [],
+  amendments: [], suspensions: [], technician_documents: [],
   is_lh: false,
   lh_main_contract_amount: null, lh_main_end_date: "", lh_main_end_text: null,
   lh_mgmt_contract_amount: null, lh_mgmt_end_date: "", lh_mgmt_end_text: null,
@@ -243,7 +245,7 @@ export default function Overlaps() {
           resume_pdf_path: null,
         }];
       }
-      return { ...r, participants: Array.isArray(r.participants) ? r.participants : [], amendments, suspensions };
+      return { ...r, participants: Array.isArray(r.participants) ? r.participants : [], amendments, suspensions, technician_documents: normalizeTechDocs(r.technician_documents) };
     }));
     if (!techRes.error) setTechnicians(techRes.data || []);
     setLoading(false);
@@ -285,6 +287,7 @@ export default function Overlaps() {
       participant_list_pdf_path: r.participant_list_pdf_path || null,
       amendments: (r.amendments || []).map(a => ({ ...a, id: a.id || uid() })),
       suspensions: (r.suspensions || []).map(s => ({ ...s, id: s.id || uid() })),
+      technician_documents: (r.technician_documents || []).map(d => ({ ...d })),
       is_lh: !!(r as any).is_lh,
       lh_main_contract_amount: (r as any).lh_main_contract_amount ?? null,
       lh_main_end_date: (r as any).lh_main_end_date || "",
@@ -330,6 +333,7 @@ export default function Overlaps() {
       participant_list_pdf_path: form.participant_list_pdf_path || null,
       amendments: cleanAmendments,
       suspensions: cleanSuspensions,
+      technician_documents: cleanTechDocs(form.technician_documents || []),
       is_lh: !!form.is_lh,
       lh_main_contract_amount: num(form.lh_main_contract_amount),
       lh_main_end_date: isISODate(form.lh_main_end_date) ? form.lh_main_end_date : null,
@@ -770,6 +774,74 @@ export default function Overlaps() {
     });
   };
 
+  // ===== 기술자별 서류 =====
+  const updateTechDoc = (id: string, patch: Partial<TechDoc>) =>
+    setForm((f) => ({ ...f, technician_documents: (f.technician_documents || []).map((d) => (d.id === id ? { ...d, ...patch } : d)) }));
+  const removeTechDoc = (id: string) =>
+    setForm((f) => ({ ...f, technician_documents: (f.technician_documents || []).filter((d) => d.id !== id) }));
+  const addTechDoc = () => {
+    const names = Array.from(new Set((form.participants || []).map((p) => (p.name || "").trim()).filter(Boolean)));
+    const preset = selectedTech !== "__all__" && names.includes(selectedTech) ? selectedTech : names.length === 1 ? names[0] : "";
+    setForm((f) => ({ ...f, technician_documents: [...(f.technician_documents || []), blankTechDoc(preset)] }));
+  };
+  const uploadTechDocPdf = async (id: string, file: File) => {
+    const path = await uploadPdfRaw(file, `techdoc-${id}`);
+    if (!path) return;
+    setForm((f) => ({
+      ...f,
+      technician_documents: (f.technician_documents || []).map((d) =>
+        d.id === id ? { ...d, pdf_path: path, label: d.label || file.name.replace(/\.pdf$/i, "") } : d),
+    }));
+  };
+
+  const renderTechDocs = () => {
+    const names = Array.from(new Set((form.participants || []).map((p) => (p.name || "").trim()).filter(Boolean)));
+    const docs = form.technician_documents || [];
+    return (
+      <div className="rounded-md border bg-muted/20 p-2 space-y-1.5">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-xs font-semibold">기술자별 서류 <span className="font-normal text-muted-foreground">(기술자 지정 후 PDF 병합 시 해당 기술자 것만, 참여자 명단 앞에 출력)</span></div>
+          <Button type="button" size="sm" variant="outline" className="h-7" onClick={addTechDoc} disabled={names.length === 0}>
+            <Plus className="h-3.5 w-3.5 mr-1" />서류 추가
+          </Button>
+        </div>
+        {names.length === 0 && <div className="text-[11px] text-muted-foreground">위 '참여중인 인력'에 기술자를 먼저 넣어 주세요.</div>}
+        {docs.length === 0 && names.length > 0 && <div className="text-[11px] text-muted-foreground">등록된 기술자별 서류가 없습니다.</div>}
+        {docs.map((d) => {
+          const inputId = `pdf-techdoc-${d.id}`;
+          const filename = d.pdf_path ? d.pdf_path.split("/").pop() : null;
+          const options = d.technician_name && !names.includes(d.technician_name) ? [d.technician_name, ...names] : names;
+          return (
+            <div key={d.id} className="flex items-center gap-2 flex-wrap">
+              <Select value={d.technician_name || undefined} onValueChange={(v) => updateTechDoc(d.id, { technician_name: v })}>
+                <SelectTrigger className="h-8 w-[130px] text-xs" aria-label="기술자 지정"><SelectValue placeholder="기술자 지정" /></SelectTrigger>
+                <SelectContent>
+                  {options.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input className="h-8 w-[150px] text-xs" placeholder="서류명 (예: 재직증명서)" value={d.label} onChange={(e) => updateTechDoc(d.id, { label: e.target.value })} />
+              <input id={inputId} type="file" accept="application/pdf,.pdf" className="hidden"
+                onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadTechDocPdf(d.id, file); e.target.value = ""; }} />
+              <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => document.getElementById(inputId)?.click()} disabled={uploadingField === `techdoc-${d.id}`}>
+                {uploadingField === `techdoc-${d.id}` ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                {d.pdf_path ? "교체" : "업로드"}
+              </Button>
+              {d.pdf_path && (
+                <button type="button" onClick={() => downloadPdf(d.pdf_path!, `${d.technician_name} ${d.label || "서류"}`.trim())} className="text-xs text-primary underline truncate max-w-[180px]" title={filename || ""}>
+                  <FileTextIcon className="inline h-3 w-3 mr-0.5" />{filename}
+                </button>
+              )}
+              <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeTechDoc(d.id)} aria-label="서류 삭제">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+
 
   const downloadPdf = async (path: string, kind = "") => {
     const { data, error } = await supabase.storage.from("overlap-documents").download(path);
@@ -841,7 +913,10 @@ export default function Overlaps() {
             if (p && !paths.includes(p)) paths.push(p);
           }
         }
-        if (includeParticipantList && r.participant_list_pdf_path) paths.push(r.participant_list_pdf_path);
+        // 기술자별 서류 — 기술자를 지정한 경우 그 기술자 것만, 참여자 명단 바로 앞
+        const techDocs = techDocPathsFor(r.technician_documents || [], selectedTech !== "__all__" ? selectedTech : "");
+        const ordered = orderProjectPdfPaths(paths, techDocs, includeParticipantList ? r.participant_list_pdf_path : null);
+        paths.splice(0, paths.length, ...ordered);
         if (paths.length === 0) continue;
         seq += 1;
         let isFirstPageOfProject = true;
@@ -1687,7 +1762,9 @@ export default function Overlaps() {
                 const path = form[f.key] as string | null;
                 const filename = path ? path.split("/").pop() : null;
                 return (
-                  <div key={f.key as string} className="flex items-center gap-2 flex-wrap">
+                  <Fragment key={f.key as string}>
+                  {f.key === "participant_list_pdf_path" && renderTechDocs()}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="text-xs w-[180px] shrink-0">{f.label}</div>
                     <input
                       id={`pdf-${String(f.key)}`}
@@ -1736,6 +1813,7 @@ export default function Overlaps() {
                       </>
                     )}
                   </div>
+                  </Fragment>
                 );
               })}
             </div>
