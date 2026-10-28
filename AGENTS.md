@@ -9,3 +9,4 @@
 - Parse participant-list PDFs through the shared participant PDF module (header-column detection with registered-technician fallback, Korean cMaps served from public/cmaps) so imports stay consistent and testable.
 - Create admin test/temporary accounts only through the admin-temp-accounts edge function (service role, admin check) with expiry kept in the admin-only-writable temp_accounts table, so users can never extend their own access.
 - Keep bid notice links parsed from notes and user-added links (bid_participations.custom_links) in the shared bid-links module and show them only as buttons in the bid detail dialog, so imported and manual links behave the same.
+- Keep per-technician overlap documents (technician_overlaps.technician_documents) in the shared overlap-tech-docs module, merging only the selected technician's files right before the participant list, so registration and PDF merge order stay consistent.

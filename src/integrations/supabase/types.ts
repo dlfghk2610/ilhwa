@@ -884,6 +884,7 @@ export type Database = {
           suspension_pdf_path: string | null
           suspension_reason: string | null
           suspensions: Json
+          technician_documents: Json
           technician_name: string | null
           updated_at: string
         }
@@ -924,6 +925,7 @@ export type Database = {
           suspension_pdf_path?: string | null
           suspension_reason?: string | null
           suspensions?: Json
+          technician_documents?: Json
           technician_name?: string | null
           updated_at?: string
         }
@@ -964,6 +966,7 @@ export type Database = {
           suspension_pdf_path?: string | null
           suspension_reason?: string | null
           suspensions?: Json
+          technician_documents?: Json
           technician_name?: string | null
           updated_at?: string
         }

@@ -1,0 +1,1 @@
+ALTER TABLE public.technician_overlaps ADD COLUMN IF NOT EXISTS technician_documents jsonb NOT NULL DEFAULT '[]'::jsonb;
