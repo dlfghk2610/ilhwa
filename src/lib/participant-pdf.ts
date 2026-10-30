@@ -186,8 +186,12 @@ function pickPeriod(dates: string[]): { start: string; end: string } {
 export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = []): ParsedParticipant[] {
   const known = [...new Set(knownNames.map((n) => n.replace(/\s+/g, "")).filter((n) => n.length >= 2))];
   const sorted = [...lines].sort((a, b) => a.page - b.page || b.y - a.y);
-  const out: ParsedParticipant[] = [];
+  type Entry = { p: ParsedParticipant; li: number; table: number; weak: boolean; roleCell: string; roleBits: string[] };
+  const entries: Entry[] = [];
+  // 표 안의 각 줄에서 직책 칸에 해당하는 글자 (한 사람의 직책이 위·아래 줄로 나뉘어 있는 경우가 많다)
+  const roleTextAt = new Map<number, { table: number; text: string }>();
   let cols: Partial<Record<Col, number>> | null = null;
+  let table = -1;
   let headerPage = -1;
   let headerY = 0;
 
@@ -195,7 +199,7 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
     const line = sorted[li];
     const hc = headerColumns(line);
     if (isHeader(hc)) {
-      cols = hc; headerPage = line.page; headerY = line.y;
+      cols = hc; headerPage = line.page; headerY = line.y; table = li;
       continue;
     }
     // 두 줄짜리 머리글 (예: 참여기간 아래 시작/종료)
@@ -217,18 +221,24 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
         if (!c) continue;
         (byCol[c] ||= []).push(it.str);
       }
-      const nameCell = (byCol.name || []).join(" ");
+      const namePieces = byCol.name || [];
+      const nameCell = namePieces.join(" ");
       role = (byCol.role || []).join(" ").replace(/\s+/g, " ").trim();
+      if (line.page === headerPage) roleTextAt.set(li, { table, text: role });
+      const hadBirthDate = cols.birth !== undefined && dates.some((d) => nearestCol(d.x, cols!) === "birth");
       if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x, cols!) !== "birth");
+      // 사람 줄이라는 근거: 참여 날짜, 주민등록번호, 생년월일
+      const evidence = dates.length > 0 || ID_RE.test(text) || hadBirthDate;
+      let weak = false;
       // 1) 성명 칸에 등록된 기술자 이름 → 그대로 인정
       const knownInCell = findKnownName(nameCell, known);
       if (knownInCell) name = knownInCell;
       else {
-        // 2) 성명 칸이 사람 이름 모양이고, 같은 줄에 참여 날짜가 있어야 인정 (머리글·합계·안내문 제외)
-        const guess = pickName(nameCell);
-        if (guess && dates.length) name = guess;
-        // 3) 칸이 어긋난 경우: 같은 줄에 등록된 기술자 이름과 날짜가 함께 있으면 인정
-        else if (dates.length) name = findKnownName(text, known);
+        // 2) 성명 칸이 사람 이름 모양이면 인정 (직위가 섞여 있어도 이름 조각을 골라낸다)
+        const guess = pickName(nameCell) || pickNameFromPieces(namePieces);
+        if (guess) { name = guess; weak = !evidence; }
+        // 3) 칸이 어긋난 경우: 같은 줄에 등록된 기술자 이름과 근거가 함께 있으면 인정
+        else if (evidence) name = findKnownName(text, known);
       }
       if (!name) continue;
       let start = "";
@@ -244,13 +254,47 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
         ({ start, end } = pickPeriod(dates.map((d) => d.iso)));
       }
       if (/^\d+$/.test(role) || dates.some((d) => role.includes(d.iso.slice(0, 4)))) role = "";
-      out.push({ name, role: role || undefined, start_date: start, end_date: end });
+      entries.push({ p: { name, start_date: start, end_date: end }, li, table, weak, roleCell: role, roleBits: [] });
     } else {
       name = findKnownName(text, known);
       if (!name) continue;
       const { start, end } = pickPeriod(dates.map((d) => d.iso));
-      out.push({ name, start_date: start, end_date: end });
+      entries.push({ p: { name, start_date: start, end_date: end }, li, table: -1, weak: false, roleCell: "", roleBits: [] });
     }
+  }
+
+  // 직책 칸 글자를 가장 가까운 사람 줄에 모은다 (예: "사 업 / 책 임", "참 여 / 기술자"가 이름 위·아래 줄에 있는 표)
+  const entryAt = new Map(entries.map((e) => [e.li, e]));
+  for (const [li, { table: t, text }] of roleTextAt) {
+    if (!text) continue;
+    const own = entryAt.get(li);
+    if (own) { own.roleBits.push(text); continue; }
+    const line = sorted[li];
+    let best: Entry | null = null;
+    let bestD = Infinity;
+    for (const e of entries) {
+      if (e.table !== t) continue;
+      const el = sorted[e.li];
+      if (el.page !== line.page) continue;
+      const d = Math.abs(el.y - line.y);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    if (best && bestD <= 20) best.roleBits.push(text);
+  }
+
+  const out: ParsedParticipant[] = [];
+  for (const e of [...entries].sort((a, b) => a.li - b.li)) {
+    // 위·아래 줄 순서대로 이어서 판단
+    const bits = [...e.roleBits];
+    const rowText = sorted
+      .map((_, i) => i)
+      .filter((i) => roleTextAt.has(i) && (i === e.li || e.roleBits.includes(roleTextAt.get(i)!.text)))
+      .map((i) => roleTextAt.get(i)!.text)
+      .join(" ") || bits.join(" ");
+    const cls = classifyRole(rowText);
+    if (e.weak && !cls) continue; // 근거도 없고 직책도 없는 줄은 사람으로 보지 않는다
+    const role = cls || e.roleCell;
+    out.push({ ...e.p, ...(role ? { role } : {}) } as ParsedParticipant);
   }
 
   // 같은 사람·같은 시작일은 한 번만
