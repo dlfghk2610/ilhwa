@@ -224,7 +224,7 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
       const namePieces = byCol.name || [];
       const nameCell = namePieces.join(" ");
       role = (byCol.role || []).join(" ").replace(/\s+/g, " ").trim();
-      if (line.page === headerPage) roleTextAt.set(li, { table, text: role });
+      roleTextAt.set(li, { table, text: role });
       const hadBirthDate = cols.birth !== undefined && dates.some((d) => nearestCol(d.x, cols!) === "birth");
       if (cols.birth !== undefined) dates = dates.filter((d) => nearestCol(d.x, cols!) !== "birth");
       // 사람 줄이라는 근거: 참여 날짜, 주민등록번호, 생년월일
