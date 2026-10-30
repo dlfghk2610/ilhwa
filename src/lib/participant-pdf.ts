@@ -186,7 +186,7 @@ function pickPeriod(dates: string[]): { start: string; end: string } {
 export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = []): ParsedParticipant[] {
   const known = [...new Set(knownNames.map((n) => n.replace(/\s+/g, "")).filter((n) => n.length >= 2))];
   const sorted = [...lines].sort((a, b) => a.page - b.page || b.y - a.y);
-  type Entry = { p: ParsedParticipant; li: number; table: number; weak: boolean; roleCell: string; roleBits: string[] };
+  type Entry = { p: ParsedParticipant; li: number; table: number; weak: boolean; roleCell: string; roleBits: { li: number; text: string }[] };
   const entries: Entry[] = [];
   // 표 안의 각 줄에서 직책 칸에 해당하는 글자 (한 사람의 직책이 위·아래 줄로 나뉘어 있는 경우가 많다)
   const roleTextAt = new Map<number, { table: number; text: string }>();
@@ -268,7 +268,7 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
   for (const [li, { table: t, text }] of roleTextAt) {
     if (!text) continue;
     const own = entryAt.get(li);
-    if (own) { own.roleBits.push(text); continue; }
+    if (own) { own.roleBits.push({ li, text }); continue; }
     const line = sorted[li];
     let best: Entry | null = null;
     let bestD = Infinity;
@@ -279,18 +279,13 @@ export function parseParticipantLines(lines: PdfLine[], knownNames: string[] = [
       const d = Math.abs(el.y - line.y);
       if (d < bestD) { bestD = d; best = e; }
     }
-    if (best && bestD <= 20) best.roleBits.push(text);
+    if (best && bestD <= 20) best.roleBits.push({ li, text });
   }
 
   const out: ParsedParticipant[] = [];
   for (const e of [...entries].sort((a, b) => a.li - b.li)) {
     // 위·아래 줄 순서대로 이어서 판단
-    const bits = [...e.roleBits];
-    const rowText = sorted
-      .map((_, i) => i)
-      .filter((i) => roleTextAt.has(i) && (i === e.li || e.roleBits.includes(roleTextAt.get(i)!.text)))
-      .map((i) => roleTextAt.get(i)!.text)
-      .join(" ") || bits.join(" ");
+    const rowText = [...e.roleBits].sort((a, b) => a.li - b.li).map((b) => b.text).join(" ");
     const cls = classifyRole(rowText);
     if (e.weak && !cls) continue; // 근거도 없고 직책도 없는 줄은 사람으로 보지 않는다
     const role = cls || e.roleCell;
