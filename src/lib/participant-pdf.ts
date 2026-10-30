@@ -61,6 +61,41 @@ function pickName(cell: string): string {
   return "";
 }
 
+/**
+ * 성명 칸에 직위(전무, 대표이사 등)가 함께 들어간 경우: PDF 글자 조각마다 이름인지 보고,
+ * 한 글자씩 떨어진 조각("윤", "철")은 이어 붙여 확인한다.
+ */
+function pickNameFromPieces(pieces: string[]): string {
+  const clean = (s: string) => s.replace(/\(.*?\)|\[.*?\]/g, "").replace(/[^가-힣]/g, "");
+  let run = "";
+  const flush = () => {
+    const r = run;
+    run = "";
+    return r.length >= 2 && isLikelyName(r) ? r : "";
+  };
+  for (const piece of pieces) {
+    const c = clean(piece);
+    if (!c) continue;
+    if (c.length === 1) { run += c; continue; }
+    const fromRun = flush();
+    if (fromRun) return fromRun;
+    if (isLikelyName(c)) return c;
+  }
+  return flush();
+}
+
+/** 직책 칸 글자로 역할을 정한다: 총괄(사업책임) / 책임(분야책임) / 참여(참여기술자). */
+export function classifyRole(text: string): "총괄" | "책임" | "참여" | "" {
+  const t = (text || "").replace(/\s+/g, "");
+  if (/총괄|사업책임/.test(t)) return "총괄";
+  if (t.includes("책임")) return "책임";
+  if (t.includes("참여")) return "참여";
+  return "";
+}
+
+// 주민등록번호(앞 6자리-뒤 1자리 이상) — 사람 줄인지 판단하는 근거
+const ID_RE = /\d{6}\s*-\s*[\d*]/;
+
 const DATE_RE = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
 
 const pad = (n: string) => n.padStart(2, "0");
