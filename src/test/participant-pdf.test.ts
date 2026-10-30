@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseParticipantLines, mergeParticipants, countParticipants, dropNonNames, isLikelyName, type PdfLine } from "@/lib/participant-pdf";
+import { classifyRole, parseParticipantLines, mergeParticipants, countParticipants, dropNonNames, isLikelyName, type PdfLine } from "@/lib/participant-pdf";
 
 const line = (y: number, cells: [number, string][], page = 0): PdfLine => ({
   page, y, items: cells.map(([x, str]) => ({ x, w: str.length * 6, str })),
@@ -14,7 +14,7 @@ describe("참여자 명단 PDF 인력 읽기", () => {
       line(713, [[40, "2"], [80, "김 철 수"], [150, "1982-07-01"], [240, "도로"], [340, "2024.02.01"], [440, "현재"]]),
     ];
     expect(parseParticipantLines(lines)).toEqual([
-      { name: "홍길동", role: "사업책임", start_date: "2024-01-15", end_date: "2025-06-30" },
+      { name: "홍길동", role: "총괄", start_date: "2024-01-15", end_date: "2025-06-30" },
       { name: "김철수", role: "도로", start_date: "2024-02-01", end_date: "" },
     ]);
   });
@@ -34,6 +34,39 @@ describe("참여자 명단 PDF 인력 읽기", () => {
     expect(parseParticipantLines(lines, ["정우성"])).toEqual([
       { name: "정우성", start_date: "2024-04-01", end_date: "2024-10-31" },
     ]);
+  });
+
+  it("reads every name without dates and takes 총괄/책임/참여 from 직책 split over the lines above and below", () => {
+    const lines = [
+      line(662, [[65, "분 야"], [108, "직 책"], [211, "성"], [231, "명"], [266, "주민등록번호"], [478, "비 고"]]),
+      line(648, [[106, "사"], [126, "업"], [237, "※"]]),
+      line(643, [[65, "총 괄"], [160, "환 경"], [209, "정재열"], [260, "741011-1******"], [468, "우신이엔씨"]]),
+      line(639, [[106, "책"], [126, "임"]]),
+      line(577, [[106, "분"], [126, "야"]]),
+      line(573, [[160, "환 경"], [209, "윤"], [228, "철"], [260, "760516-1******"]]),
+      line(568, [[106, "책"], [126, "임"]]),
+      line(554, [[106, "참"], [126, "여"]]),
+      line(549, [[160, "환 경"], [209, "신종인"], [260, "740104-1******"]]),
+      line(545, [[106, "기술자"]]),
+    ];
+    expect(parseParticipantLines(lines).map((p) => `${p.name}:${p.role}`)).toEqual(["정재열:총괄", "윤철:책임", "신종인:참여"]);
+  });
+
+  it("picks the name out of a 성명 cell that also holds the job title", () => {
+    const lines = [
+      line(713, [[74, "분 야"], [122, "직 책"], [181, "소 속"], [274, "성"], [299, "명"], [327, "주민등록번호"]]),
+      line(684, [[115, "책"], [140, "임"]]),
+      line(676, [[74, "총 괄"], [161, "(주)우신이엔씨"], [236, "전 무"], [276, "정 재 열"], [322, "741011-*******"]]),
+      line(668, [[115, "기 술 자"]]),
+      line(511, [[68, "수질관리"], [115, "분야책임"]]),
+      line(503, [[161, "(주)우신이엔씨"], [233, "대"], [240, "표"], [246, "이"], [253, "사"], [276, "이 광 석"], [322, "670910-*******"]]),
+      line(495, [[68, "분"], [91, "야"], [115, "기 술 자"]]),
+    ];
+    expect(parseParticipantLines(lines).map((p) => `${p.name}:${p.role}`)).toEqual(["정재열:총괄", "이광석:책임"]);
+  });
+
+  it("maps 직책 words to 총괄, 책임 and 참여", () => {
+    expect(["사업책임", "총괄 책임기술자", "분야책임", "참여기술자", "도로"].map(classifyRole)).toEqual(["총괄", "총괄", "책임", "참여", ""]);
   });
 
   it("updates an existing person's dates instead of adding a duplicate, and adds new people", () => {
